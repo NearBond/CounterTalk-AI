@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: countertalk
+          POSTGRES_PASSWORD: countertalk
+          POSTGRES_DB: countertalk
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U countertalk -d countertalk"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.5"
+          python-version: "3.12"
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      # Creates and migrates countertalk_test on the service above (tests/conftest.py).
+      - run: uv run pytest
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # The CLI from its image: gitleaks-action needs a paid licence for organisation repos.
+      - name: Scan every commit for secrets
+        run: >-
+          docker run --rm -v "$PWD:/repo"
+          -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/repo
+          ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact --verbose
+
+  repo-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Nothing git-ignored is tracked (docs, env files, data, audio, builds)
+        run: |
+          bad=$(git ls-files --cached --ignored --exclude-standard)
+          if [ -n "$bad" ]; then echo "Tracked but git-ignored:"; echo "$bad"; exit 1; fi
