@@ -13,7 +13,7 @@ from countertalk.config import get_settings
 from countertalk.main import create_app
 
 INDEX = "<!doctype html><title>CounterTalk</title><div id=root></div>"
-SECRET = "SECRET_KEY=never-served"
+CANARY = "canary text that must never be served"
 
 
 @pytest.fixture
@@ -23,12 +23,12 @@ def dist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (built / "assets").mkdir(parents=True)
     (built / "index.html").write_text(INDEX, encoding="utf-8")
     (built / "assets" / "app-3f2a1b.js").write_bytes(b"export {};\n")
-    (built / ".env").write_text(SECRET, encoding="utf-8")
-    (built / "assets" / ".hidden").write_text(SECRET, encoding="utf-8")
+    (built / ".env").write_text(CANARY, encoding="utf-8")
+    (built / "assets" / ".hidden").write_text(CANARY, encoding="utf-8")
     for outside in (tmp_path / "backend" / ".env", tmp_path / "web" / "backend" / ".env"):
         outside.parent.mkdir(parents=True, exist_ok=True)
-        outside.write_text(SECRET, encoding="utf-8")
-    (tmp_path / "outside.txt").write_text(SECRET, encoding="utf-8")
+        outside.write_text(CANARY, encoding="utf-8")
+    (tmp_path / "outside.txt").write_text(CANARY, encoding="utf-8")
     monkeypatch.setenv("WEB_DIST_DIR", str(built))
     get_settings.cache_clear()
     return built
@@ -182,7 +182,7 @@ def test_the_api_still_answers_with_the_app_mounted(web_client: TestClient) -> N
 def test_a_dotfile_or_a_path_out_of_dist_never_returns_a_file(web_app: FastAPI, path: str) -> None:
     status, _headers, body = raw_get(web_app, path)
 
-    assert SECRET.encode() not in body
+    assert CANARY.encode() not in body
     # The app shell, or the JSON 404 for anything under /assets/; never a file.
     if path.startswith("/assets/"):
         assert (status, b'"not_found"' in body) == (404, True)
@@ -198,7 +198,7 @@ def test_a_symlink_out_of_dist_is_not_served(dist: Path, tmp_path: Path) -> None
 
     status, _headers, body = raw_get(create_app(), "/assets/linked.txt")
 
-    assert SECRET.encode() not in body
+    assert CANARY.encode() not in body
     assert status == 404
 
 
@@ -214,11 +214,11 @@ def test_a_folder_without_index_html_is_not_served(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     (tmp_path / "dist").mkdir()
-    (tmp_path / "dist" / "notes.txt").write_text(SECRET, encoding="utf-8")
+    (tmp_path / "dist" / "notes.txt").write_text(CANARY, encoding="utf-8")
     monkeypatch.setenv("WEB_DIST_DIR", str(tmp_path / "dist"))
     get_settings.cache_clear()
 
     response = TestClient(create_app()).get("/notes.txt")
 
     assert response.status_code == 404
-    assert SECRET not in response.text
+    assert CANARY not in response.text
