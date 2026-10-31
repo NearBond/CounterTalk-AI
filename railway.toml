@@ -1,0 +1,12 @@
+# Railway's config as code, for when a host exists. The image itself doesn't depend on it.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+# Seconds a new deployment has to answer the health check, migrations included.
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

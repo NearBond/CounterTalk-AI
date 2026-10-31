@@ -1,0 +1,47 @@
+# The build context is this whole folder on a laptop, including what git ignores (docs/,
+# backend/.env, data/). Only backend/ and web/ go in, and inside them only source.
+*
+!backend/
+!web/
+
+# Secrets and settings: every env file except the example.
+**/.env
+**/.env.*
+!backend/.env.example
+**/*.pem
+**/*.key
+
+# Personal data, recordings and local databases.
+**/data/
+**/*.wav
+**/*.mp3
+**/*.m4a
+**/*.aac
+**/*.ogg
+**/*.opus
+**/*.webm
+**/*.flac
+**/*.db
+**/*.sqlite*
+**/*.dump
+
+# Builds, environments and caches (the image makes its own).
+**/.venv/
+**/node_modules/
+web/dist/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/coverage/
+**/*.tsbuildinfo
+**/*.log
+**/.git
+**/.DS_Store
+
+# Not needed to run.
+backend/tests/
+**/*.test.ts
+**/*.test.tsx
+**/*.md

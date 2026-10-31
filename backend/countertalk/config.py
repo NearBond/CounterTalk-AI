@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+psycopg://countertalk:countertalk@127.0.0.1:5432/countertalk"
     # Relative paths are inside backend/. Railway sets /data, its volume.
     DATA_DIR: Path = Path("data")
+    # The built web app (npm run build). Served only if it holds an index.html; in development
+    # Vite serves the app instead. The Docker image sets its own path.
+    WEB_DIST_DIR: Path = BACKEND_DIR.parent / "web" / "dist"
     DEBUG: bool = False
     # One Meta key for both Muse Voice Transcribe and Muse Spark.
     MODEL_API_KEY: SecretStr = SecretStr("")
@@ -41,8 +44,17 @@ class Settings(BaseSettings):
 
     @field_validator("DATA_DIR")
     @classmethod
-    def _inside_backend_if_relative(cls, path: Path) -> Path:
-        return path if path.is_absolute() else BACKEND_DIR / path
+    def _data_dir(cls, path: Path) -> Path:
+        return _inside_backend_if_relative(path)
+
+    @field_validator("WEB_DIST_DIR")
+    @classmethod
+    def _web_dist_dir(cls, path: Path) -> Path:
+        return _inside_backend_if_relative(path).resolve()
+
+
+def _inside_backend_if_relative(path: Path) -> Path:
+    return path if path.is_absolute() else BACKEND_DIR / path
 
 
 @lru_cache

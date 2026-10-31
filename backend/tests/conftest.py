@@ -26,7 +26,7 @@ from countertalk.models import Org
 SERVER_URL = "postgresql+psycopg://countertalk:countertalk@127.0.0.1:5432"
 TEST_DATABASE = "countertalk_test"
 
-# Every setting except DATA_DIR, which each test pins to its tmp_path.
+# Every setting except DATA_DIR (each test's tmp_path) and WEB_DIST_DIR (pinned per session).
 PINNED_SETTINGS = {
     "DATABASE_URL": f"{SERVER_URL}/{TEST_DATABASE}",
     "DEBUG": "0",
@@ -93,6 +93,8 @@ def _pinned_environment(tmp_path_factory: pytest.TempPathFactory) -> Iterator[No
         for name, value in PINNED_SETTINGS.items():
             mp.setenv(name, value)
         mp.setenv("DATA_DIR", str(tmp_path_factory.mktemp("session-data")))
+        # No built web app unless a test makes one (tests/test_web_app.py).
+        mp.setenv("WEB_DIST_DIR", str(tmp_path_factory.mktemp("no-web-app") / "dist"))
         get_settings.cache_clear()
         yield
     get_settings.cache_clear()

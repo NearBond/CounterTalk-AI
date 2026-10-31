@@ -58,6 +58,17 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the image
+        run: docker build --pull -t countertalk:ci .
+      # The image starts ./scripts/start.sh, so git must have kept its executable bit.
+      - name: start.sh is executable in the image
+        run: docker run --rm --entrypoint test countertalk:ci -x scripts/start.sh
+
   gitleaks:
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -1,9 +1,10 @@
-"""The app: routers, and the handlers that give every error the API's one shape (§2.10).
+"""The app: routers, the built web app, and the handlers that give every error one shape (§2.10).
 
 {"error": {"code", "message", "details"?}}: domain errors carry their own code; the framework's
 own errors (unknown route, wrong method, wrong request shape) and unexpected ones get one here.
 """
 
+import logging
 from http import HTTPStatus
 from typing import Any
 
@@ -11,9 +12,15 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from countertalk.api import health
+from countertalk.config import get_settings
 from countertalk.errors import DomainError
+from countertalk.logs import configure_logging
+from countertalk.web import mount_web_app
+
+log = logging.getLogger(__name__)
 
 
 def _error_response(
@@ -50,11 +57,58 @@ async def _invalid_request(request: Request, error: RequestValidationError) -> J
     )
 
 
-async def _unexpected_error(request: Request, error: Exception) -> JSONResponse:
-    # The server still logs the traceback; the client never sees the exception's text.
-    return _error_response(
-        HTTPStatus.INTERNAL_SERVER_ERROR, "internal_error", "Something went wrong on the server"
-    )
+def _constraint(error: BaseException) -> str:
+    diag = getattr(getattr(error, "orig", None), "diag", None)
+    return getattr(diag, "constraint_name", None) or "-"
+
+
+class UnexpectedErrors:
+    """Turns any exception that escapes a request into the 500 error shape, and logs it safely.
+
+    It has to be a middleware: an `Exception` handler isn't enough, because Starlette's
+    ServerErrorMiddleware runs the handler and then re-raises, and uvicorn logs the traceback.
+    psycopg's message in it includes Postgres's DETAIL, e.g. `Key (email)=(...)` (§1.9). So the
+    exception stops here, and the log line holds only its type, the constraint name, and the
+    request's method and route template, never the path itself or any message.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        started = False
+
+        async def send_and_note(message: Message) -> None:
+            nonlocal started
+            started = started or message["type"] == "http.response.start"
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_and_note)
+            return
+        except Exception as error:  # noqa: BLE001 - every escaped error ends here, logged safely
+            route = getattr(scope.get("route"), "path", "-")
+            log.error(
+                "request failed method=%s route=%s error=%s constraint=%s",
+                scope["method"],
+                route,
+                type(error).__name__,
+                _constraint(error),
+            )
+        if started:
+            # Part of the response is already out; the server closes the connection.
+            return
+        # Sent outside the except block: if sending fails too, that new error mustn't carry the
+        # first one, and its message, along as its context.
+        response = _error_response(
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+            "internal_error",
+            "Something went wrong on the server",
+        )
+        await response(scope, receive, send)
 
 
 def create_app() -> FastAPI:
@@ -62,9 +116,12 @@ def create_app() -> FastAPI:
     app.add_exception_handler(DomainError, _domain_error)
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _invalid_request)
-    app.add_exception_handler(Exception, _unexpected_error)
+    app.add_middleware(UnexpectedErrors)
     app.include_router(health.router, prefix="/api/health")
+    # Last, so every API route is tried first.
+    mount_web_app(app, get_settings().WEB_DIST_DIR)
     return app
 
 
+configure_logging()
 app = create_app()

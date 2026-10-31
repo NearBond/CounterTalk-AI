@@ -72,13 +72,14 @@ def test_missing_settings_take_safe_defaults() -> None:
     values = settings()
 
     assert values.DATA_DIR == BACKEND_DIR / "data"
+    assert values.WEB_DIST_DIR == BACKEND_DIR.parent / "web" / "dist"
     assert values.DEBUG is False
     assert values.MODEL_API_KEY.get_secret_value() == ""
     assert values.SECRET_KEY.get_secret_value() == ""
 
 
 def test_every_setting_is_pinned_in_tests() -> None:
-    assert set(Settings.model_fields) == set(PINNED_SETTINGS) | {"DATA_DIR"}
+    assert set(Settings.model_fields) == set(PINNED_SETTINGS) | {"DATA_DIR", "WEB_DIST_DIR"}
 
 
 def test_tests_read_the_pinned_settings(tmp_path: Path) -> None:
@@ -87,3 +88,7 @@ def test_tests_read_the_pinned_settings(tmp_path: Path) -> None:
     assert values.DATABASE_URL == PINNED_SETTINGS["DATABASE_URL"]
     assert values.DATA_DIR == tmp_path
     assert values.MODEL_API_KEY.get_secret_value() == ""
+
+
+def test_relative_web_dist_dir_is_inside_backend_and_normalised() -> None:
+    assert settings(WEB_DIST_DIR="../web/dist").WEB_DIST_DIR == BACKEND_DIR.parent / "web" / "dist"

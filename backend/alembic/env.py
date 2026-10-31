@@ -1,15 +1,16 @@
 """Alembic environment: migrates the database in DATABASE_URL (countertalk.config)."""
 
-import logging
-
 from alembic import context
 
 from countertalk.db import get_engine
+from countertalk.logs import configure_logging, install_frames_only_excepthook
 from countertalk.models import Base
 
 if context.config.cmd_opts is not None:
-    # Run from the command line, not from tests: show each migration as it runs.
-    logging.basicConfig(level=logging.INFO, format="%(levelname)-5.5s [%(name)s] %(message)s")
+    # Run from the command line (start.sh), not from tests: show each migration as it runs,
+    # through the app's logging, and print a failure's frames but never its message (§1.9).
+    configure_logging()
+    install_frames_only_excepthook()
 
 if context.is_offline_mode():
     raise SystemExit("Offline (--sql) migrations aren't supported; run against a database.")
