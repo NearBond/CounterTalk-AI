@@ -1,0 +1,81 @@
+# CounterTalk: what never goes into git. The repo is public.
+
+# Planning docs stay on your laptop
+/docs/
+
+# No Markdown docs until batch 20, which adds the README and install docs.
+# Markdown the app reads, such as the playbook's prompt.md, isn't matched.
+/*.md
+README.md
+CHANGELOG.md
+.github/*.md
+
+# Env files and secrets. The one exception: .env.example, with empty values.
+.env
+.env.*
+*.env
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+credentials*.json
+service-account*.json
+
+# Personal data, recordings and local databases.
+# data/ matches a folder with that name anywhere, so never use it for code or fixtures.
+data/
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.ogg
+*.opus
+*.webm
+*.flac
+*.amr
+*.3gp
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Web
+node_modules/
+web/dist/
+coverage/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Phone app build output
+mobile/.expo/
+mobile/android/
+mobile/ios/
+*.apk
+*.aab
+
+# Tools, editors and OS
+.claude/
+CLAUDE.md
+.vscode/
+.idea/
+.cursor/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+desktop.ini
