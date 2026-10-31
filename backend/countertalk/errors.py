@@ -1,0 +1,59 @@
+"""Domain errors (CODING_GUIDELINES §2.10).
+
+`code` is snake_case and never changes once released, because clients rely on it. `message` is
+for people. main.py turns these into {"error": {"code", "message", "details"?}}.
+"""
+
+from typing import Any, ClassVar
+
+
+class DomainError(Exception):
+    http_status: ClassVar[int] = 500
+
+    def __init__(self, code: str, message: str, details: dict[str, Any] | None = None) -> None:
+        super().__init__(f"{code}: {message}")
+        self.code = code
+        self.message = message
+        self.details = details
+
+
+class Invalid(DomainError):
+    http_status = 400
+
+
+class NotFound(DomainError):
+    """Missing, or belongs to another org: never 403, which would reveal that it exists."""
+
+    http_status = 404
+
+
+class Conflict(DomainError):
+    """Wrong state, or conflicting data."""
+
+    http_status = 409
+
+
+class PermanentError(DomainError):
+    """Work that retrying can't fix: an unreadable file, or a 4xx from an external service.
+
+    Job handlers and client modules raise it, and the job fails at once (§9.5). A request's own
+    bad input is Invalid (400), not this.
+    """
+
+    http_status = 500
+
+
+class RetryableError(DomainError):
+    """A passing failure: a network error, 429, 5xx or a lock timeout. A job retries later."""
+
+    http_status = 503
+
+
+def describe(error: BaseException) -> str:
+    """`code: message`, for failure reasons and logs.
+
+    Other exceptions give only their type: their text can hold personal data (§1.9).
+    """
+    if isinstance(error, DomainError):
+        return f"{error.code}: {error.message}"
+    return f"unexpected_error: {type(error).__name__}"

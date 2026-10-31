@@ -1,0 +1,54 @@
+[project]
+name = "countertalk"
+version = "0.1.0"
+description = "Turns recorded shop visits into insights with the seller's exact words"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "alembic>=1.20.1",
+    "fastapi>=0.162.0",
+    "psycopg[binary]>=3",
+    "pydantic-settings>=2.16.2",
+    "sqlalchemy>=2",
+    "uvicorn>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "countertalk"
+module-root = ""
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# DTZ: naive datetimes (§1.4). T20: print (§2.8). ERA: commented-out code (§1.8).
+# BLE: blind except (§9.5). S602/S604: shell=True (§2.7). S608: SQL built from strings (§2.3).
+select = ["E", "W", "F", "I", "UP", "B", "DTZ", "T20", "ERA", "BLE", "S602", "S604", "S608"]
+
+[tool.ruff.lint.isort]
+# The alembic/ migrations folder would otherwise make the alembic package look first-party.
+known-third-party = ["alembic"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/**" = ["T20"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# Live tests call Meta's API for real and cost money: `uv run pytest -m live` runs them (§3.2).
+addopts = ["-m", "not live", "--strict-markers"]
+markers = ["live: calls Meta's API for real; skipped unless run with -m live"]
+
+[tool.alembic]
+script_location = "%(here)s/alembic"

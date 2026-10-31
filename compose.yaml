@@ -1,0 +1,21 @@
+# Postgres for local development and tests. Tests create their own countertalk_test database here.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: countertalk
+      POSTGRES_PASSWORD: countertalk
+      POSTGRES_DB: countertalk
+    ports:
+      # Bound to localhost only: the password is a well-known default.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U countertalk -d countertalk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

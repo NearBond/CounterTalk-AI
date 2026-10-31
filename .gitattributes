@@ -1,0 +1,24 @@
+# Text is stored and checked out with LF on every OS, whatever core.autocrlf says.
+* text=auto eol=lf
+
+# Binaries: never converted or diffed as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.zip binary
+*.gz binary
+*.wav binary
+*.mp3 binary
+*.m4a binary
+*.aac binary
+*.ogg binary
+*.opus binary
+*.webm binary
+*.mp4 binary
