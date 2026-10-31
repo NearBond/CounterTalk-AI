@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "promise"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "promise/catch-or-return": "error",
+    "eslint/no-restricted-globals": [
+      "error",
+      { "name": "fetch", "message": "Call the API through src/lib/api.ts (CODING_GUIDELINES §4.3)." },
+      { "name": "XMLHttpRequest", "message": "Call the API through src/lib/api.ts (§4.3)." }
+    ],
+    "eslint/no-restricted-properties": [
+      "error",
+      { "object": "window", "property": "fetch", "message": "Call the API through src/lib/api.ts (§4.3)." },
+      { "object": "globalThis", "property": "fetch", "message": "Call the API through src/lib/api.ts (§4.3)." },
+      { "object": "self", "property": "fetch", "message": "Call the API through src/lib/api.ts (§4.3)." }
+    ],
+    "eslint/no-console": ["error", { "allow": ["warn", "error"] }],
+    "typescript/no-explicit-any": "error",
+    "typescript/ban-ts-comment": ["error", { "ts-ignore": true, "ts-expect-error": "allow-with-description" }],
+    "react/no-danger": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error"
+  },
+  "overrides": [
+    {
+      "files": ["src/lib/api.ts"],
+      "rules": { "eslint/no-restricted-globals": "off" }
+    }
+  ],
+  "ignorePatterns": ["dist"]
+}

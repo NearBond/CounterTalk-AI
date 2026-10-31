@@ -29,7 +29,7 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.13.5"
@@ -40,11 +40,29 @@ jobs:
       # Creates and migrates countertalk_test on the service above (tests/conftest.py).
       - run: uv run pytest
 
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
   gitleaks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       # The CLI from its image: gitleaks-action needs a paid licence for organisation repos.
@@ -57,7 +75,7 @@ jobs:
   repo-hygiene:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Nothing git-ignored is tracked (docs, env files, data, audio, builds)
         run: |
           bad=$(git ls-files --cached --ignored --exclude-standard)
