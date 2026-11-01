@@ -1,6 +1,7 @@
 """SQLAlchemy models: the only place tables are defined (CODING_GUIDELINES §2.1)."""
 
 import uuid
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from enum import StrEnum
 
@@ -18,6 +19,8 @@ from sqlalchemy import (
     TypeDecorator,
     UniqueConstraint,
     Uuid,
+    func,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -70,7 +73,7 @@ class UtcDateTime(TypeDecorator[datetime]):
         return None if value is None else value.astimezone(UTC)
 
 
-def _one_of(column: str, values: type[StrEnum]) -> str:
+def _one_of(column: str, values: Iterable[str]) -> str:
     return f"{column} IN (" + ", ".join(f"'{value}'" for value in values) + ")"
 
 
@@ -207,3 +210,83 @@ class Segment(Base):
     bytes: Mapped[int]
     sha256: Mapped[str] = mapped_column(String)
     received_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class JobState(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    DONE = "done"
+    DEAD = "dead"
+
+
+# A visit has at most one active job of each kind (BRIEF §7). A retry is queued again.
+ACTIVE_JOB_STATES = (JobState.QUEUED, JobState.RUNNING)
+# The partial unique index's condition, as SQL: enqueue's ON CONFLICT names it to find the index.
+ACTIVE_JOB = _one_of("state", ACTIVE_JOB_STATES)
+
+
+class JobKind(StrEnum):
+    """BRIEF §6. Each kind's max attempts are in jobs.KINDS, its handler in worker.py."""
+
+    TRANSCRIBE = "transcribe"
+    EXTRACT = "extract"
+    SUMMARY = "summary"
+    RETENTION = "retention"
+    # Test jobs.
+    PING = "ping"
+    SLEEP = "sleep"
+
+
+class Job(Base):
+    """Background work, claimed by one worker at a time (jobs.py).
+
+    Its times all come from Postgres's now(), so workers on different machines agree on what is
+    due and what is stale.
+    """
+
+    __tablename__ = "jobs"
+    __table_args__ = (
+        CheckConstraint(_one_of("state", JobState), name="state"),
+        CheckConstraint(_one_of("kind", JobKind), name="kind"),
+        CheckConstraint("attempts >= 0 AND max_attempts >= 1", name="attempts"),
+        # Running means claimed: the job says which worker has it and since when.
+        CheckConstraint(
+            f"(state = '{JobState.RUNNING}') = (locked_by IS NOT NULL AND locked_at IS NOT NULL)",
+            name="claimed_when_running",
+        ),
+        Index(
+            "uq_jobs_active_visit_id_kind",
+            "visit_id",
+            "kind",
+            unique=True,
+            postgresql_where=text(ACTIVE_JOB),
+        ),
+        # The claim's order, over queued jobs only.
+        Index(
+            "ix_jobs_queued_created_at_seq",
+            "created_at",
+            "seq",
+            postgresql_where=text(f"state = '{JobState.QUEUED}'"),
+        ),
+    )
+    __mapper_args__ = {"eager_defaults": True}
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(), unique=True)
+    # None for work that isn't about one visit: the test jobs, and batch 15b's summaries.
+    visit_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("visits.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String)
+    state: Mapped[str] = mapped_column(String, default=JobState.QUEUED.value)
+    # Claims so far, this one included.
+    attempts: Mapped[int] = mapped_column(default=0)
+    # Fixed when the job is queued, from its kind (jobs.KINDS).
+    max_attempts: Mapped[int]
+    run_after: Mapped[datetime] = mapped_column(UtcDateTime, server_default=func.now())
+    # Only words we wrote: a foreign exception's text can hold personal data (§1.9).
+    last_error: Mapped[str | None] = mapped_column(String)
+    locked_by: Mapped[str | None] = mapped_column(String)
+    locked_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime, server_default=func.now())

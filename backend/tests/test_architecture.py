@@ -280,6 +280,23 @@ def routers_carry_their_own_prefix(sources: list[Source]) -> list[str]:
     return found
 
 
+def job_times_come_from_postgres(sources: list[Source]) -> list[str]:
+    """jobs.py compares and sets job times with Postgres's now(), never Python's clock.
+
+    Workers on different machines must agree on what is due and what is stale (batch 4).
+    """
+    banned = {
+        "countertalk.models.utc_now",
+        "datetime.datetime.now",
+        "datetime.datetime.utcnow",
+        "datetime.datetime.today",
+        "datetime.date.today",
+        "time.time",
+        "time.time_ns",
+    }
+    return banned_names(sources, banned, lambda path: path != "jobs.py")
+
+
 RULES: dict[str, Callable[[list[Source]], list[str]]] = {
     rule.__name__: rule
     for rule in [
@@ -293,10 +310,21 @@ RULES: dict[str, Callable[[list[Source]], list[str]]] = {
         get_session_only_through_db_session,
         visit_status_only_through_set_status,
         routers_carry_their_own_prefix,
+        job_times_come_from_postgres,
     ]
 }
 
 BAD_EXAMPLES = [
+    ("job_times_come_from_postgres", "jobs.py", "from countertalk.models import utc_now\n"),
+    ("job_times_come_from_postgres", "jobs.py", "from datetime import datetime\ndatetime.now()\n"),
+    ("job_times_come_from_postgres", "jobs.py", "import time\ntime.time()\n"),
+    ("job_times_come_from_postgres", "jobs.py", "from time import time_ns\n"),
+    ("job_times_come_from_postgres", "jobs.py", "import datetime\ndatetime.date.today()\n"),
+    (
+        "job_times_come_from_postgres",
+        "jobs.py",
+        "from datetime import datetime as dt\ndt.utcnow()\n",
+    ),
     ("routers_carry_their_own_prefix", "main.py", "app.include_router(r, prefix='/api/x')\n"),
     ("routers_carry_their_own_prefix", "api/visits.py", "router = APIRouter(tags=['visits'])\n"),
     ("only_db_commits", "visits.py", "def f(session):\n    session.commit()\n"),
@@ -343,6 +371,8 @@ BAD_EXAMPLES = [
 ]
 
 ALLOWED_EXAMPLES = [
+    ("job_times_come_from_postgres", "jobs.py", "from sqlalchemy import func\nfunc.now()\n"),
+    ("job_times_come_from_postgres", "visits.py", "from countertalk.models import utc_now\n"),
     ("routers_carry_their_own_prefix", "main.py", "app.include_router(visits.router)\n"),
     (
         "routers_carry_their_own_prefix",

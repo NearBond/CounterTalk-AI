@@ -87,6 +87,25 @@ def _revive_if_abandoned(visit: Visit) -> None:
         set_status(visit, S.RECORDING)
 
 
+_PROCESSING = frozenset({S.UPLOADED, S.TRANSCRIBING, S.TRANSCRIBED, S.EXTRACTING})
+
+
+def fail_processing(session: Session, visit_id: str, reason: str) -> bool:
+    """Fails a visit whose background work gave up (§9.1), with a reason the rep can read.
+
+    Under the visit's lock, and only while it's being processed: a visit that's already failed,
+    in review or confirmed is left as it is. True if it was failed. By ID alone, because the
+    worker works across orgs.
+    """
+    query = select(Visit).where(Visit.id == visit_id).with_for_update()
+    visit = session.scalars(query.execution_options(populate_existing=True)).one_or_none()
+    if visit is None or visit.status not in _PROCESSING:
+        return False
+    log.info("visit failed visit=%s status=%s", visit.id, visit.status)
+    set_status(visit, S.FAILED, reason=reason)
+    return True
+
+
 def _find_visit(session: Session, org_id: str, visit_id: str, *, for_update: bool) -> Visit:
     """One visit of this org. Another org's visit is 404, never 403 (§2.10)."""
     found = parse_id(visit_id)

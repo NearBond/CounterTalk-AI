@@ -779,3 +779,90 @@ def test_a_status_change_stamps_updated_at_at_once(org: Org_) -> None:
         # Before any flush: a route reports the visit before the commit flushes it.
         assert visit.updated_at > before
     assert load(visit_id).updated_at == visit.updated_at
+
+
+# --- fail_processing (batch 4) ----------------------------------------------------------------
+
+AFTER_UPLOAD = [
+    VisitStatus.TRANSCRIBING,
+    VisitStatus.TRANSCRIBED,
+    VisitStatus.EXTRACTING,
+    VisitStatus.REVIEW,
+    VisitStatus.CONFIRMED,
+]
+PROCESSING = [
+    VisitStatus.UPLOADED,
+    VisitStatus.TRANSCRIBING,
+    VisitStatus.TRANSCRIBED,
+    VisitStatus.EXTRACTING,
+]
+EARLIER_REASON = "An earlier reason."
+
+
+def visit_at(org: Org_, status: str) -> str:
+    """A visit that got to `status` the way a real one does."""
+    visit_id = new_visit(org)
+    if status == VisitStatus.FAILED:
+        move_to(org, visit_id, VisitStatus.FAILED, reason=EARLIER_REASON)
+    elif status != VisitStatus.RECORDING:
+        upload(org, visit_id, 0)
+        complete(org, visit_id, last_seq=0)
+        steps = AFTER_UPLOAD[: AFTER_UPLOAD.index(status) + 1] if status in AFTER_UPLOAD else []
+        move_to(org, visit_id, *steps)
+    assert load(visit_id).status == status
+    return visit_id
+
+
+def fail_processing(visit_id: str, reason: str = "Processing stopped.") -> bool:
+    with session_scope() as session:
+        return visits.fail_processing(session, visit_id, reason)
+
+
+@pytest.mark.parametrize("status", PROCESSING)
+def test_fail_processing_fails_a_visit_that_is_processing(org: Org_, status: str) -> None:
+    visit_id = visit_at(org, status)
+
+    assert fail_processing(visit_id, "The recording can't be read.") is True
+
+    visit = load(visit_id)
+    assert visit.status == VisitStatus.FAILED
+    assert visit.failure_reason == "The recording can't be read."
+
+
+@pytest.mark.parametrize(
+    "status",
+    [VisitStatus.RECORDING, VisitStatus.REVIEW, VisitStatus.CONFIRMED, VisitStatus.FAILED],
+)
+def test_fail_processing_leaves_a_visit_that_isnt_processing_alone(org: Org_, status: str) -> None:
+    visit_id = visit_at(org, status)
+    before = load(visit_id)
+
+    assert fail_processing(visit_id) is False
+
+    after = load(visit_id)
+    assert (after.status, after.failure_reason) == (before.status, before.failure_reason)
+
+
+def test_fail_processing_of_a_missing_visit_does_nothing() -> None:
+    assert fail_processing(new_id()) is False
+
+
+def test_fail_processing_waits_for_a_change_to_the_same_visit(org: Org_) -> None:
+    visit_id = visit_at(org, VisitStatus.EXTRACTING)
+    results: list[bool] = []
+
+    def fail_now() -> None:
+        results.append(fail_processing(visit_id))
+
+    with session_scope() as session:
+        visit = visits.lock_visit(session, org.org_id, visit_id)
+        thread = threading.Thread(target=fail_now)
+        thread.start()
+        thread.join(BLOCKED_S)
+        assert thread.is_alive()
+        visits.set_status(visit, VisitStatus.REVIEW)
+    thread.join(RACE_TIMEOUT_S)
+
+    # It read the visit again under the lock, saw review, and left it.
+    assert results == [False]
+    assert load(visit_id).status == VisitStatus.REVIEW

@@ -7,7 +7,19 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, StatementError
 
 from countertalk.db import session_scope
-from countertalk.models import Org, Role, Segment, Shop, User, Visit, new_id, utc_now
+from countertalk.models import (
+    Job,
+    JobKind,
+    JobState,
+    Org,
+    Role,
+    Segment,
+    Shop,
+    User,
+    Visit,
+    new_id,
+    utc_now,
+)
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -270,3 +282,44 @@ def test_a_visit_with_another_orgs_shop_or_rep_is_refused(field: str, constraint
         session.add(visit)
 
     assert constraint_violated(error.value) == constraint
+
+
+# --- jobs (batch 4) -------------------------------------------------------------------------
+
+
+def job_row(**overrides: object) -> Job:
+    values: dict[str, object] = {"kind": JobKind.PING, "state": JobState.QUEUED, "max_attempts": 5}
+    return Job(**{**values, **overrides})
+
+
+@pytest.mark.parametrize(
+    ("overrides", "constraint"),
+    [
+        ({"state": "paused"}, "ck_jobs_state"),
+        ({"kind": "dance"}, "ck_jobs_kind"),
+        ({"attempts": -1}, "ck_jobs_attempts"),
+        ({"max_attempts": 0}, "ck_jobs_attempts"),
+        # Running means claimed: it says who has it and since when, and nothing else does.
+        ({"state": JobState.RUNNING}, "ck_jobs_claimed_when_running"),
+        ({"locked_by": "someone", "locked_at": utc_now()}, "ck_jobs_claimed_when_running"),
+    ],
+)
+def test_a_bad_job_is_refused_by_the_database(overrides: dict, constraint: str) -> None:
+    with pytest.raises(IntegrityError) as error, session_scope() as session:
+        session.add(job_row(**overrides))
+
+    assert constraint_violated(error.value) == constraint
+
+
+def test_a_visits_jobs_go_with_it() -> None:
+    visit = visit_row()
+    with session_scope() as session:
+        session.add(visit)
+        session.flush()
+        session.add(job_row(kind=JobKind.TRANSCRIBE, visit_id=visit.id))
+
+    with session_scope() as session:
+        session.delete(session.get(Visit, visit.id))
+
+    with session_scope(read_only=True) as session:
+        assert session.scalars(select(Job)).all() == []
