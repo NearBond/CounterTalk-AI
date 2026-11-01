@@ -40,6 +40,14 @@ def new_id() -> str:
     return str(uuid.uuid4())
 
 
+def parse_id(value: str) -> str | None:
+    """The canonical form of an ID from outside (lowercase, hyphenated), or None if it isn't one."""
+    try:
+        return str(uuid.UUID(value))
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
 def utc_now() -> datetime:
     return datetime.now(UTC)
 

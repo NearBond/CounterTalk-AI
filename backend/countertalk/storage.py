@@ -13,6 +13,7 @@ from pathlib import Path
 from countertalk.config import get_settings
 from countertalk.errors import Invalid
 from countertalk.limits import MAX_SEGMENTS_PER_VISIT
+from countertalk.models import parse_id
 
 # The extensions an uploaded stream may have (complete(ext)); batch 5 names the joined file so.
 ALLOWED_EXTS = ("webm", "m4a", "mp4", "aac", "ogg", "wav")
@@ -28,13 +29,10 @@ def _staging_dir() -> Path:
 
 
 def visit_dir(visit_id: str) -> Path:
-    try:
-        canonical = str(uuid.UUID(visit_id))
-    except (ValueError, TypeError, AttributeError):
-        canonical = None
-    if canonical != visit_id:
+    # Only the canonical form: a path is never built from any other spelling of an ID.
+    if parse_id(visit_id) != visit_id:
         raise Invalid("invalid_id", "That isn't a visit ID")
-    return data_dir() / "visits" / canonical
+    return data_dir() / "visits" / visit_id
 
 
 def check_seq(seq: int) -> int:

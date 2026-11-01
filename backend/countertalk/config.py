@@ -5,6 +5,8 @@ from pathlib import Path
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
@@ -42,8 +44,13 @@ class Settings(BaseSettings):
         if not url.startswith(_PSYCOPG):
             raise ValueError("DATABASE_URL must be a postgres:// or postgresql:// URL")
         # An unescaped "@" in the password makes the rest of it read as the host, which is then
-        # printed in error lines. Refuse it rather than show any of it.
-        if url.removeprefix(_PSYCOPG).split("/", 1)[0].count("@") > 1:
+        # printed in error lines. Ask the parser what it saw, and refuse rather than show any of
+        # it.
+        try:
+            host = make_url(url).host or ""
+        except ArgumentError:
+            raise ValueError("DATABASE_URL isn't a URL the database driver can read") from None
+        if "@" in host:
             raise ValueError("DATABASE_URL's password has an @: write it as %40")
         return url
 

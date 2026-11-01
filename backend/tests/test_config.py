@@ -101,3 +101,10 @@ def test_a_password_with_an_unescaped_at_is_refused_without_showing_it() -> None
 
     assert "ss-not-real" not in str(error.value)
     assert "%40" in str(error.value)
+
+
+def test_a_password_with_a_slash_and_an_unescaped_at_is_refused_too() -> None:
+    with pytest.raises(ValidationError) as error:
+        settings(DATABASE_URL="postgresql://app:p/a@ss-not-real@db.example.com:5432/app")
+
+    assert "ss-not-real" not in str(error.value)
