@@ -4,7 +4,7 @@ import pytest
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 
 from countertalk.config import get_settings
 from countertalk.db import get_engine
@@ -13,6 +13,8 @@ from tests.conftest import SERVER_URL, alembic_config, create_database, drop_dat
 
 SCRATCH_DATABASE = "countertalk_test_migrations"
 MODEL_TABLES = {table.name for table in Base.metadata.sorted_tables}
+# Batch 10's: it adds extraction as an llm_calls purpose.
+EXTRACTION_REVISION = "4dea182093b4"
 
 
 @pytest.fixture(autouse=True)
@@ -56,3 +58,20 @@ def test_downgrade_to_base_then_upgrade_again() -> None:
 
     command.upgrade(config, "head")
     assert table_names() == MODEL_TABLES | {"alembic_version"}
+
+
+def test_downgrading_past_extraction_drops_its_calls_and_keeps_the_others() -> None:
+    config = alembic_config()
+    command.upgrade(config, "head")
+    calls = (
+        "INSERT INTO llm_calls (id, purpose, provider, model, prompt_hash, latency_ms, ok,"
+        " created_at) VALUES (gen_random_uuid(), :purpose, 'fake', 'fake-1', 'h', 1, true, now())"
+    )
+    with get_engine().begin() as conn:
+        for purpose in ("roles", "extraction"):
+            conn.execute(text(calls), {"purpose": purpose})
+
+    command.downgrade(config, EXTRACTION_REVISION + "-1")
+
+    with get_engine().connect() as conn:
+        assert conn.scalars(text("SELECT purpose FROM llm_calls")).all() == ["roles"]

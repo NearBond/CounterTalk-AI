@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import Executable, delete, select, text, update
@@ -8,24 +8,30 @@ from sqlalchemy.exc import IntegrityError, StatementError
 
 from countertalk.db import session_scope
 from countertalk.models import (
+    IST,
     Distributor,
+    Evidence,
+    Extraction,
+    Insight,
     Job,
     JobKind,
     JobState,
     Org,
+    Report,
     Role,
     Segment,
     Shop,
+    Task,
+    Team,
     Transcript,
     Turn,
     User,
     Visit,
+    ist_date,
     new_id,
     utc_now,
 )
 from tests.conftest import give_transcript
-
-IST = timezone(timedelta(hours=5, minutes=30))
 
 
 def constraint_violated(error: IntegrityError) -> str | None:
@@ -364,3 +370,183 @@ def test_a_shop_with_another_orgs_distributor_is_refused() -> None:
         shop.distributor_id = theirs_id
 
     assert constraint_violated(error.value) == "fk_shops_org_id_distributors"
+
+
+def test_a_visits_local_date_is_indias() -> None:
+    # 20:00 UTC on 1 Nov is 01:30 on 2 Nov in India.
+    assert ist_date(datetime(2026, 11, 1, 20, 0, tzinfo=UTC)).isoformat() == "2026-11-02"
+
+
+def extracted(visit_id: str, transcript_id: str, org_id: str, **insight: object) -> str:
+    """An extraction with a report, a task, and an insight with one quote of turn 0: its
+    insight's ID."""
+    with session_scope() as session:
+        extraction = Extraction(
+            visit_id=visit_id,
+            transcript_id=transcript_id,
+            playbook_id="fmcg-kirana-visit",
+            playbook_version=1,
+            org_pack_id="tiny-demo",
+            org_pack_version=1,
+            model="fake-1",
+            prompt_hash="ab" * 32,
+            raw_json={"insights": []},
+        )
+        session.add(extraction)
+        session.flush()
+        session.add(Report(visit_id=visit_id, extraction_id=extraction.id, summary_en="S", json={}))
+        session.add(
+            Task(visit_id=visit_id, seq=0, type="callback", description_en="Call", owner="rep")
+        )
+        values: dict[str, object] = {
+            "org_id": org_id,
+            "visit_id": visit_id,
+            "seq": 0,
+            "extraction_id": extraction.id,
+            "kind": "problem",
+            "category": "supply",
+            "severity": "medium",
+            "summary_en": "Late delivery.",
+            "sku_mentions": [],
+            "competitor_mentions": [],
+        }
+        row = Insight(**{**values, **insight})
+        session.add(row)
+        session.flush()
+        session.add(
+            Evidence(
+                insight_id=row.id,
+                visit_id=visit_id,
+                seq=0,
+                transcript_id=transcript_id,
+                turn_id=0,
+                quote_llm="Namaste ji.",
+            )
+        )
+        return row.id
+
+
+def test_a_visits_extractions_and_their_rows_go_with_it() -> None:
+    visit_id, transcript_id = add_transcript()
+    with session_scope(read_only=True) as session:
+        org_id = session.get_one(Visit, visit_id).org_id
+    extracted(visit_id, transcript_id, org_id)
+
+    with session_scope() as session:
+        session.delete(session.get(Visit, visit_id))
+
+    with session_scope(read_only=True) as session:
+        for table in (Extraction, Report, Task, Insight, Evidence):
+            assert session.scalars(select(table)).all() == []
+
+
+def test_an_insights_visit_and_suggested_team_are_its_own_orgs() -> None:
+    visit_id, transcript_id = add_transcript()
+    with session_scope() as session:
+        org_id = session.get_one(Visit, visit_id).org_id
+        other = Org(name="Other Org")
+        session.add(other)
+        session.flush()
+        theirs = Team(org_id=other.id, key="money", name="Money desk")
+        session.add(theirs)
+        session.flush()
+        other_org, their_team = other.id, theirs.id
+
+    with pytest.raises(IntegrityError) as wrong_org:
+        extracted(visit_id, transcript_id, other_org)
+    with pytest.raises(IntegrityError) as wrong_team:
+        extracted(visit_id, transcript_id, org_id, ai_team_id=their_team)
+
+    assert constraint_violated(wrong_org.value) == "fk_insights_org_id_visits"
+    assert constraint_violated(wrong_team.value) == "fk_insights_ai_team_id_teams"
+
+
+@pytest.mark.parametrize(
+    ("change", "constraint"),
+    [
+        ({"turn_id": 99}, "fk_evidence_transcript_id_turns"),
+        ({"match": "maybe"}, "ck_evidence_match"),
+        ({"char_start": 5, "char_end": 4}, "ck_evidence_chars"),
+        ({"char_start": -1, "char_end": 4}, "ck_evidence_chars"),
+        ({"start_ms": -1}, "ck_evidence_start_ms"),
+    ],
+    ids=["no-such-turn", "unknown-match", "chars-backwards", "chars-negative", "time-negative"],
+)
+def test_evidence_refuses_a_turn_its_transcript_hasnt_got_and_an_unknown_match(
+    change: dict[str, object], constraint: str
+) -> None:
+    visit_id, transcript_id = add_transcript()
+    with session_scope(read_only=True) as session:
+        org_id = session.get_one(Visit, visit_id).org_id
+    insight_id = extracted(visit_id, transcript_id, org_id)
+
+    with pytest.raises(IntegrityError) as error, session_scope() as session:
+        values = {
+            "insight_id": insight_id,
+            "visit_id": visit_id,
+            "seq": 1,
+            "transcript_id": transcript_id,
+        }
+        session.add(Evidence(**{**values, "turn_id": None, "quote_llm": "x", **change}))
+
+    assert constraint_violated(error.value) == constraint
+
+
+def test_a_naive_time_has_no_local_date() -> None:
+    with pytest.raises(ValueError):
+        ist_date(datetime(2026, 11, 1, 20, 0))  # noqa: DTZ001 - a naive datetime is under test
+
+
+@pytest.mark.parametrize(
+    ("change", "constraint"),
+    [
+        ({"visible": True}, "ck_insights_visible_only_verified"),
+        ({"added_by_rep": True}, "ck_insights_extracted_or_added"),
+    ],
+    ids=["visible-unverified", "added-yet-extracted"],
+)
+def test_an_insight_is_shown_only_verified_and_is_extracted_or_added(
+    change: dict[str, object], constraint: str
+) -> None:
+    visit_id, transcript_id = add_transcript()
+    with session_scope(read_only=True) as session:
+        org_id = session.get_one(Visit, visit_id).org_id
+
+    with pytest.raises(IntegrityError) as error:
+        extracted(visit_id, transcript_id, org_id, **change)
+
+    assert constraint_violated(error.value) == constraint
+
+
+def test_rows_never_point_at_another_visits_extraction_or_transcript() -> None:
+    mine, my_transcript = add_transcript()
+    with session_scope(read_only=True) as session:
+        v = session.get_one(Visit, mine)
+        org_id, parts = v.org_id, {"org_id": v.org_id, "rep_id": v.rep_id, "shop_id": v.shop_id}
+    theirs, their_transcript = add_transcript(
+        Visit(**parts, kind="conversation", client="web", status="recording")
+    )
+    extracted(theirs, their_transcript, org_id)
+    my_insight = extracted(mine, my_transcript, org_id)
+    with session_scope(read_only=True) as session:
+        their_extraction = session.scalars(
+            select(Extraction.id).where(Extraction.visit_id == theirs)
+        ).one()
+
+    def refused(row: object) -> str | None:
+        with pytest.raises(IntegrityError) as error, session_scope() as session:
+            session.add(row)
+        return constraint_violated(error.value)
+
+    report = Report(visit_id=mine, extraction_id=their_extraction, summary_en="S", json={})
+    quote = Evidence(
+        insight_id=my_insight,
+        visit_id=mine,
+        seq=1,
+        transcript_id=their_transcript,
+        quote_llm="x",
+    )
+    with session_scope() as session:
+        session.execute(delete(Report).where(Report.visit_id == mine))
+    assert refused(report) == "fk_reports_visit_id_extractions"
+    assert refused(quote) == "fk_evidence_visit_id_transcripts"

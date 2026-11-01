@@ -213,10 +213,16 @@ def sample(turns: list[_Turn], labels: list[str]) -> list[_Turn]:
     return sorted(chosen.values(), key=lambda turn: turn.turn_id)
 
 
+def turn_line(turn_id: int, who: str, start_ms: int, text: str) -> str:
+    """`[T{id}][{who}][mm:ss] text`, on one line: how a turn is sent to Muse Spark, with its
+    label (roles) or its role (extraction)."""
+    seconds = start_ms // 1000
+    words = " ".join(text.split())
+    return f"[T{turn_id}][{who}][{seconds // 60:02d}:{seconds % 60:02d}] {words}"
+
+
 def _line(turn: _Turn) -> str:
-    seconds = turn.start_ms // 1000
-    words = " ".join(turn.text.split())  # one line per turn
-    return f"[T{turn.turn_id}][{turn.label}][{seconds // 60:02d}:{seconds % 60:02d}] {words}"
+    return turn_line(turn.turn_id, turn.label, turn.start_ms, turn.text)
 
 
 def _schema(labels: list[str], role_keys: list[str]) -> dict[str, Any]:

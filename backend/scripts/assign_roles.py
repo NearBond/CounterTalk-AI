@@ -14,8 +14,6 @@ are the org packs' and playbooks' folders, for a test's own packs.
 """
 
 import argparse
-import json
-import math
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -27,34 +25,15 @@ from countertalk import roles
 from countertalk.config import get_settings
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.errors import DomainError, describe
+from countertalk.llm import pricing
 from countertalk.llm.base import CallDetails, StructuredLlm
 from countertalk.llm.client import MetaLlm
 from countertalk.logs import configure_logging
 from countertalk.models import LlmCall, LlmPurpose, Org, Visit, parse_id
 from countertalk.playbooks import ORG_PACKS_DIR, PLAYBOOKS_DIR, OrgPack, load_org_pack
 
-# Muse Spark 1.3's prices, per million tokens (Meta's price list, 1 Nov). Reasoning tokens are
-# counted in the output tokens, and billed as output (BRIEF §8).
-USD_PER_M_INPUT = 1.25
-USD_PER_M_CACHED_INPUT = 0.15
-USD_PER_M_OUTPUT = 4.25
-# A dry run's estimate, on the high side: Devanagari takes more tokens per character than the
-# English and JSON of the live test (about 4.6 characters a token, 1 Nov).
-CHARS_PER_TOKEN = 2
-OUTPUT_TOKENS_PER_LABEL = 25
-# "minimal" reasoning still spends some: 36 and 37 tokens in the two calls seen (1 Nov).
-REASONING_TOKENS = 100
-
-
-def cost(input_tokens: int, cached_tokens: int, output_tokens: int) -> float:
-    paid_input = (input_tokens - cached_tokens) * USD_PER_M_INPUT
-    return (
-        paid_input + cached_tokens * USD_PER_M_CACHED_INPUT + output_tokens * USD_PER_M_OUTPUT
-    ) / 1e6
-
-
-def call_cost(call: CallDetails) -> float:
-    return cost(call.input_tokens or 0, call.cached_input_tokens or 0, call.output_tokens or 0)
+# A dry run's estimate of the answer: each label's line. Reasoning is added on top (pricing).
+ANSWER_TOKENS_PER_LABEL = 25
 
 
 @dataclass(frozen=True)
@@ -86,9 +65,9 @@ def show_roles(found: dict[str, tuple[str, float]]) -> None:
 
 
 def dry_run(visit_id: str, request: roles.Request) -> None:
-    chars = sum(len(m.content) for m in request.messages) + len(json.dumps(request.schema))
-    tokens_in = math.ceil(chars / CHARS_PER_TOKEN)
-    tokens_out = len(request.labels) * OUTPUT_TOKENS_PER_LABEL + REASONING_TOKENS
+    chars = pricing.request_chars(request.messages, request.schema)
+    tokens_in = pricing.input_tokens(request.messages, request.schema)
+    tokens_out = pricing.output_tokens(len(request.labels) * ANSWER_TOKENS_PER_LABEL)
     print(
         f"visit {visit_id}: {request.turns} turns, {len(request.labels)} labels:"
         f" {', '.join(request.labels)}"
@@ -96,7 +75,7 @@ def dry_run(visit_id: str, request: roles.Request) -> None:
     print(f"to send: {request.sent} turns, {chars:,} characters with the instructions and schema")
     print(
         f"about {tokens_in:,} input and {tokens_out:,} output tokens,"
-        f" ${cost(tokens_in, 0, tokens_out):.4f} a request"
+        f" ${pricing.cost(tokens_in, 0, tokens_out):.4f} a request"
         " (an estimate: a re-ask or a repair sends another; --yes sends it)"
     )
 
@@ -107,9 +86,9 @@ def show_calls(calls: Sequence[CallDetails]) -> None:
             f"call {number}: {call.error or 'ok'}, {call.input_tokens or 0:,} input"
             f" ({call.cached_input_tokens or 0:,} cached), {call.output_tokens or 0:,} output"
             f" ({call.reasoning_tokens or 0:,} reasoning), {call.latency_ms / 1000:.1f} s,"
-            f" ${call_cost(call):.4f}"
+            f" ${pricing.call_cost(call):.4f}"
         )
-    print(f"cost: ${sum(map(call_cost, calls)):.4f}")
+    print(f"cost: ${sum(map(pricing.call_cost, calls)):.4f}")
 
 
 def last_call(visit_id: str) -> int:

@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta, timezone
 from enum import StrEnum
 
 from sqlalchemy import (
@@ -22,6 +22,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Constraint names are fixed, so migrations can refer to them and errors can be matched on them.
@@ -53,6 +54,17 @@ def parse_id(value: str) -> str | None:
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+# India has no daylight saving, so a fixed offset is exact. Only for a local date or for display
+# (§1.4): times are stored in UTC.
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def ist_date(moment: datetime) -> date:
+    if moment.tzinfo is None:
+        raise ValueError("naive datetime: times are timezone-aware (§1.4)")
+    return moment.astimezone(IST).date()
 
 
 class UtcDateTime(TypeDecorator[datetime]):
@@ -262,6 +274,8 @@ class Visit(Base):
         CheckConstraint(_one_of("client", VisitClient), name="client"),
         # Newest first within an org; seq breaks created_at ties (BRIEF §7).
         Index("ix_visits_org_id_created_at_seq", "org_id", "created_at", "seq"),
+        # The target of insights' (org_id, visit_id): an insight's org is its visit's.
+        UniqueConstraint("org_id", "id"),
         # The shop and the rep belong to the visit's own org: the database refuses anything else.
         ForeignKeyConstraint(["org_id", "shop_id"], ["shops.org_id", "shops.id"]),
         ForeignKeyConstraint(["org_id", "rep_id"], ["users.org_id", "users.id"]),
@@ -381,6 +395,7 @@ class SpeakerRole(Base):
 
 class LlmPurpose(StrEnum):
     ROLES = "roles"
+    EXTRACTION = "extraction"
 
 
 class LlmCall(Base):
@@ -497,3 +512,210 @@ class Job(Base):
     locked_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, server_default=func.now())
+
+
+class Extraction(Base):
+    """One extraction run's answer, as it came (batch 10). Every run adds one; the report, tasks
+    and insights are replaced from the newest, before the visit is confirmed."""
+
+    __tablename__ = "extractions"
+    __table_args__ = (
+        # Its transcript is one of its visit's own.
+        ForeignKeyConstraint(
+            ["visit_id", "transcript_id"], ["transcripts.visit_id", "transcripts.id"]
+        ),
+        # The target of reports' and insights' (visit_id, extraction_id).
+        UniqueConstraint("visit_id", "id"),
+    )
+    __mapper_args__ = {"eager_defaults": True}
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    # Breaks created_at ties: the newest run is the highest.
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(), unique=True)
+    visit_id: Mapped[str] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("visits.id", ondelete="CASCADE"), index=True
+    )
+    transcript_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    playbook_id: Mapped[str] = mapped_column(String)
+    playbook_version: Mapped[int]
+    org_pack_id: Mapped[str] = mapped_column(String)
+    org_pack_version: Mapped[int]
+    model: Mapped[str] = mapped_column(String)
+    # The request's hash, as in llm_calls: never the prompt (§1.9).
+    prompt_hash: Mapped[str] = mapped_column(String)
+    raw_json: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class Report(Base):
+    """A visit's report, from its newest extraction."""
+
+    __tablename__ = "reports"
+    __table_args__ = (
+        # Its extraction is one of its visit's own.
+        ForeignKeyConstraint(
+            ["visit_id", "extraction_id"],
+            ["extractions.visit_id", "extractions.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    visit_id: Mapped[str] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("visits.id", ondelete="CASCADE"), primary_key=True
+    )
+    extraction_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    summary_en: Mapped[str] = mapped_column(String)
+    next_visit_date: Mapped[date | None]
+    # The answer's report-level fields: what a later schema adds lands here with no migration.
+    json: Mapped[dict] = mapped_column(JSONB)
+
+
+class TaskStatus(StrEnum):
+    OPEN = "open"
+    DONE = "done"
+
+
+class Task(Base):
+    """A follow-up the visit asked for. Its type and owner are the playbook's keys."""
+
+    __tablename__ = "tasks"
+    __table_args__ = (
+        CheckConstraint(_one_of("status", TaskStatus), name="status"),
+        UniqueConstraint("visit_id", "seq"),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    visit_id: Mapped[str] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("visits.id", ondelete="CASCADE")
+    )
+    # 0, 1, 2, … in the answer's order.
+    seq: Mapped[int]
+    type: Mapped[str] = mapped_column(String)
+    description_en: Mapped[str] = mapped_column(String)
+    due: Mapped[date | None]
+    owner: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default=TaskStatus.OPEN.value)
+
+
+class Insight(Base):
+    """One thing the shop raised (batch 10). Its kind, category and severity are the playbook's
+    keys. It has no team or status of its own: its teams are its routes (batch 12), and its
+    status is its issues' (batch 15)."""
+
+    __tablename__ = "insights"
+    __table_args__ = (
+        UniqueConstraint("visit_id", "seq"),
+        # The target of evidence's (insight_id, visit_id).
+        UniqueConstraint("id", "visit_id"),
+        # An unverified insight never reaches a team (BRIEF D9).
+        CheckConstraint("verified OR NOT visible", name="visible_only_verified"),
+        # Extracted, or added by the rep: one or the other.
+        CheckConstraint("added_by_rep = (extraction_id IS NULL)", name="extracted_or_added"),
+        # Its extraction is one of its visit's own.
+        ForeignKeyConstraint(
+            ["visit_id", "extraction_id"],
+            ["extractions.visit_id", "extractions.id"],
+            ondelete="CASCADE",
+            name="fk_insights_extraction_id_extractions",
+        ),
+        # Its visit, catalog items and suggested team are all its own org's.
+        ForeignKeyConstraint(
+            ["org_id", "visit_id"], ["visits.org_id", "visits.id"], ondelete="CASCADE"
+        ),
+        # Named for their own column: each starts with org_id, which the convention would use.
+        ForeignKeyConstraint(
+            ["org_id", "sku_id"],
+            ["catalog_items.org_id", "catalog_items.id"],
+            name="fk_insights_sku_id_catalog_items",
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "competitor_id"],
+            ["catalog_items.org_id", "catalog_items.id"],
+            name="fk_insights_competitor_id_catalog_items",
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "ai_team_id"],
+            ["teams.org_id", "teams.id"],
+            name="fk_insights_ai_team_id_teams",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    visit_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    # 0, 1, 2, … within the visit.
+    seq: Mapped[int]
+    # The run it came from; None for one the rep added (batch 14).
+    extraction_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    kind: Mapped[str] = mapped_column(String)
+    category: Mapped[str] = mapped_column(String)
+    severity: Mapped[str] = mapped_column(String)
+    summary_en: Mapped[str] = mapped_column(String)
+    # As said; linked to the catalog in batch 12.
+    sku_mentions: Mapped[list[str]] = mapped_column(ARRAY(String))
+    competitor_mentions: Mapped[list[str]] = mapped_column(ARRAY(String))
+    competitor_reason: Mapped[str | None] = mapped_column(String)
+    sku_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    competitor_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    # One of the org pack's schemes, as the answer gave it (batch 12 drops an unknown one).
+    scheme_key: Mapped[str | None] = mapped_column(String)
+    # The AI's suggestion, never the insight's team (BRIEF D7).
+    ai_team_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    ai_team_reason: Mapped[str | None] = mapped_column(String)
+    added_by_rep: Mapped[bool] = mapped_column(default=False)
+    # Its quotes checked against the transcript (batch 11); only then can it be shown.
+    verified: Mapped[bool] = mapped_column(default=False)
+    visible: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class EvidenceMatch(StrEnum):
+    EXACT = "exact"
+    FUZZY = "fuzzy"
+    NONE = "none"
+
+
+class Evidence(Base):
+    """One quote behind an insight. The model's words are kept as they came; batch 11 checks them
+    against the transcript and fills in the rest."""
+
+    __tablename__ = "evidence"
+    __table_args__ = (
+        UniqueConstraint("insight_id", "seq"),
+        # Its insight and its transcript are both its visit's: never another visit's words.
+        ForeignKeyConstraint(
+            ["insight_id", "visit_id"], ["insights.id", "insights.visit_id"], ondelete="CASCADE"
+        ),
+        ForeignKeyConstraint(
+            ["visit_id", "transcript_id"],
+            ["transcripts.visit_id", "transcripts.id"],
+            ondelete="CASCADE",
+        ),
+        # A cited turn is one of the transcript's. One that isn't is kept with no turn, for
+        # batch 11 to search the whole transcript: the quote is never dropped.
+        ForeignKeyConstraint(
+            ["transcript_id", "turn_id"],
+            ["turns.transcript_id", "turns.turn_id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(f"match IS NULL OR {_one_of('match', EvidenceMatch)}", name="match"),
+        CheckConstraint(
+            "char_start IS NULL OR (char_start >= 0 AND char_end >= char_start)", name="chars"
+        ),
+        CheckConstraint("start_ms IS NULL OR start_ms >= 0", name="start_ms"),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    insight_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    visit_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    seq: Mapped[int]
+    transcript_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    turn_id: Mapped[int | None]
+    # The cited turn's speaker, from its saved role.
+    speaker_role: Mapped[str | None] = mapped_column(String)
+    quote_llm: Mapped[str] = mapped_column(String)
+    quote_final: Mapped[str | None] = mapped_column(String)
+    match: Mapped[str | None] = mapped_column(String)
+    char_start: Mapped[int | None]
+    char_end: Mapped[int | None]
+    start_ms: Mapped[int | None]

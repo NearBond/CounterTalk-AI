@@ -93,6 +93,19 @@ LLM_TIMEOUT_MS = 300_000
 # 1 + LLM_MAX_RETRIES times.
 LLM_MAX_RETRIES = 2
 
+# Muse Spark's context window, input and output together: "1,048,576-token context window"
+# (https://dev.meta.ai/docs/models, 1 Nov). A request that doesn't fit is a 400.
+LLM_CONTEXT_TOKENS = 1_048_576
+# Room kept for extraction's answer and its reasoning when checking a transcript fits.
+LLM_OUTPUT_RESERVE_TOKENS = 32_768
+
+# Extraction (batch 10): the schemes the request lists are those running within this many days
+# of the visit's date.
+SCHEME_WINDOW_DAYS = 30
+# Housekeeping queues extraction for at most this many waiting visits per pass, so a key set
+# after a long outage doesn't start every paid call at once.
+EXTRACT_QUEUE_PER_PASS = 20
+
 # Speaker roles (BRIEF §12): the turns sent are the first ROLES_FIRST_TURNS, ROLES_SAMPLED_TURNS
 # spread over the rest, and one more for any label not in those.
 ROLES_FIRST_TURNS = 60

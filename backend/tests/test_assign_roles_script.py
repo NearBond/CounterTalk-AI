@@ -3,7 +3,6 @@
 It prints labels, roles, counts and costs, never the transcript's words.
 """
 
-import json
 import math
 
 import pytest
@@ -11,15 +10,16 @@ import pytest
 from countertalk import roles
 from countertalk.errors import RetryableError
 from countertalk.llm.base import Outcome
-from scripts.assign_roles import (
+from countertalk.llm.pricing import (
     CHARS_PER_TOKEN,
-    OUTPUT_TOKENS_PER_LABEL,
-    REASONING_TOKENS,
+    REASONING_PERCENT,
     USD_PER_M_INPUT,
     USD_PER_M_OUTPUT,
     cost,
-    main,
+    output_tokens,
+    request_chars,
 )
+from scripts.assign_roles import ANSWER_TOKENS_PER_LABEL, main
 from tests.conftest import ORG_PACK_FIXTURES
 from tests.test_roles import (
     ALL_PLACED,
@@ -63,9 +63,10 @@ def test_a_dry_run_says_what_would_be_sent_and_sends_nothing(
     code, out, _ = run(capsys, [visit_id], llm)
 
     request = roles.request_for(transcript_id, tiny())
-    chars = sum(len(m.content) for m in request.messages) + len(json.dumps(request.schema))
+    chars = request_chars(request.messages, request.schema)
     tokens_in = math.ceil(chars / CHARS_PER_TOKEN)
-    tokens_out = 3 * OUTPUT_TOKENS_PER_LABEL + REASONING_TOKENS
+    # The answer's tokens, with batch 9's 77% of the output spent on reasoning on top.
+    tokens_out = math.ceil(3 * ANSWER_TOKENS_PER_LABEL * 100 / (100 - REASONING_PERCENT))
     each = (tokens_in * USD_PER_M_INPUT + tokens_out * USD_PER_M_OUTPUT) / 1_000_000
     assert (code, llm.asked) == (0, [])
     assert out.splitlines() == [
@@ -165,6 +166,8 @@ def test_ctrl_c_during_a_call_is_one_line(org: Org_, capsys: pytest.CaptureFixtu
 def test_cost_counts_cached_input_at_its_own_price() -> None:
     # 600k input at $1.25/M, 400k cached at $0.15/M, 1M output at $4.25/M (reasoning in it).
     assert cost(1_000_000, 400_000, 1_000_000) == pytest.approx(0.75 + 0.06 + 4.25)
+    # 23 tokens of answer, with 77% of the output spent on reasoning: 100 in all.
+    assert output_tokens(23) == 100
 
 
 def test_yes_without_a_key_sends_nothing(org: Org_, capsys: pytest.CaptureFixture[str]) -> None:
