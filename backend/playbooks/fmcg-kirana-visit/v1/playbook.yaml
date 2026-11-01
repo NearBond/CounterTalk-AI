@@ -1,0 +1,221 @@
+# The FMCG kirana visit: a sales rep's visit to a neighbourhood shop (BRIEF D14).
+# Shared by every org: nothing here is about one company. What an org sells, its teams and its
+# routing are in its org pack. A change here is a new version folder, checked with the evals.
+id: fmcg-kirana-visit
+version: 1
+name: FMCG kirana visit
+
+roles:
+  rep:
+    description: The company's sales rep making the visit.
+  shopkeeper:
+    description: The shop's owner or staff, the voice whose words become insights.
+  other:
+    description: Anyone else, such as a customer at the counter. Nothing they say becomes an insight.
+
+kinds:
+  problem:
+    description: Something wrong that a team should fix.
+  product_request:
+    description: A product, variant or pack the shop or its customers want.
+  suggestion:
+    description: The shopkeeper's idea for doing something better.
+  competitor_preference:
+    description: The shop prefers or pushes a competitor's product, and says why.
+  praise:
+    description: Something the shopkeeper is happy with.
+
+# Highest first. due_days is how long a team has to act, by default.
+severities:
+  high:
+    description: Money owed to the shop, a fast seller out of stock, or a risk of losing the shop.
+    due_days: 2
+  medium:
+    description: Hurts sales or the relationship, but the shop is coping.
+    due_days: 7
+  low:
+    description: Minor, or a request or suggestion with no harm yet.
+    due_days: 14
+
+competitor_reasons:
+  margin:
+    description: The competitor gives the shop a better margin.
+  credit_terms:
+    description: The competitor gives longer or easier credit.
+  price:
+    description: The competitor's product is cheaper for the shop or its customers.
+  scheme:
+    description: The competitor's scheme or offer is better.
+  availability:
+    description: The competitor's stock arrives when ours doesn't.
+  product:
+    description: Customers ask for the competitor's product or a new launch of theirs.
+  service:
+    description: The competitor's salesman or distributor serves the shop better.
+  other:
+    description: Any other reason the shopkeeper gives.
+
+task_types:
+  resolve_issue:
+    description: Fix a problem the shop raised, such as a pending credit note or a damage claim.
+  callback:
+    description: Call or visit the shop back by a date, with an answer.
+
+task_owners:
+  rep:
+    description: The rep does it.
+  company:
+    description: Someone at the company does it; the rep follows up.
+
+# The codebook (Appendix A's topics). Batch 10's prompt uses each definition, includes and
+# excludes; batch 15 groups insights into issues by group_by: the fields that mark the same
+# likely cause.
+categories:
+  schemes:
+    name: Schemes and promotions
+    definition: >-
+      Trade schemes and promotions: whether the shop heard of a scheme, whether its benefit
+      reached the shop, and scheme or display payouts owed to the shop.
+    includes:
+      - "Kaunsa scheme? Distributor ne kuch bataya hi nahi."
+      - "डिस्प्ले स्कीम का पेमेंट दो महीने से नहीं आया।"
+      - "The Diwali scheme payout is still pending."
+    excludes:
+      - text: A pending credit note, a disputed bill or an unpaid damage claim.
+        category: payments
+      - text: A broken rack or cooler, or display material that never came.
+        category: visibility
+    group_by: [scheme, distributor]
+  pricing:
+    name: Pricing and margins
+    definition: >-
+      Margins, price points and pack sizes, and anyone selling below the shop's cost: a
+      competitor, the wholesale market or a quick-commerce app.
+    includes:
+      - "Aapka margin 8 percent hai, Bingo pe 11 de rahe hain."
+      - "ब्लिंकिट पे मेरे लैंडिंग प्राइस से सस्ता मिल रहा है।"
+      - "A cheaper, smaller pack would sell better here."
+    excludes:
+      - text: A competitor's longer credit.
+        category: payments
+      - text: A scheme's terms or its payout.
+        category: schemes
+    group_by: [competitor, area]
+  supply:
+    name: Supply and delivery
+    definition: >-
+      Getting stock to the shop: out of stock, short supply, late or irregular delivery, wrong
+      items, or a minimum order that's too high.
+    includes:
+      - "Kurkure ka das rupaye wala pack ek hafte se nahi hai."
+      - "पिछला ऑर्डर तीन दिन लेट आया।"
+      - "The minimum order is too high for a shop this size."
+    excludes:
+      - text: Stock that arrived damaged or close to expiry.
+        category: damage
+      - text: The distributor's salesman not coming on his beat.
+        category: servicing
+    group_by: [sku, distributor]
+  damage:
+    name: Damage, expiry and returns
+    definition: >-
+      Stock damaged in transit, stock close to its expiry, and returns the distributor won't take.
+    includes:
+      - "Kurkure ke do carton damaged the."
+      - "एक महीने की एक्सपायरी वाला माल दिया, वापस भी नहीं ले रहे।"
+      - "They won't take back the expired stock."
+    excludes:
+      - text: A fault in the product or pack itself, such as a stale taste or a leaking pack.
+        category: quality
+      - text: A damage claim that hasn't been paid.
+        category: payments
+    group_by: [distributor, sku]
+  payments:
+    name: Credit and payments
+    definition: >-
+      Money between the shop and the company or its distributor: pending credit notes, disputed
+      bills, unpaid damage claims, and credit terms, ours or a competitor's.
+    includes:
+      - "Pichle mahine ka credit note abhi tak nahi aaya."
+      - "बिल में गलत अमाउंट लगा है।"
+      - "Balaji gives 30 days of credit, you give only 15."
+    excludes:
+      - text: A scheme or display payout.
+        category: schemes
+      - text: Margins and prices.
+        category: pricing
+    group_by: [distributor]
+  quality:
+    name: Product quality
+    definition: >-
+      Faults in the product or its pack: leaking, crushed or air-less packs, the taste, and
+      customers' complaints about them.
+    includes:
+      - "Lay's ke packet mein hawa hi nahi thi, sab crushed."
+      - "कस्टमर बोल रहे हैं नया फ्लेवर टेस्ट अलग है।"
+    excludes:
+      - text: Cartons damaged on the way, or stock close to its expiry.
+        category: damage
+    group_by: [sku]
+  demand:
+    name: Customer demand
+    definition: >-
+      What customers ask for: a flavour, variant or pack size, demand after a launch, or a
+      competitor's new product.
+    includes:
+      - "Doritos ka chhota das rupaye wala pack chahiye, customers poochte hain."
+      - "नया लॉन्च अभी तक यहाँ नहीं आया, लोग पूछ रहे हैं।"
+    excludes:
+      - text: A product the shop orders that didn't arrive.
+        category: supply
+      - text: A smaller pack wanted to hit a lower price.
+        category: pricing
+    group_by: [sku, area]
+  servicing:
+    name: Servicing and coverage
+    definition: >-
+      How the shop is served: the distributor's salesman skipping the beat or coming
+      irregularly, or the shop wanting another distributor.
+    includes:
+      - "Aapka salesman do hafte se nahi aaya."
+      - "दूसरे डिस्ट्रीब्यूटर से माल मिल सकता है क्या?"
+    excludes:
+      - text: A delivery that was late or short.
+        category: supply
+    group_by: [distributor]
+  visibility:
+    name: Visibility and equipment
+    definition: >-
+      Coolers, racks and display material: broken, used for a competitor's stock, or missing.
+    includes:
+      - "Cooler ek hafte se thanda nahi kar raha."
+      - "रैक पे दूसरी कंपनी का माल रखा है।"
+      - "The display material never came."
+    excludes:
+      - text: The payout for a display scheme.
+        category: schemes
+    group_by: [distributor, area]
+  praise:
+    name: Praise
+    definition: >-
+      What's working: products, schemes or service the shopkeeper is happy with. A complaint or
+      request in the same breath is its own insight, in its own category.
+    includes:
+      - "Kurkure ka naya flavour accha chal raha hai, customers repeat le rahe hain."
+      - "Delivery ab time pe aa rahi hai."
+    excludes: []
+    group_by: [sku]
+  other:
+    name: Other
+    definition: >-
+      Something a team should act on that fits no category above. Small talk and a routine
+      order are not insights at all.
+    includes:
+      - "Dukaan ke saamne road ka kaam chal raha hai, customers kam aa rahe hain."
+      - "The shop is moving to a new place next month."
+    excludes: []
+    group_by: [area]
+
+prompt: prompt.md
+roles_prompt: roles_prompt.md
+evals: evals

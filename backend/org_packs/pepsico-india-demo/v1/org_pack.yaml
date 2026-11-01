@@ -1,0 +1,58 @@
+# Example data for the test org. The brand and product names are public product information,
+# as sold in India and checked against retailer and company pages on 1 Nov 2026. PepsiCo India is
+# not a customer or partner of CounterTalk, and none of this comes from it. There are no logos.
+# The teams, contacts, routing, distributors and schemes are made up.
+id: pepsico-india-demo
+version: 1
+playbook: {id: fmcg-kirana-visit, version: 1}
+display_name: PepsiCo India (example)
+sells: >-
+  Snacks and drinks sold through neighbourhood shops: potato chips (Lay's, Uncle Chipps), extruded
+  snacks (Kurkure, Cheetos), tortilla chips (Doritos), oats (Quaker), soft drinks (Pepsi, 7UP,
+  Mountain Dew, Mirinda), an energy drink (Sting), juices and fruit drinks (Tropicana, Slice), a
+  lemon drink (Nimbooz), packaged water (Aquafina) and a sports drink (Gatorade).
+
+teams:
+  finance:
+    name: Finance
+    contact: finance@example.com
+    handles: Credit notes, disputed bills, unpaid claims and credit terms with shops and distributors.
+  distribution:
+    name: Distribution
+    contact: distribution@example.com
+    handles: Deliveries, stock-outs and short supply, damaged or near-expiry stock, and returns.
+  trade_marketing:
+    name: Trade marketing
+    contact: trade.marketing@example.com
+    handles: Trade schemes and their payouts, display payments, and coolers, racks and display material.
+  sales_ops:
+    name: Sales operations
+    contact: sales.ops@example.com
+    handles: Distributor coverage, the salesmen's beats and visits, and shops asking for another distributor.
+  area_manager:
+    name: Area manager
+    contact: area.manager@example.com
+    handles: Serious problems that put a shop at risk in the area, such as a high-severity payment dispute.
+
+# Each playbook category's team, from Appendix A's "team that usually acts". A category whose
+# usual team isn't one of these five has none and goes to triage, where the AI's team suggestion
+# helps a person pick: pricing, quality, demand, praise and other.
+routing:
+  schemes: trade_marketing
+  supply: distribution
+  damage: distribution
+  payments: finance
+  servicing: sales_ops
+  visibility: trade_marketing
+
+# At most one per category, so an insight has at most 2 teams (batch 12).
+overrides:
+  - category: payments
+    min_severity: high
+    team: area_manager
+
+catalog:
+  skus: skus.csv
+  competitors: competitors.csv
+  schemes: schemes.csv
+  distributors: distributors.csv

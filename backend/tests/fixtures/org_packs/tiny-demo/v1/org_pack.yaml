@@ -1,0 +1,27 @@
+# A second, tiny org pack for the tests: a made-up snack maker. Every name here is invented.
+id: tiny-demo
+version: 1
+playbook: {id: fmcg-kirana-visit, version: 1}
+display_name: Tiny Snacks (example)
+sells: Made-up crisps sold to neighbourhood shops.
+teams:
+  money:
+    name: Money desk
+    contact: money@example.com
+    handles: Payments and credit notes.
+  field:
+    name: Field team
+    contact: field@example.com
+    handles: Deliveries and the shops' visits.
+routing:
+  payments: money
+  supply: field
+overrides:
+  - category: payments
+    min_severity: high
+    team: field
+catalog:
+  skus: skus.csv
+  competitors: competitors.csv
+  schemes: schemes.csv
+  distributors: distributors.csv

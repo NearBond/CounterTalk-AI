@@ -1,0 +1,3 @@
+- **rep:** the company's sales rep making the visit. Asks about stock and schemes, takes the order, and promises follow-ups.
+- **shopkeeper:** the shop's owner or staff. Answers the rep, raises problems, and talks about customers and competitors.
+- **other:** anyone else in the conversation, such as a customer at the counter or a passer-by. Short, unrelated requests ("ek Thums Up dena") usually come from here.

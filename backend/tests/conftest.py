@@ -7,6 +7,7 @@
 """
 
 import os
+import shutil
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -143,3 +144,24 @@ def app() -> FastAPI:
 def client(app: FastAPI) -> Iterator[TestClient]:
     with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client
+
+
+ORG_PACK_FIXTURES = BACKEND_DIR / "tests" / "fixtures" / "org_packs"
+
+
+@pytest.fixture
+def pack_roots(tmp_path: Path) -> tuple[Path, Path]:
+    """Copies of the tests' org packs and the real playbooks, to change or break (batch 8)."""
+    from countertalk.playbooks import PLAYBOOKS_DIR
+
+    packs, books = tmp_path / "org_packs", tmp_path / "playbooks"
+    shutil.copytree(ORG_PACK_FIXTURES, packs)
+    shutil.copytree(PLAYBOOKS_DIR, books)
+    return packs, books
+
+
+def edit_file(path: Path, old: str, new: str) -> None:
+    """Replaces one exact piece of a text file, which must be there."""
+    text = path.read_text(encoding="utf-8")
+    assert old in text, f"{old!r} isn't in {path.name}"
+    path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")

@@ -18,6 +18,7 @@ RUN_TIMEOUT_S = 60
 UNKNOWN = new_id()
 
 BAD_INPUTS = {
+    "check_pack.py": (["no-such-pack", "1"], {}),
     "check_setup.py": (["--database"], {"DATABASE_URL": NO_SUCH_DATABASE}),
     "compare_transcript.py": ([UNKNOWN, "no-such-reference.turns.json"], {}),
     "e2e_setup.py": ([], {}),  # the test database isn't named for e2e, so it's refused
