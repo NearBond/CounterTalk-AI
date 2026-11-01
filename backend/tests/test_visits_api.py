@@ -25,6 +25,7 @@ from countertalk.models import Org, Role, Shop, User, Visit
 from countertalk.playbooks import load_org_pack
 from scripts.seed_dev import DEMO_PACK, seed
 from tests.conftest import give_transcript
+from tests.test_visits import staged_files
 
 RACE_TIMEOUT_S = 2 * LOCK_TIMEOUT_MS / 1000
 
@@ -56,11 +57,6 @@ def put_segment(
 
 def complete(client: TestClient, visit_id: str, body: dict) -> httpx.Response:
     return client.post(f"/api/visits/{visit_id}/complete", json=body)
-
-
-def staged_files(data_dir: Path) -> list[Path]:
-    staging = data_dir / "tmp"
-    return sorted(staging.iterdir()) if staging.exists() else []
 
 
 def other_org() -> tuple[str, str]:

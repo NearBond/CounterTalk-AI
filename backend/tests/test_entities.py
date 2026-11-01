@@ -59,6 +59,7 @@ TRICKY = [
     ("बिन्गो", "bingo", "exact"),
     ("कुरकुरें", "kurkure", "fuzzy"),  # nearer its brand (93) than its product कुरकुरे मंच (89)
     ("Sprites", "sprite", "fuzzy"),
+    ("चीटोज़", "cheetos", "exact"),  # the spoken plural, a catalog alias
     # products, which beat their brands
     ("मैड एंगल्स", "bingo_mad_angles", "exact"),
     ("Mad Angles", "bingo_mad_angles", "exact"),
@@ -79,7 +80,6 @@ TRICKY = [
     ("Coker", None, "unknown"),  # coke
     ("Lima", None, "unknown"),  # limca
     ("Dewa", None, "unknown"),  # dew
-    ("चीटोज़", None, "unknown"),  # चीटो
     # only in another org's pack
     ("Crunchy", None, "unknown"),  # 80 against Balaji's "crunchem"
     ("क्रंची", None, "unknown"),

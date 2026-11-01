@@ -14,9 +14,9 @@ from countertalk import extraction
 from countertalk.db import session_scope
 from countertalk.errors import RetryableError
 from countertalk.llm.base import Outcome
-from countertalk.models import Evidence, Insight, LlmCall, VisitStatus
+from countertalk.models import Evidence, Insight, VisitStatus
 from countertalk.quotes import INSTRUCTIONS
-from tests.test_extraction import PACKS, answer, insight, run, transcribed
+from tests.test_extraction import PACKS, answer, insight, purposes, run, transcribed
 from tests.test_roles import ALL_PLACED, FakeLlm, call, tiny_org
 from tests.test_visits import Org_, load
 
@@ -52,12 +52,6 @@ def verified(visit_id: str) -> list[bool]:
     with session_scope(read_only=True) as session:
         query = select(Insight.verified).where(Insight.visit_id == visit_id).order_by(Insight.seq)
         return list(session.scalars(query))
-
-
-def purposes(visit_id: str) -> list[tuple[str, bool]]:
-    with session_scope(read_only=True) as session:
-        query = select(LlmCall.purpose, LlmCall.ok).where(LlmCall.visit_id == visit_id)
-        return [tuple(row) for row in session.execute(query.order_by(LlmCall.seq))]
 
 
 def quoting(*quoted: tuple[int, str]) -> dict[str, Any]:

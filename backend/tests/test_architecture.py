@@ -6,6 +6,7 @@ Every rule also runs on small examples, so a rule that stops finding anything fa
 """
 
 import ast
+import copy
 import re
 import sys
 from collections.abc import Callable, Iterator
@@ -247,6 +248,57 @@ def visit_status_only_through_set_status(sources: list[Source]) -> list[str]:
     return found
 
 
+ROUTE_FIELDS = {"slot", "routed_by", "team_id"}
+ROUTE_STATEMENTS = {"insert", "update", "delete", "merge"}
+ROUTE_SQL = re.compile(r"\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+insight_routes\b", re.IGNORECASE)
+
+
+def insight_routes_only_through_routing(sources: list[Source]) -> list[str]:
+    """Batch 12: only routing.py writes InsightRoute, so every change has its RoutingDecision
+    row. Reading routes is fine anywhere. Making one isn't, nor a statement on one (insert,
+    update, delete, or deleting a variable named for a route), nor setting a slot, team_id or
+    routed_by, nor SQL that writes insight_routes. A false hit (another table's team_id, say)
+    means the change belongs in routing.py, or this check needs narrowing."""
+    found = []
+    for path, tree in sources:
+        if path in {"routing.py", "models.py"}:
+            continue
+        aliases = imported_as(tree)
+
+        def is_route(node: ast.AST, aliases: dict[str, str] = aliases) -> bool:
+            root, dot, rest = dotted(node).partition(".")
+            name = aliases.get(root, root) + dot + rest
+            return name.split(".")[-1] == "InsightRoute" or name.endswith("InsightRoute.__table__")
+
+        def mentions_route(node: ast.AST) -> bool:
+            return any(map(is_route, ast.walk(node)))
+
+        def named_route(node: ast.AST) -> bool:
+            return "route" in dotted(node).split(".")[-1].lower()
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                func = node.func
+                verb = func.attr if isinstance(func, ast.Attribute) else dotted(func)
+                on_route = verb.split(".")[-1] in ROUTE_STATEMENTS and (
+                    any(mentions_route(arg) or named_route(arg) for arg in node.args)
+                    or (isinstance(func, ast.Attribute) and mentions_route(func.value))
+                )
+                if is_route(func) or on_route:
+                    found.append(f"{path}:{node.lineno}")
+            elif isinstance(node, ast.Assign | ast.AugAssign | ast.AnnAssign):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                found += [
+                    f"{path}:{node.lineno} .{target.attr}"
+                    for target in targets
+                    if isinstance(target, ast.Attribute) and target.attr in ROUTE_FIELDS
+                ]
+        found += [
+            f"{path}:{sql.lineno}" for sql in sql_strings(tree) if ROUTE_SQL.search(sql.value)
+        ]
+    return found
+
+
 def get_session_only_through_db_session(sources: list[Source]) -> list[str]:
     """Routes take DbSession: Depends(get_session) without scope="function" commits after the
     response is sent, so a failed commit would reach the client as a success."""
@@ -436,6 +488,7 @@ RULES: dict[str, Callable[[list[Source]], list[str]]] = {
         no_session_level_set,
         get_session_only_through_db_session,
         visit_status_only_through_set_status,
+        insight_routes_only_through_routing,
         routers_carry_their_own_prefix,
         job_times_come_from_postgres,
         clients_import_only_the_allowlist,
@@ -539,9 +592,65 @@ BAD_EXAMPLES = [
         "visits.py",
         "def fail(job):\n    job.visit.status = 'x'\n",
     ),
+    ("insight_routes_only_through_routing", "inbox.py", "session.add(InsightRoute(slot=2))\n"),
+    (
+        "insight_routes_only_through_routing",
+        "inbox.py",
+        "from countertalk import models as m\nsession.add(m.InsightRoute())\n",
+    ),
+    (
+        "insight_routes_only_through_routing",
+        "inbox.py",
+        "from sqlalchemy import update\nupdate(InsightRoute).values(team_id=t)\n",
+    ),
+    ("insight_routes_only_through_routing", "inbox.py", "delete(InsightRoute.__table__)\n"),
+    ("insight_routes_only_through_routing", "inbox.py", "def f(route):\n    route.slot = 2\n"),
+    ("insight_routes_only_through_routing", "inbox.py", "route.routed_by = 'person'\n"),
+    (
+        "insight_routes_only_through_routing",
+        "inbox.py",
+        "session.execute(text('UPDATE insight_routes SET slot = 2'))\n",
+    ),
+    (
+        "insight_routes_only_through_routing",
+        "inbox.py",
+        "def move(route, team):\n    route.team_id = team\n",
+    ),
+    ("insight_routes_only_through_routing", "inbox.py", "session.delete(route)\n"),
+    (
+        "insight_routes_only_through_routing",
+        "inbox.py",
+        "session.query(InsightRoute).filter(x).delete()\n",
+    ),
+    (
+        "insight_routes_only_through_routing",
+        "inbox.py",
+        "session.execute(InsightRoute.__table__.delete())\n",
+    ),
 ]
 
 ALLOWED_EXAMPLES = [
+    ("insight_routes_only_through_routing", "inbox.py", "session.delete(visit)\n"),
+    (
+        "insight_routes_only_through_routing",
+        "inbox.py",
+        "session.execute(delete(Insight).where(Insight.id == i))\n",
+    ),
+    (
+        "insight_routes_only_through_routing",
+        "routing.py",
+        "session.add(InsightRoute(slot=2))\nroute.slot = 2\n",
+    ),
+    (
+        "insight_routes_only_through_routing",
+        "inbox.py",
+        "session.scalars(select(InsightRoute).where(InsightRoute.slot == 1))\n",
+    ),
+    (
+        "insight_routes_only_through_routing",
+        "inbox.py",
+        "text('SELECT slot FROM insight_routes')\n",
+    ),
     (
         "files_written_only_by_storage",
         "storage.py",
@@ -664,3 +773,69 @@ def test_sarvam_stays_out_of_the_app() -> None:
     ]
 
     assert mentions == []
+
+
+# --- R1: a helper is written once -------------------------------------------------------------
+
+REUSE_FOLDERS = ("countertalk", "scripts", "tests")
+# Below this many syntax nodes a body is a bare line like `return None`.
+COPY_MIN_NODES = 8
+
+
+def _body(function: ast.FunctionDef | ast.AsyncFunctionDef, aliases: dict[str, str]) -> ast.Module:
+    """The body, docstring aside, with each imported name as what it imports: two wrappers that
+    call different scripts' main() aren't copies."""
+    body = function.body
+    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+        body = body[1:]
+    module = ast.Module(body=copy.deepcopy(body), type_ignores=[])
+    for node in ast.walk(module):
+        if isinstance(node, ast.Name):
+            node.id = aliases.get(node.id, node.id)
+    return module
+
+
+def copied_functions(sources: list[Source]) -> list[str]:
+    """CODING_GUIDELINES §8.5 R1: a module-level function whose body is another's is a copy.
+    Import the first, or move it to conftest.py. Added in batch 12, when R1 came up in two
+    parts in a row."""
+    first: dict[str, str] = {}
+    found = []
+    for path, tree in sources:
+        aliases = imported_as(tree)
+        for node in tree.body:
+            if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                continue
+            body = _body(node, aliases)
+            if sum(1 for _ in ast.walk(body)) - 1 < COPY_MIN_NODES:
+                continue
+            where = f"{path}:{node.lineno} {node.name}"
+            key = ast.dump(body)
+            if key in first:
+                found.append(f"{where} copies {first[key]}")
+            else:
+                first[key] = where
+    return found
+
+
+def reuse_sources() -> list[Source]:
+    return [
+        (path.relative_to(BACKEND_DIR).as_posix(), ast.parse(path.read_text(encoding="utf-8")))
+        for folder in REUSE_FOLDERS
+        for path in sorted((BACKEND_DIR / folder).rglob("*.py"))
+    ]
+
+
+def test_no_helper_is_copied() -> None:
+    assert copied_functions(reuse_sources()) == []
+
+
+def test_a_copied_helper_is_found_but_not_one_calling_another_import() -> None:
+    tiny = "from x import load\ndef tiny():\n    return load('tiny', 1, ROOT)\n"
+    run = "from {} import main\ndef run(args):\n    code = main(args, root=ROOT)\n    return code\n"
+
+    copied = [("tests/a.py", ast.parse(tiny)), ("tests/b.py", ast.parse(tiny))]
+    two_scripts = [(f"tests/{m}.py", ast.parse(run.format(m))) for m in ("a", "b")]
+
+    assert copied_functions(copied) == ["tests/b.py:2 tiny copies tests/a.py:2 tiny"]
+    assert copied_functions(two_scripts) == []

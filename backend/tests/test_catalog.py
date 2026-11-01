@@ -12,7 +12,8 @@ from countertalk.db import session_scope
 from countertalk.errors import Conflict
 from countertalk.models import CatalogAlias, CatalogItem, Distributor, Org, Team
 from countertalk.playbooks import OrgPack, load_org_pack
-from tests.conftest import ORG_PACK_FIXTURES, edit_file
+from tests.conftest import edit_file
+from tests.test_roles import tiny
 
 
 def new_org(name: str) -> str:
@@ -47,10 +48,6 @@ def contents(org_id: str) -> dict[str, list[tuple[str, ...]]]:
             "items": rows(CatalogItem.key, CatalogItem.kind, CatalogItem.brand),
             "aliases": rows(CatalogAlias.text, CatalogAlias.source),
         }
-
-
-def tiny() -> OrgPack:
-    return load_org_pack("tiny-demo", 1, ORG_PACK_FIXTURES)
 
 
 def test_an_import_puts_the_org_on_the_pack_and_adds_its_rows() -> None:

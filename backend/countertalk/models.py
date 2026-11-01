@@ -608,6 +608,8 @@ class Insight(Base):
         UniqueConstraint("visit_id", "seq"),
         # The target of evidence's (insight_id, visit_id).
         UniqueConstraint("id", "visit_id"),
+        # The target of its routes' (org_id, insight_id): a route's team is the insight's org's.
+        UniqueConstraint("org_id", "id"),
         # An unverified insight never reaches a team (BRIEF D9).
         CheckConstraint("verified OR NOT visible", name="visible_only_verified"),
         # Extracted, or added by the rep: one or the other.
@@ -757,4 +759,106 @@ class AliasReview(Base):
     normalised: Mapped[str] = mapped_column(String)
     visit_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
     status: Mapped[str] = mapped_column(String, default=AliasReviewStatus.OPEN.value)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class RoutedBy(StrEnum):
+    TABLE = "table"
+    AI = "ai"
+    OVERRIDE = "override"
+    # A team member accepted, moved or also sent it (batch 14): "suggested by AI" goes.
+    PERSON = "person"
+
+
+class InsightRoute(Base):
+    """One team an insight is sent to (batch 12; BRIEF D7). Slot 1 is its main team; slot 2 is
+    its category's override or a team member's Also send. An insight with no route is in triage.
+
+    Only routing.py writes these (an architecture test), each change with its RoutingDecision
+    row. A route goes with its insight (cascade): a re-extraction's new insights are routed
+    afresh, and the history stays in routing_decisions."""
+
+    __tablename__ = "insight_routes"
+    __table_args__ = (
+        CheckConstraint(_one_of("routed_by", RoutedBy), name="routed_by"),
+        # The cap on an insight's teams is this one constraint: raising it is a small change.
+        CheckConstraint("slot BETWEEN 1 AND 2", name="slot"),
+        UniqueConstraint("insight_id", "slot"),
+        UniqueConstraint("insight_id", "team_id"),
+        ForeignKeyConstraint(
+            ["org_id", "insight_id"], ["insights.org_id", "insights.id"], ondelete="CASCADE"
+        ),
+        # Teams are never deleted (they're the pack's), so nothing happens on delete.
+        ForeignKeyConstraint(["org_id", "team_id"], ["teams.org_id", "teams.id"]),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    insight_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    slot: Mapped[int]
+    team_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    routed_by: Mapped[str] = mapped_column(String)
+    # For compare-and-set changes (batch 14, §2.3).
+    version: Mapped[int] = mapped_column(default=1)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now, onupdate=utc_now)
+
+
+class RoutingAction(StrEnum):
+    ROUTE = "route"
+    OVERRIDE = "override"
+    REROUTE = "reroute"
+    ACCEPT = "accept"
+    MOVE = "move"
+    ALSO_SEND = "also_send"
+    TRIAGE_ASSIGN = "triage_assign"
+
+
+# The rule's name for an insight it left without a team.
+TRIAGE_RULE = "triage"
+
+
+class RoutingDecision(Base):
+    """The routing history (batch 12; BRIEF §6): a row for each route given or changed, and one
+    for an insight the rule left in triage, written in the same transaction as the change. The
+    current state is the insight_routes rows.
+
+    Append-only: refuse_change() refuses UPDATE and DELETE, except a delete that cascades from
+    the extraction (with its visit). insight_id is a plain indexed UUID with no foreign key, by
+    design, so the history outlives an insight a re-extraction replaced. A row from a person
+    about a rep's own insight has no extraction, and stays until its org goes. The AI's reason
+    isn't copied: it's in the extraction's raw_json."""
+
+    __tablename__ = "routing_decisions"
+    __table_args__ = (
+        CheckConstraint(_one_of("action", RoutingAction), name="action"),
+        # A triage row has neither slot nor team; every other row has both.
+        CheckConstraint(
+            "(slot IS NULL) = (team_id IS NULL)"
+            f" AND (team_id IS NULL) = COALESCE(rule = '{TRIAGE_RULE}', false)",
+            name="triage",
+        ),
+        # Decided by the rule, or by a person: one or the other.
+        CheckConstraint("(rule IS NULL) <> (decided_by IS NULL)", name="rule_or_person"),
+        # Its team and its person are its org's. Neither is ever deleted while it has history
+        # (an UPDATE to null would be refused anyway), so nothing happens on delete.
+        ForeignKeyConstraint(["org_id", "team_id"], ["teams.org_id", "teams.id"]),
+        ForeignKeyConstraint(["org_id", "decided_by"], ["users.org_id", "users.id"]),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    insight_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    slot: Mapped[int | None]
+    team_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    action: Mapped[str] = mapped_column(String)
+    # agreed, table_only, ai_filled_gap, disagreed, override:<category> or triage; None for a
+    # person's.
+    rule: Mapped[str | None] = mapped_column(String)
+    decided_by: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    # The model's team key when it isn't one of the org's teams: on the slot 1 or triage row.
+    ai_team_key_unknown: Mapped[str | None] = mapped_column(String)
+    extraction_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("extractions.id", ondelete="CASCADE"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)

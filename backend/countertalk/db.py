@@ -98,6 +98,12 @@ def database_reachable(session: Session) -> bool:
     return True
 
 
+def constraint_name(error: BaseException) -> str | None:
+    """The constraint a database error names, if any: matched on, never its message (§1.9)."""
+    diag = getattr(getattr(error, "orig", None), "diag", None)
+    return getattr(diag, "constraint_name", None)
+
+
 # What a dev script catches around its database work, to say in one line what went wrong.
 SETUP_ERRORS = (ValidationError, ArgumentError, DBAPIError)
 

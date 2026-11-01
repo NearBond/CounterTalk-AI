@@ -16,6 +16,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from countertalk.api import debug, health, shops, visits
 from countertalk.config import get_settings
+from countertalk.db import constraint_name
 from countertalk.errors import DomainError
 from countertalk.logs import configure_logging
 from countertalk.web import mount_web_app
@@ -57,11 +58,6 @@ async def _invalid_request(request: Request, error: RequestValidationError) -> J
     )
 
 
-def _constraint(error: BaseException) -> str:
-    diag = getattr(getattr(error, "orig", None), "diag", None)
-    return getattr(diag, "constraint_name", None) or "-"
-
-
 def _sqlstate(error: BaseException) -> str:
     return getattr(getattr(error, "orig", None), "sqlstate", None) or "-"
 
@@ -101,7 +97,7 @@ class UnexpectedErrors:
                 scope["method"],
                 route,
                 type(error).__name__,
-                _constraint(error),
+                constraint_name(error) or "-",
                 _sqlstate(error),
                 exc_info=error,
             )

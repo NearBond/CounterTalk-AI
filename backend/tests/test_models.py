@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import Executable, delete, select, text, update
 from sqlalchemy.exc import IntegrityError, StatementError
 
-from countertalk.db import session_scope
+from countertalk.db import constraint_name, session_scope
 from countertalk.models import (
     IST,
     Distributor,
@@ -32,11 +32,6 @@ from countertalk.models import (
     utc_now,
 )
 from tests.conftest import give_transcript
-
-
-def constraint_violated(error: IntegrityError) -> str | None:
-    diag = getattr(error.orig, "diag", None)
-    return getattr(diag, "constraint_name", None)
 
 
 def add_org(name: str = "Test Org") -> str:
@@ -110,7 +105,7 @@ def test_a_bad_user_is_refused_by_the_database(role: str, email: str, constraint
     with pytest.raises(IntegrityError) as error, session_scope() as session:
         session.add(User(org_id=org_id, email=email, name="Test", role=role))
 
-    assert constraint_violated(error.value) == constraint
+    assert constraint_name(error.value) == constraint
 
 
 @pytest.mark.parametrize(
@@ -136,7 +131,7 @@ def test_natural_keys_are_unique(make_duplicate: Callable[[str], object], constr
     with pytest.raises(IntegrityError) as error, session_scope() as session:
         session.add(make_duplicate(org_id))
 
-    assert constraint_violated(error.value) == constraint
+    assert constraint_name(error.value) == constraint
 
 
 def add_visit_parts() -> tuple[str, str, str]:
@@ -178,7 +173,7 @@ def test_an_unknown_visit_value_is_refused_by_the_database(
     with pytest.raises(IntegrityError) as error, session_scope() as session:
         session.add(visit_row(**{field: value}))
 
-    assert constraint_violated(error.value) == constraint
+    assert constraint_name(error.value) == constraint
 
 
 @pytest.mark.parametrize(
@@ -198,7 +193,7 @@ def test_a_bad_segment_is_refused_by_the_database(overrides: dict, constraint: s
     with pytest.raises(IntegrityError) as error, session_scope() as session:
         session.add(Segment(**{**values, **overrides}))
 
-    assert constraint_violated(error.value) == constraint
+    assert constraint_name(error.value) == constraint
 
 
 def test_a_visits_segments_go_with_it() -> None:
@@ -235,7 +230,7 @@ def test_a_visit_with_another_orgs_shop_or_rep_is_refused(field: str, constraint
         setattr(visit, field, theirs)
         session.add(visit)
 
-    assert constraint_violated(error.value) == constraint
+    assert constraint_name(error.value) == constraint
 
 
 # --- jobs (batch 4) -------------------------------------------------------------------------
@@ -262,7 +257,7 @@ def test_a_bad_job_is_refused_by_the_database(overrides: dict, constraint: str) 
     with pytest.raises(IntegrityError) as error, session_scope() as session:
         session.add(job_row(**overrides))
 
-    assert constraint_violated(error.value) == constraint
+    assert constraint_name(error.value) == constraint
 
 
 def test_a_visits_jobs_go_with_it() -> None:
@@ -333,7 +328,7 @@ def test_a_turn_with_bad_times_is_refused_by_the_database(overrides: dict) -> No
     with pytest.raises(IntegrityError) as error, session_scope() as session:
         session.add(turn_row(transcript_id=transcript_id, turn_id=1, **overrides))
 
-    assert constraint_violated(error.value) == "ck_turns_times"
+    assert constraint_name(error.value) == "ck_turns_times"
 
 
 def test_a_visit_pointing_at_another_visits_transcript_is_refused() -> None:
@@ -350,7 +345,7 @@ def test_a_visit_pointing_at_another_visits_transcript_is_refused() -> None:
     with pytest.raises(IntegrityError) as error, session_scope() as session:
         session.get(Visit, mine.id).transcript_id = theirs  # type: ignore[union-attr]
 
-    assert constraint_violated(error.value) == "fk_visits_id_transcripts"
+    assert constraint_name(error.value) == "fk_visits_id_transcripts"
 
 
 def test_a_shop_with_another_orgs_distributor_is_refused() -> None:
@@ -369,7 +364,7 @@ def test_a_shop_with_another_orgs_distributor_is_refused() -> None:
         assert shop is not None
         shop.distributor_id = theirs_id
 
-    assert constraint_violated(error.value) == "fk_shops_org_id_distributors"
+    assert constraint_name(error.value) == "fk_shops_org_id_distributors"
 
 
 def test_a_visits_local_date_is_indias() -> None:
@@ -457,8 +452,8 @@ def test_an_insights_visit_and_suggested_team_are_its_own_orgs() -> None:
     with pytest.raises(IntegrityError) as wrong_team:
         extracted(visit_id, transcript_id, org_id, ai_team_id=their_team)
 
-    assert constraint_violated(wrong_org.value) == "fk_insights_org_id_visits"
-    assert constraint_violated(wrong_team.value) == "fk_insights_ai_team_id_teams"
+    assert constraint_name(wrong_org.value) == "fk_insights_org_id_visits"
+    assert constraint_name(wrong_team.value) == "fk_insights_ai_team_id_teams"
 
 
 @pytest.mark.parametrize(
@@ -489,7 +484,7 @@ def test_evidence_refuses_a_turn_its_transcript_hasnt_got_and_an_unknown_match(
         }
         session.add(Evidence(**{**values, "turn_id": None, "quote_llm": "x", **change}))
 
-    assert constraint_violated(error.value) == constraint
+    assert constraint_name(error.value) == constraint
 
 
 def test_a_naive_time_has_no_local_date() -> None:
@@ -515,7 +510,7 @@ def test_an_insight_is_shown_only_verified_and_is_extracted_or_added(
     with pytest.raises(IntegrityError) as error:
         extracted(visit_id, transcript_id, org_id, **change)
 
-    assert constraint_violated(error.value) == constraint
+    assert constraint_name(error.value) == constraint
 
 
 def test_rows_never_point_at_another_visits_extraction_or_transcript() -> None:
@@ -536,7 +531,7 @@ def test_rows_never_point_at_another_visits_extraction_or_transcript() -> None:
     def refused(row: object) -> str | None:
         with pytest.raises(IntegrityError) as error, session_scope() as session:
             session.add(row)
-        return constraint_violated(error.value)
+        return constraint_name(error.value)
 
     report = Report(visit_id=mine, extraction_id=their_extraction, summary_en="S", json={})
     quote = Evidence(
