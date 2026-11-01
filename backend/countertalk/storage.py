@@ -22,6 +22,8 @@ log = logging.getLogger(__name__)
 
 # The extensions an uploaded stream may have (complete(ext)); batch 5 names the joined file so.
 ALLOWED_EXTS = ("webm", "m4a", "mp4", "aac", "ogg", "wav")
+# Chunks of a visit: an hour is 7 of 9.5 minutes, so 1,000 is far beyond any real one.
+MAX_CHUNKS = 1_000
 
 
 def data_dir() -> Path:
@@ -61,11 +63,42 @@ def segment_path(visit_id: str, seq: int) -> Path:
     return visit_dir(visit_id) / "segments" / f"{check_seq(seq):06d}.bin"
 
 
-def stage(body: bytes | bytearray) -> Path:
-    """Writes the bytes to a new temporary file, flushed to disk, and returns its path."""
+def source_path(visit_id: str, ext: str) -> Path:
+    """The visit's segments joined into one file, with the extension complete() gave."""
+    return visit_dir(visit_id) / f"source.{check_ext(ext)}"
+
+
+def prepared_path(visit_id: str) -> Path:
+    """16-bit mono WAV at 24 kHz, for speech-to-text."""
+    return visit_dir(visit_id) / "prepared.wav"
+
+
+def playback_path(visit_id: str) -> Path:
+    return visit_dir(visit_id) / "playback.m4a"
+
+
+def chunk_path(visit_id: str, index: int) -> Path:
+    if isinstance(index, bool) or not 0 <= index < MAX_CHUNKS:
+        raise Invalid("invalid_chunk", f"A chunk number runs from 0 to {MAX_CHUNKS - 1}")
+    return visit_dir(visit_id) / "chunks" / f"chunk_{index:03d}.wav"
+
+
+def chunks_manifest_path(visit_id: str) -> Path:
+    """Written last: while it's there and checks out, the preparation is finished."""
+    return visit_dir(visit_id) / "chunks.json"
+
+
+def new_temp() -> Path:
+    """A fresh path in the staging folder, for a file moved into place once it's whole. One a
+    crash leaves behind is swept, like any staged file."""
     staging = _staging_dir()
     staging.mkdir(parents=True, exist_ok=True)
-    path = staging / f"{uuid.uuid4().hex}.part"
+    return staging / f"{uuid.uuid4().hex}.part"
+
+
+def stage(body: bytes | bytearray) -> Path:
+    """Writes the bytes to a new temporary file, flushed to disk, and returns its path."""
+    path = new_temp()
     try:
         with path.open("xb") as file:
             file.write(body)
@@ -76,6 +109,12 @@ def stage(body: bytes | bytearray) -> Path:
         path.unlink(missing_ok=True)
         raise
     return path
+
+
+def sync(path: Path) -> None:
+    """Flushes a file another writer made (ffmpeg, wave) to disk, before it moves into place."""
+    with path.open("rb+") as file:
+        os.fsync(file.fileno())
 
 
 def move_into_place(staged: Path, path: Path) -> None:

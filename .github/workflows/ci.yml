@@ -10,6 +10,8 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-24.04
+    # The image's base, with Debian's ffmpeg (7.1), so the audio tests run what production runs.
+    container: python:3.12-slim
     timeout-minutes: 15
     services:
       postgres:
@@ -18,25 +20,26 @@ jobs:
           POSTGRES_USER: countertalk
           POSTGRES_PASSWORD: countertalk
           POSTGRES_DB: countertalk
-        ports:
-          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U countertalk -d countertalk"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+    env:
+      # From inside the job's container, the service is reached by its name.
+      TEST_POSTGRES_HOST: postgres
     defaults:
       run:
         working-directory: backend
     steps:
       - uses: actions/checkout@v5
+      - name: ffmpeg from Debian, as in the image
+        run: apt-get update -q && apt-get install -y -q --no-install-recommends ffmpeg
       - uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.13.5"
           python-version: "3.12"
       - run: uv sync --locked
-      # The test-audio tool's mix test runs ffmpeg (CODING_GUIDELINES §3.5).
-      - run: command -v ffmpeg || (sudo apt-get update -q && sudo apt-get install -y -q ffmpeg)
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       # Creates and migrates countertalk_test on the service above (tests/conftest.py).

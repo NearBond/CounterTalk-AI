@@ -6,6 +6,7 @@
   once per session. Every table is emptied before each test.
 """
 
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -23,7 +24,9 @@ from countertalk.main import create_app
 from countertalk.models import Org
 
 # 127.0.0.1, not localhost: on Windows, localhost tries ::1 first and waits for it to time out.
-SERVER_URL = "postgresql+psycopg://countertalk:countertalk@127.0.0.1:5432"
+# CI's job container reaches its Postgres service by name instead (TEST_POSTGRES_HOST).
+POSTGRES_HOST = os.environ.get("TEST_POSTGRES_HOST", "127.0.0.1")
+SERVER_URL = f"postgresql+psycopg://countertalk:countertalk@{POSTGRES_HOST}:5432"
 TEST_DATABASE = "countertalk_test"
 
 # Every setting except DATA_DIR (each test's tmp_path) and WEB_DIST_DIR (pinned per session).
@@ -105,7 +108,9 @@ def _test_database(_pinned_environment: None) -> None:
     try:
         create_database(TEST_DATABASE)
     except OperationalError:
-        pytest.exit("Postgres isn't reachable on 127.0.0.1:5432: run `docker compose up -d db`")
+        pytest.exit(
+            f"Postgres isn't reachable on {POSTGRES_HOST}:5432: run `docker compose up -d db`"
+        )
     command.upgrade(alembic_config(), "head")
 
 

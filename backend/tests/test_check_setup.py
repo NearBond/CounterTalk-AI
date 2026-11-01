@@ -15,7 +15,7 @@ from scripts.check_setup import (
     check_tool,
     report,
 )
-from tests.conftest import SERVER_URL, TEST_DATABASE
+from tests.conftest import POSTGRES_HOST, SERVER_URL, TEST_DATABASE
 
 
 def test_python_312_is_ok() -> None:
@@ -149,7 +149,7 @@ def test_database_url_without_a_port_shows_the_default_port(
     check = check_database()
 
     assert check.status == "ok"
-    assert check.detail == f"127.0.0.1:5432/{TEST_DATABASE}"
+    assert check.detail == f"{POSTGRES_HOST}:5432/{TEST_DATABASE}"
 
 
 def test_required_python_matches_pyproject() -> None:
@@ -167,7 +167,7 @@ def test_database_only_checks_just_the_settings_and_postgres(
     assert exit_code == 0
     assert capsys.readouterr().out.splitlines() == [
         "ok    settings: valid",
-        f"ok    postgres: 127.0.0.1:5432/{TEST_DATABASE}",
+        f"ok    postgres: {POSTGRES_HOST}:5432/{TEST_DATABASE}",
     ]
 
 
