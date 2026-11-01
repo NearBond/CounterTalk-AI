@@ -24,9 +24,9 @@ from typing import Any
 from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 
-from countertalk import audio, catalog, storage, visits
+from countertalk import audio, catalog, errors, storage, visits
 from countertalk.db import session_scope
-from countertalk.errors import DomainError, NotFound, PermanentError, RetryableError
+from countertalk.errors import DomainError, NotFound, PermanentError
 from countertalk.models import Segment, Transcript, Turn, VisitStatus
 from countertalk.stt.base import Reply, SpeechToText
 
@@ -171,9 +171,7 @@ def _reply_for(
     if saved is not None:
         return saved
     if claim_lost is not None and claim_lost.is_set():
-        raise RetryableError(
-            "claim_lost", "This worker lost the job, so it stopped before paying for more"
-        )
+        raise errors.claim_lost()
     wav = storage.chunk_path(visit_id, chunk.index).read_bytes()
     log.info(
         "stt call visit=%s chunk=%d audio_ms=%d",

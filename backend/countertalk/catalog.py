@@ -144,6 +144,8 @@ def keywords_for(session: Session, org_id: str) -> list[str]:
         if product is not None
     ]
     candidates = list(dict.fromkeys(brands + products))
+    # Characters as Python counts them, code points: the catalog's names are Latin today. A
+    # non-ASCII name would need checking against how Meta counts its 30 (bytes, perhaps).
     fitting = [word for word in candidates if len(word) <= limits.STT_KEYWORD_MAX_CHARS]
     if len(fitting) < len(candidates):
         log.info(

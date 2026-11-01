@@ -117,7 +117,7 @@ def settings_only_through_get_settings(sources: list[Source]) -> list[str]:
 
 
 # The SDKs that reach outside services: only stt/ and llm/ may import them.
-EXTERNAL_SDKS = {"openai", "httpx", "websockets"}
+EXTERNAL_SDKS = {"openai", "httpx", "httpx2", "websockets"}
 
 
 def external_sdks_only_in_clients(sources: list[Source]) -> list[str]:

@@ -156,7 +156,7 @@ def test_a_400_tells_the_rep_neither_too_long_nor_not_wav() -> None:
     assert error.value.message == "Speech-to-text couldn't accept this request"
 
 
-CUT = limits.STT_ERROR_TEXT_MAX
+CUT = limits.PROVIDER_ERROR_TEXT_MAX
 
 
 @pytest.mark.parametrize(

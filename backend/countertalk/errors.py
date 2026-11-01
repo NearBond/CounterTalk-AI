@@ -61,6 +61,14 @@ class RetryableError(DomainError):
     http_status = 503
 
 
+def claim_lost() -> RetryableError:
+    """A handler that pays per call stops once its claim is lost (§2.4): another worker may
+    have the job now."""
+    return RetryableError(
+        "claim_lost", "This worker lost the job, so it stopped before paying for more"
+    )
+
+
 def describe(error: BaseException) -> str:
     """`code: message`, for failure reasons and logs.
 

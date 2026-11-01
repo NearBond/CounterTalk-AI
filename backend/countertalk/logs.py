@@ -16,6 +16,8 @@ import traceback
 from types import TracebackType
 from typing import Any
 
+from countertalk import limits
+
 HANDLER_NAME = "countertalk"
 WITHHELD = "(message not logged: it can hold personal data)"
 
@@ -107,6 +109,19 @@ def configure_logging() -> None:
             },
         }
     )
+
+
+def provider_error(error: object, fields: tuple[str, ...]) -> dict[str, str]:
+    """A provider's error object's `fields`, as `error_<field>`, for a log line: strings only,
+    on one line, at most PROVIDER_ERROR_TEXT_MAX characters. Anything else is left out."""
+    if not isinstance(error, dict):
+        return {}
+    kept = {}
+    for field in fields:
+        value = error.get(field)
+        if isinstance(value, str) and value.strip():
+            kept[f"error_{field}"] = " ".join(value.split())[: limits.PROVIDER_ERROR_TEXT_MAX]
+    return kept
 
 
 def install_frames_only_excepthook() -> None:

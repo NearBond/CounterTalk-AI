@@ -8,6 +8,7 @@
 
 import os
 import shutil
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -165,3 +166,24 @@ def edit_file(path: Path, old: str, new: str) -> None:
     text = path.read_text(encoding="utf-8")
     assert old in text, f"{old!r} isn't in {path.name}"
     path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+
+
+@pytest.fixture
+def live_key(monkeypatch: pytest.MonkeyPatch) -> str:
+    """The real MODEL_API_KEY from backend/.env, for a live test (§3.2); skips without one."""
+    from countertalk.config import Settings
+
+    # The tests pin MODEL_API_KEY empty; without that, the settings read backend/.env.
+    monkeypatch.delenv("MODEL_API_KEY")
+    key = Settings().MODEL_API_KEY.get_secret_value()
+    if not key:
+        pytest.skip("MODEL_API_KEY isn't set in backend/.env")
+    return key
+
+
+def print_utf8(line: str) -> None:
+    """For a live test's reader, who runs it with -s. As UTF-8 bytes: on Windows, output that's
+    piped (as a tool runs it) is cp1252, and print() can't write Devanagari there."""
+    sys.stdout.flush()
+    sys.stdout.buffer.write(line.encode("utf-8") + b"\n")
+    sys.stdout.buffer.flush()

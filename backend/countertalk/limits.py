@@ -80,5 +80,13 @@ STT_KEYWORDS_MAX = 50
 # Meta refuses a request with a longer keyword (HTTP 400: "ASR keyword 39 exceeds the maximum
 # length of 30 characters", 1 Nov). Undocumented, so found by a probe.
 STT_KEYWORD_MAX_CHARS = 30
-# Meta's own error message on a 4xx, as kept for the log.
-STT_ERROR_TEXT_MAX = 200
+# A provider's own error text on a 4xx (its message, or its type), as kept for the log.
+PROVIDER_ERROR_TEXT_MAX = 200
+
+# Muse Spark (batch 9): one request's timeout. Roles answer in seconds; extraction writes a few
+# thousand tokens. The worker's heartbeat keeps a job claimed however long a call takes.
+LLM_TIMEOUT_MS = 120_000
+# The SDK's own retries of a request: 408, 409, 429, 5xx and network errors, a timeout included.
+# An answer takes up to three requests (the first, one asked again, one repair), each tried up to
+# 1 + LLM_MAX_RETRIES times.
+LLM_MAX_RETRIES = 2

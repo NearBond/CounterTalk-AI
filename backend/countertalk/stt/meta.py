@@ -19,6 +19,7 @@ import httpx
 # limits as a module, so a test can shorten one for everything here.
 from countertalk import limits
 from countertalk.errors import PermanentError, RetryableError
+from countertalk.logs import provider_error
 from countertalk.stt.base import ChunkTurn, Parsed, Reply
 
 log = logging.getLogger(__name__)
@@ -112,7 +113,7 @@ class MetaSpeechToText:
 
 def _metas_error(response: httpx.Response, *, with_message: bool) -> dict[str, str]:
     """A 4xx's `error.type` and `error.message`, for the log only: they're about the request,
-    not the audio (R5). Strings only, on one line, at most STT_ERROR_TEXT_MAX characters.
+    not the audio (R5). Strings only, on one line, at most PROVIDER_ERROR_TEXT_MAX characters.
 
     A refused key's message may echo part of the key (§1.9), so for one only the type is kept.
     """
@@ -121,14 +122,7 @@ def _metas_error(response: httpx.Response, *, with_message: bool) -> dict[str, s
     except ValueError:
         return {}
     error = body.get("error") if isinstance(body, dict) else None
-    if not isinstance(error, dict):
-        return {}
-    kept = {}
-    for field in ("type", "message") if with_message else ("type",):
-        value = error.get(field)
-        if isinstance(value, str) and value.strip():
-            kept[f"error_{field}"] = " ".join(value.split())[: limits.STT_ERROR_TEXT_MAX]
-    return kept
+    return provider_error(error, ("type", "message") if with_message else ("type",))
 
 
 def _check_status(status: int, found: dict[str, Any]) -> None:
