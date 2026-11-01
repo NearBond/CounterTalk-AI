@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from countertalk.api import health
+from countertalk.api import health, shops, visits
 from countertalk.config import get_settings
 from countertalk.errors import DomainError
 from countertalk.logs import configure_logging
@@ -124,7 +124,11 @@ def create_app() -> FastAPI:
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _invalid_request)
     app.add_middleware(UnexpectedErrors)
-    app.include_router(health.router, prefix="/api/health")
+    # Each router carries its own /api/<area> prefix, so a route's template (logged when it
+    # fails) is the whole path: an include_router prefix isn't part of route.path.
+    app.include_router(health.router)
+    app.include_router(shops.router)
+    app.include_router(visits.router)
     # Last, so every API route is tried first.
     mount_web_app(app, get_settings().WEB_DIST_DIR)
     return app

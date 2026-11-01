@@ -56,7 +56,7 @@ def segment_path(visit_id: str, seq: int) -> Path:
     return visit_dir(visit_id) / "segments" / f"{check_seq(seq):06d}.bin"
 
 
-def stage(body: bytes) -> Path:
+def stage(body: bytes | bytearray) -> Path:
     """Writes the bytes to a new temporary file, flushed to disk, and returns its path."""
     staging = _staging_dir()
     staging.mkdir(parents=True, exist_ok=True)

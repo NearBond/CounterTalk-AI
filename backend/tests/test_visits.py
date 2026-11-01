@@ -766,3 +766,16 @@ def test_a_cleanup_that_fails_doesnt_hide_the_real_error(
         upload(org, visit_id, 0, b"different")
 
     assert error.value.code == "segment_conflict"
+
+
+def test_a_status_change_stamps_updated_at_at_once(org: Org_) -> None:
+    visit_id = new_visit(org)
+    with session_scope() as session:
+        visit = visits.lock_visit(session, org.org_id, visit_id)
+        before = visit.updated_at
+
+        visits.set_status(visit, VisitStatus.FAILED, reason="Stopped.")
+
+        # Before any flush: a route reports the visit before the commit flushes it.
+        assert visit.updated_at > before
+    assert load(visit_id).updated_at == visit.updated_at

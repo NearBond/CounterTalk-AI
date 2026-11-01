@@ -67,6 +67,8 @@ def set_status(visit: Visit, new_status: str, *, reason: str | None = None) -> N
     # To transcribed from review or failed (reprocess), the caller checks there's a transcript
     # (batch 13).
     visit.status = new_status
+    # Now, not at the flush: a route reports the visit before its commit flushes it.
+    visit.updated_at = utc_now()
     if new_status == S.FAILED:
         visit.failure_reason = reason
     elif old == S.FAILED:
@@ -184,13 +186,17 @@ class StoredSegment:
     created: bool
 
 
-def stage_segment(seq: int, body: bytes, sha256: str) -> StagedSegment:
+def segment_too_large() -> TooLarge:
+    return TooLarge("segment_too_large", f"A segment can be at most {MAX_SEGMENT_BYTES} bytes")
+
+
+def stage_segment(seq: int, body: bytes | bytearray, sha256: str) -> StagedSegment:
     """Checks the segment and writes it to a staging file, before any query (§2.6, §9.8)."""
     storage.check_seq(seq)
     if not body:
         raise Invalid("empty_segment", "The segment is empty")
     if len(body) > MAX_SEGMENT_BYTES:
-        raise TooLarge("segment_too_large", f"A segment can be at most {MAX_SEGMENT_BYTES} bytes")
+        raise segment_too_large()
     if hashlib.sha256(body).hexdigest() != sha256:
         raise Invalid("segment_checksum_mismatch", "The checksum doesn't match the uploaded bytes")
     return StagedSegment(seq, storage.stage(body), len(body), sha256)

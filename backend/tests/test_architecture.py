@@ -256,6 +256,30 @@ def get_session_only_through_db_session(sources: list[Source]) -> list[str]:
     ]
 
 
+def routers_carry_their_own_prefix(sources: list[Source]) -> list[str]:
+    """Each router in api/ is APIRouter(prefix="/api/<area>"), and main.py adds no prefix.
+
+    A route's template, which the 500 log line names, holds only the router's own prefix.
+    Found by review in batch 3.
+    """
+    found = []
+    for path, tree in sources:
+        for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
+            name = dotted(call.func).split(".")[-1]
+            keywords = {k.arg: k.value for k in call.keywords}
+            if name == "include_router" and "prefix" in keywords:
+                found.append(f"{path}:{call.lineno} include_router(prefix=...)")
+            if name == "APIRouter" and path.startswith("api/"):
+                prefix = keywords.get("prefix")
+                if not (
+                    isinstance(prefix, ast.Constant)
+                    and isinstance(prefix.value, str)
+                    and prefix.value.startswith("/api/")
+                ):
+                    found.append(f"{path}:{call.lineno} APIRouter without a /api/ prefix")
+    return found
+
+
 RULES: dict[str, Callable[[list[Source]], list[str]]] = {
     rule.__name__: rule
     for rule in [
@@ -268,10 +292,13 @@ RULES: dict[str, Callable[[list[Source]], list[str]]] = {
         no_session_level_set,
         get_session_only_through_db_session,
         visit_status_only_through_set_status,
+        routers_carry_their_own_prefix,
     ]
 }
 
 BAD_EXAMPLES = [
+    ("routers_carry_their_own_prefix", "main.py", "app.include_router(r, prefix='/api/x')\n"),
+    ("routers_carry_their_own_prefix", "api/visits.py", "router = APIRouter(tags=['visits'])\n"),
     ("only_db_commits", "visits.py", "def f(session):\n    session.commit()\n"),
     ("settings_only_through_get_settings", "visits.py", "import os\nKEY = os.environ['K']\n"),
     ("settings_only_through_get_settings", "jobs.py", "import os as o\nKEY = o.environ['K']\n"),
@@ -316,6 +343,12 @@ BAD_EXAMPLES = [
 ]
 
 ALLOWED_EXAMPLES = [
+    ("routers_carry_their_own_prefix", "main.py", "app.include_router(visits.router)\n"),
+    (
+        "routers_carry_their_own_prefix",
+        "api/visits.py",
+        "router = APIRouter(prefix='/api/visits')\n",
+    ),
     ("only_db_commits", "db.py", "def f(session):\n    session.commit()\n"),
     (
         "settings_only_through_get_settings",

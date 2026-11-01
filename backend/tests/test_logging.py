@@ -17,12 +17,15 @@ import pytest
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from countertalk import visits
 from countertalk.db import DbSession, session_scope
 from countertalk.logs import HANDLER_NAME, configure_logging
 from countertalk.main import create_app
-from countertalk.models import Org, Role, User
+from countertalk.models import Org, Role, User, new_id
+from scripts.seed_dev import seed
 
 FAKE_EMAIL = "leaky.person@example.com"
 FAKE_NAME = "Leaky Person"
@@ -236,3 +239,22 @@ def test_any_handler_gets_the_frames_but_never_the_message() -> None:
     assert "Traceback (most recent call last)" in text
     assert "ValueError" in text
     assert "leaky" not in text.lower()
+
+
+def test_a_500_in_an_included_router_logs_the_routes_whole_template(
+    client: TestClient, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with session_scope() as session:
+        seed(session)
+
+    def broken(*args: object) -> None:
+        raise RuntimeError("a bug")
+
+    monkeypatch.setattr(visits, "get_visit", broken)
+
+    with caplog.at_level(logging.ERROR):
+        response = client.get(f"/api/visits/{new_id()}")
+
+    assert response.status_code == 500
+    # The template, prefix and all, never the path with its IDs.
+    assert "route=/api/visits/{visit_id} " in caplog.text

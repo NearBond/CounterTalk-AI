@@ -14,9 +14,11 @@ from sqlalchemy.orm import Session
 from countertalk.db import session_scope
 from countertalk.errors import Conflict
 from countertalk.models import Base, Org, Role, Shop, User
+from countertalk.users import DEMO_REP_EMAIL
 
 DEMO_ORG_NAME = "Demo Org"
-DEMO_REP = {"email": "rep@example.com", "name": "Demo Rep"}
+# The app treats this rep as the current user until batch 16 (countertalk/users.py).
+DEMO_REP = {"email": DEMO_REP_EMAIL, "name": "Demo Rep"}
 # (name, area): fictional kirana shops in made-up areas.
 DEMO_SHOPS = [
     ("Sunrise Kirana", "Old Market"),

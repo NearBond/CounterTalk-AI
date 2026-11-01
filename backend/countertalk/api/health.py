@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from countertalk.db import DbSession, database_reachable
 
-router = APIRouter(tags=["health"])
+router = APIRouter(prefix="/api/health", tags=["health"])
 
 
 class HealthOut(BaseModel):
