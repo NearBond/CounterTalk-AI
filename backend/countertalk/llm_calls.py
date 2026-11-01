@@ -6,8 +6,10 @@ answer or raising the error (§9.3). It never holds the prompt or the answer (§
 
 import logging
 
+from sqlalchemy import func, select
+
 from countertalk.db import session_scope
-from countertalk.llm.base import Outcome
+from countertalk.llm.base import CallDetails, Outcome
 from countertalk.models import LlmCall, LlmPurpose
 
 log = logging.getLogger(__name__)
@@ -77,3 +79,38 @@ def record(visit_id: str, purpose: LlmPurpose, provider: str, outcome: Outcome) 
             len(calls),
             exc_info=True,
         )
+
+
+def latest_seq(visit_id: str) -> int:
+    """The visit's newest call's seq, or 0: where a run's own calls start."""
+    with session_scope(read_only=True) as session:
+        latest = select(func.max(LlmCall.seq)).where(LlmCall.visit_id == visit_id)
+        return session.scalar(latest) or 0
+
+
+def since(
+    visit_id: str, seq: int, purpose: LlmPurpose | None = None
+) -> list[tuple[str, CallDetails]]:
+    """The visit's calls logged after `seq`, with their purpose: what a run paid for, even one
+    that failed."""
+    query = select(LlmCall).where(LlmCall.visit_id == visit_id, LlmCall.seq > seq)
+    if purpose is not None:
+        query = query.where(LlmCall.purpose == purpose)
+    with session_scope(read_only=True) as session:
+        return [
+            (
+                row.purpose,
+                CallDetails(
+                    model=row.model,
+                    prompt_hash=row.prompt_hash,
+                    latency_ms=row.latency_ms,
+                    input_tokens=row.input_tokens,
+                    cached_input_tokens=row.cached_input_tokens,
+                    output_tokens=row.output_tokens,
+                    reasoning_tokens=row.reasoning_tokens,
+                    request_id=row.request_id,
+                    error=row.error,
+                ),
+            )
+            for row in session.scalars(query.order_by(LlmCall.seq))
+        ]

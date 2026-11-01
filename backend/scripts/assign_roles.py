@@ -19,9 +19,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from sqlalchemy import func, select
-
-from countertalk import roles
+from countertalk import llm_calls, roles
 from countertalk.config import get_settings
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.errors import DomainError, describe
@@ -29,7 +27,7 @@ from countertalk.llm import pricing
 from countertalk.llm.base import CallDetails, StructuredLlm
 from countertalk.llm.client import MetaLlm
 from countertalk.logs import configure_logging
-from countertalk.models import LlmCall, LlmPurpose, Org, Visit, parse_id
+from countertalk.models import LlmPurpose, Org, Visit, parse_id
 from countertalk.playbooks import ORG_PACKS_DIR, PLAYBOOKS_DIR, OrgPack, load_org_pack
 
 # A dry run's estimate of the answer: each label's line. Reasoning is added on top (pricing).
@@ -80,10 +78,12 @@ def dry_run(visit_id: str, request: roles.Request) -> None:
     )
 
 
-def show_calls(calls: Sequence[CallDetails]) -> None:
+def show_calls(calls: Sequence[CallDetails], purposes: Sequence[str] | None = None) -> None:
+    """Each call's tokens, time and cost, then the total. With `purposes`, each call's too."""
     for number, call in enumerate(calls, start=1):
+        what = f"{purposes[number - 1]} " if purposes else ""
         print(
-            f"call {number}: {call.error or 'ok'}, {call.input_tokens or 0:,} input"
+            f"call {number}: {what}{call.error or 'ok'}, {call.input_tokens or 0:,} input"
             f" ({call.cached_input_tokens or 0:,} cached), {call.output_tokens or 0:,} output"
             f" ({call.reasoning_tokens or 0:,} reasoning), {call.latency_ms / 1000:.1f} s,"
             f" ${pricing.call_cost(call):.4f}"
@@ -91,39 +91,8 @@ def show_calls(calls: Sequence[CallDetails]) -> None:
     print(f"cost: ${sum(map(pricing.call_cost, calls)):.4f}")
 
 
-def last_call(visit_id: str) -> int:
-    with session_scope(read_only=True) as session:
-        return (
-            session.scalar(select(func.max(LlmCall.seq)).where(LlmCall.visit_id == visit_id)) or 0
-        )
-
-
-def calls_since(visit_id: str, seq: int) -> list[CallDetails]:
-    """The visit's roles calls logged after `seq`: what a run that failed paid for."""
-    with session_scope(read_only=True) as session:
-        rows = session.scalars(
-            select(LlmCall)
-            .where(
-                LlmCall.visit_id == visit_id,
-                LlmCall.purpose == LlmPurpose.ROLES,
-                LlmCall.seq > seq,
-            )
-            .order_by(LlmCall.seq)
-        )
-        return [
-            CallDetails(
-                model=row.model,
-                prompt_hash=row.prompt_hash,
-                latency_ms=row.latency_ms,
-                input_tokens=row.input_tokens,
-                cached_input_tokens=row.cached_input_tokens,
-                output_tokens=row.output_tokens,
-                reasoning_tokens=row.reasoning_tokens,
-                request_id=row.request_id,
-                error=row.error,
-            )
-            for row in rows
-        ]
+def paid_since(visit_id: str, seq: int) -> list[CallDetails]:
+    return [call for _, call in llm_calls.since(visit_id, seq, LlmPurpose.ROLES)]
 
 
 def saved_already(visit_id: str, saved: dict[str, tuple[str, float]]) -> int:
@@ -133,15 +102,15 @@ def saved_already(visit_id: str, saved: dict[str, tuple[str, float]]) -> int:
 
 
 def run(visit_id: str, found: Found, llm: StructuredLlm) -> int:
-    before = last_call(visit_id)
+    before = llm_calls.latest_seq(visit_id)
     try:
         assigned = roles.assign_roles(found.transcript_id, llm, found.pack)
     except DomainError as error:
-        show_calls(calls_since(visit_id, before))
+        show_calls(paid_since(visit_id, before))
         print(f"failed: {describe(error)}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
-        show_calls(calls_since(visit_id, before))
+        show_calls(paid_since(visit_id, before))
         print("stopped: a call in flight may still be billed; no roles saved", file=sys.stderr)
         return 130
     if not assigned.calls:  # another run saved them meanwhile

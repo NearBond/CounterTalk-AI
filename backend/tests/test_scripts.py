@@ -28,6 +28,7 @@ BAD_INPUTS = {
     "seed_dev.py": ([], {"DATABASE_URL": NO_SUCH_DATABASE}),
     "transcribe_visit.py": ([UNKNOWN], {}),
     "assign_roles.py": ([UNKNOWN], {}),
+    "extract_visit.py": ([UNKNOWN], {}),
 }
 
 

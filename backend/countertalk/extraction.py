@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import delete, func, select, text
+from sqlalchemy.orm import Session
 
 from countertalk import jobs, limits, llm_calls, roles, visits
 from countertalk.db import session_scope
@@ -424,17 +425,16 @@ def queue_waiting(limit: int) -> int:
     return queued
 
 
-def queue_again(org_id: str, visit_id: str) -> str | None:
+def queue_again(session: Session, org_id: str, visit_id: str) -> str | None:
     """Re-extraction (batch 10's manual step; batch 13's reprocess): from review or failed, back
     to `transcribed` with an extract job queued, under the visit's lock. Never after confirmed.
-    The transcript and its saved roles are reused: nothing is paid for again but extraction."""
-    with session_scope() as session:
-        visit = visits.lock_visit(session, org_id, visit_id)
-        if visit.status == VisitStatus.CONFIRMED:
-            raise Conflict("visit_confirmed", "A confirmed visit can't be extracted again")
-        if visit.status not in (VisitStatus.REVIEW, VisitStatus.FAILED):
-            raise Conflict("visit_processing", "The visit is still being processed")
-        if visit.transcript_id is None:
-            raise Conflict("no_transcript", "The visit has no transcript to extract")
-        visits.set_status(visit, VisitStatus.TRANSCRIBED)
-        return jobs.enqueue(session, JobKind.EXTRACT, visit_id=visit_id)
+    The transcript and any saved roles are reused: only what's missing is paid for."""
+    visit = visits.lock_visit(session, org_id, visit_id)
+    if visit.status == VisitStatus.CONFIRMED:
+        raise Conflict("visit_confirmed", "A confirmed visit can't be extracted again")
+    if visit.status not in (VisitStatus.REVIEW, VisitStatus.FAILED):
+        raise Conflict("visit_processing", "The visit is still being processed")
+    if visit.transcript_id is None:
+        raise Conflict("no_transcript", "The visit has no transcript to extract")
+    visits.set_status(visit, VisitStatus.TRANSCRIBED)
+    return jobs.enqueue(session, JobKind.EXTRACT, visit_id=visit_id)

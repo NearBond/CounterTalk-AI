@@ -307,7 +307,8 @@ def test_extracting_again_replaces_the_rows_and_keeps_every_run(org: Org_) -> No
     visit_id = transcribed(org)
     run(visit_id, ALL_PLACED, answer())
 
-    assert extraction.queue_again(org.org_id, visit_id) is not None
+    with session_scope() as session:
+        assert extraction.queue_again(session, org.org_id, visit_id) is not None
     assert load(visit_id).status == VisitStatus.TRANSCRIBED
     again = answer(insight(category="supply", kind="problem"), insight(severity="high"))
     retry = run(visit_id, again)
@@ -330,7 +331,8 @@ def test_a_confirmed_visit_is_never_extracted_again(org: Org_) -> None:
     move_to(org, visit_id, VisitStatus.CONFIRMED)
 
     with pytest.raises(Conflict) as error:
-        extraction.queue_again(org.org_id, visit_id)
+        with session_scope() as session:
+            extraction.queue_again(session, org.org_id, visit_id)
 
     assert error.value.code == "visit_confirmed"
     assert len(rows(Extraction)) == 1
@@ -459,7 +461,8 @@ def test_extracting_again_keeps_the_insights_the_rep_added(org: Org_) -> None:
                 added_by_rep=True,
             )
         )
-    extraction.queue_again(org.org_id, visit_id)
+    with session_scope() as session:
+        extraction.queue_again(session, org.org_id, visit_id)
 
     run(visit_id, answer(insight(), insight()))
 
@@ -494,7 +497,8 @@ def test_a_visit_still_being_processed_isnt_queued_again(
     move_to(org, visit_id, *steps)
 
     with pytest.raises(Conflict) as error:
-        extraction.queue_again(org.org_id, visit_id)
+        with session_scope() as session:
+            extraction.queue_again(session, org.org_id, visit_id)
 
     assert error.value.code == "visit_processing"
 
