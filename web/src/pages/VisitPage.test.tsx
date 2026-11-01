@@ -1,10 +1,10 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { routes } from "../App";
 import { jsonResponse as json } from "../testUtils";
-import type { Review, Visit } from "../types/api";
+import type { Review, Transcript, Visit } from "../types/api";
 
 const VISIT: Visit = {
   id: "v1",
@@ -42,16 +42,31 @@ const ANSWERS: Record<string, unknown> = {
 };
 
 /** The visit page with the list behind it in history, as when the rep opened it from there. */
-async function openWithUnsavedNote() {
+function open(answers: Record<string, unknown> = ANSWERS) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string) => (url in ANSWERS ? json(200, ANSWERS[url]) : new Promise<Response>(() => {}))),
+    vi.fn(async (url: string) => (url in answers ? json(200, answers[url]) : new Promise<Response>(() => {}))),
   );
   const router = createMemoryRouter(routes, { initialEntries: ["/", "/visits/v1"], initialIndex: 1 });
   render(<RouterProvider router={router} />);
+  return router;
+}
+
+async function openWithUnsavedNote() {
+  const router = open();
   await userEvent.type(await screen.findByLabelText("Add a note"), "Half a thought");
   return router;
 }
+
+const TRANSCRIPT: Transcript = {
+  id: "t1",
+  visit_id: "v1",
+  provider: "meta",
+  model: "test",
+  language_code: "hi,en",
+  created_at: "2026-11-01T06:00:00Z",
+  turns: [{ turn_id: 0, speaker_label: "c0:B", start_ms: 4_000, end_ms: 6_000, text: "Payment abhi tak nahi aaya" }],
+};
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -78,5 +93,39 @@ describe("VisitPage", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Visits" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("says so when the recording can't be played, and the review still works", async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    const load = vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+    open({ ...ANSWERS, "/api/visits/v1": { ...VISIT, duration_ms: 60_000 }, "/api/visits/v1/transcript": TRANSCRIPT });
+    const line = await screen.findByRole("button", { name: /Payment abhi tak nahi aaya/ });
+    const player = document.querySelector("audio") as HTMLAudioElement;
+    // As a browser does: the element holds its error, and loading again clears it.
+    const failing = (code: number | null) =>
+      Object.defineProperty(player, "error", { configurable: true, value: code === null ? null : { code } });
+
+    // Its file is gone: the player's request fails.
+    failing(4);
+    fireEvent.error(player);
+
+    const message = "The recording can't be played right now. Everything else on this page still works.";
+    expect(screen.getByRole("alert")).toHaveTextContent(message);
+    await userEvent.click(line);
+    expect(play).not.toHaveBeenCalled();
+    // ▶ moves to the message's Try again, so it's read out again.
+    expect(within(screen.getByRole("alert")).getByRole("button", { name: "Try again" })).toHaveFocus();
+    await userEvent.type(await screen.findByLabelText("Add a note"), "Still works");
+    expect(screen.getByLabelText("Add a note")).toHaveValue("Still works");
+
+    failing(null);
+    await userEvent.click(within(screen.getByRole("alert")).getByRole("button", { name: "Try again" }));
+
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // Still gone: the message comes back.
+    failing(4);
+    fireEvent.error(player);
+    expect(screen.getByRole("alert")).toHaveTextContent(message);
   });
 });

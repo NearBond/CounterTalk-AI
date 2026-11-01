@@ -48,13 +48,27 @@ export function VisitPage() {
   const shops = useShops();
   const shop = shops.data?.items.find((item) => item.id === visit.data?.shop_id);
 
+  // A recording that can't be loaded (its file lost, say) says so, under the player: ▶ never
+  // fails silently. The player's error event sets it, for this visit only; Try again loads the
+  // recording afresh.
+  const [unplayableFor, setUnplayableFor] = useState<string | null>(null);
+  const unplayable = unplayableFor === visitId;
+  const retry = useRef<HTMLButtonElement>(null);
   // The page's one player: a quote's ▶ and a transcript line both start it, one at a time.
-  const playAt = useCallback((ms: number) => {
-    const player = audio.current;
-    if (player === null) return;
-    player.currentTime = ms / 1000;
-    player.play().catch(() => {}); // a browser that refuses to play still moved to the moment
-  }, []);
+  const playAt = useCallback(
+    (ms: number) => {
+      const player = audio.current;
+      if (player === null) return;
+      if (player.error !== null) {
+        setUnplayableFor(visitId);
+        retry.current?.focus(); // the message, read out again, and in view
+        return;
+      }
+      player.currentTime = ms / 1000;
+      player.play().catch(() => {}); // a browser that refuses to play still moved to the moment
+    },
+    [visitId],
+  );
   const [dirty, setDirty] = useState(false);
   // Any navigation away with unsaved changes asks first: a link, or the back button (§9.9).
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname);
@@ -113,9 +127,32 @@ export function VisitPage() {
 
       {transcribed && (
         // Seekable: the server answers Range requests (batch 6).
-        <audio ref={audio} controls preload="metadata" src={audioUrl(visitId)} className="w-full">
+        <audio
+          ref={audio}
+          controls
+          preload="metadata"
+          src={audioUrl(visitId)}
+          onError={() => setUnplayableFor(visitId)}
+          className="w-full"
+        >
           <track kind="captions" />
         </audio>
+      )}
+      {unplayable && (
+        <p role="alert" className="text-red-700">
+          The recording can't be played right now. Everything else on this page still works.{" "}
+          <button
+            ref={retry}
+            type="button"
+            onClick={() => {
+              setUnplayableFor(null);
+              audio.current?.load(); // a failure again sets the message again
+            }}
+            className="underline"
+          >
+            Try again
+          </button>
+        </p>
       )}
 
       {reviewing && (
