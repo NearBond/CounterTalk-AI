@@ -77,3 +77,8 @@ STT_TIMEOUT_MS = 300_000
 # Brand and product names sent as Muse Voice Transcribe's keywords (batch 8). Meta documents no
 # limit (checked 1 Nov), so a cap of our own: brands first, then products.
 STT_KEYWORDS_MAX = 50
+# Meta refuses a request with a longer keyword (HTTP 400: "ASR keyword 39 exceeds the maximum
+# length of 30 characters", 1 Nov). Undocumented, so found by a probe.
+STT_KEYWORD_MAX_CHARS = 30
+# Meta's own error message on a 4xx, as kept for the log.
+STT_ERROR_TEXT_MAX = 200

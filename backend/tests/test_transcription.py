@@ -192,14 +192,22 @@ def test_a_retry_sends_only_the_chunks_with_no_saved_reply(
     org: Org_, caplog: pytest.LogCaptureFixture
 ) -> None:
     visit_id = uploaded_visit(org, 25)
-    failed = RetryableError(
-        "stt_server_error", "Speech-to-text failed", details={"session_id": "failed-session"}
-    )
+    found = {
+        "session_id": "failed-session",
+        "http_status": 429,
+        "error_type": "rate_limit",
+        "error_message": "Slow down",
+    }
+    failed = RetryableError("stt_rate_limited", "Speech-to-text is busy", details=found)
     failing = FakeStt({1: failed})
     with caplog.at_level(logging.WARNING), pytest.raises(RetryableError):
         transcription.transcribe(visit_id, failing)
-    # The failed call's session, with its visit and chunk, for the provider's support.
-    assert f"visit={visit_id} chunk=1 code=stt_server_error session=failed-session" in caplog.text
+    # The failed call's session and Meta's own words, with its visit and chunk, for the
+    # provider's support.
+    assert [r.getMessage() for r in caplog.records if r.message.startswith("stt call failed")] == [
+        f"stt call failed visit={visit_id} chunk=1 code=stt_rate_limited session=failed-session"
+        " http_status=429 error_type=rate_limit error_message='Slow down'"
+    ]
     assert (load(visit_id).status, load(visit_id).stt_seconds_billed) == (
         VisitStatus.TRANSCRIBING,
         4,  # chunk 0 was paid for; the failed call isn't billed

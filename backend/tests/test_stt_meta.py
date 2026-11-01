@@ -148,6 +148,73 @@ def test_each_failure_is_classified_and_carries_its_session(
     assert sessions[0] not in failure.message and "HTTP" not in failure.message
 
 
+def test_a_400_tells_the_rep_neither_too_long_nor_not_wav() -> None:
+    # Meta's 400 also covers a request it won't take, such as a keyword over 30 characters.
+    with pytest.raises(PermanentError) as error:
+        client(refuse(400)).transcribe(WAV, (), ())
+
+    assert error.value.message == "Speech-to-text couldn't accept this request"
+
+
+CUT = limits.STT_ERROR_TEXT_MAX
+
+
+@pytest.mark.parametrize(
+    ("status", "body", "kept"),
+    [
+        (
+            400,
+            {"error": {"type": "invalid_request_error", "message": "ASR keyword 39 is too long"}},
+            {"error_type": "invalid_request_error", "error_message": "ASR keyword 39 is too long"},
+        ),
+        (
+            404,
+            {"error": {"type": "not_found", "message": "no\nsuch\r\n path"}},
+            {"error_type": "not_found", "error_message": "no such path"},
+        ),
+        (429, {"error": {"message": "y" * (CUT + 1)}}, {"error_message": "y" * CUT}),
+        # A refused key's message may echo part of it (§1.9): its type only.
+        (401, {"error": {"type": "auth", "message": "Bad key ab12...yz"}}, {"error_type": "auth"}),
+        (403, {"error": {"type": "denied", "message": "Key ab12...yz"}}, {"error_type": "denied"}),
+        (413, {"error": {"type": 7, "message": ["no"]}}, {}),
+        (406, {"error": "only words"}, {}),
+        (404, ["not", "an", "object"], {}),
+        (500, {"error": {"type": "server_error", "message": "down"}}, {}),
+    ],
+    ids=[
+        "400",
+        "one-line",
+        "cut",
+        "401-type-only",
+        "403-type-only",
+        "not-strings",
+        "not-an-object",
+        "not-json-object",
+        "5xx-not-kept",
+    ],
+)
+def test_a_4xx_keeps_metas_error_type_and_message_for_the_log(
+    status: int, body: object, kept: dict[str, str]
+) -> None:
+    # They're about the request, not the audio, so safe to log (R5); never in the rep's reason.
+    with pytest.raises((PermanentError, RetryableError)) as error:
+        client(lambda request: httpx.Response(status, json=body)).transcribe(WAV, (), ())
+
+    found = error.value.details or {}
+    assert {key: found[key] for key in found if key.startswith("error_")} == kept
+    assert all(text not in error.value.message for text in kept.values())
+
+
+def test_a_4xx_body_that_isnt_json_keeps_nothing() -> None:
+    def answer(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, text="<html>bad request</html>")
+
+    with pytest.raises(PermanentError) as error:
+        client(answer).transcribe(WAV, (), ())
+
+    assert set(error.value.details or {}) == {"session_id", "http_status"}
+
+
 def test_without_a_key_nothing_is_sent() -> None:
     def answer(request: httpx.Request) -> httpx.Response:
         raise AssertionError("sent a request with no key")

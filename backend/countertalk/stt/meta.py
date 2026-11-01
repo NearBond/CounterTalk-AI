@@ -29,12 +29,14 @@ MODEL = "muse-voice-transcribe-1.0"
 LANGUAGE_NAMES = {"hi": "Hindi", "en": "English"}
 # A turn whose speaker the reply doesn't give.
 UNKNOWN_SPEAKER = "?"
-# What each refusal means, from Meta's documentation.
+# What each refusal tells the rep. Meta's 400 is a file over 10 minutes or not WAV, but also a
+# request it won't take (a keyword over 30 characters, 1 Nov), so it names neither.
 REFUSALS = {
-    400: "over 10 minutes, or not WAV",
-    406: "a reply type it doesn't make",
-    413: "over 32 MB",
+    400: "Speech-to-text couldn't accept this request",
+    406: "Speech-to-text refused the recording: a reply type it doesn't make",
+    413: "Speech-to-text refused the recording: over 32 MB",
 }
+UNEXPECTED_REFUSAL = "Speech-to-text refused the recording: an answer the app doesn't expect"
 
 
 class MetaSpeechToText:
@@ -56,7 +58,8 @@ class MetaSpeechToText:
         if languages:
             settings["languageBias"] = [LANGUAGE_NAMES[code] for code in languages]
         if keywords:
-            # Meta documents no limit on these; the caller caps them (STT_KEYWORDS_MAX).
+            # Meta refuses the request for one over 30 characters (undocumented): the caller
+            # leaves those out, and caps how many (STT_KEYWORD_MAX_CHARS, STT_KEYWORDS_MAX).
             settings["keywords"] = list(keywords)
         started = time.monotonic()
         try:
@@ -89,7 +92,9 @@ class MetaSpeechToText:
                 details={"session_id": session_id},
             ) from None
         wall_ms = round((time.monotonic() - started) * 1000)
-        found = {"session_id": session_id, "http_status": response.status_code}
+        found: dict[str, Any] = {"session_id": session_id, "http_status": response.status_code}
+        if 400 <= response.status_code < 500:
+            found |= _metas_error(response, with_message=response.status_code not in (401, 403))
         _check_status(response.status_code, found)
         try:
             body = response.json()
@@ -105,12 +110,34 @@ class MetaSpeechToText:
         return parse(body, duration_ms)
 
 
+def _metas_error(response: httpx.Response, *, with_message: bool) -> dict[str, str]:
+    """A 4xx's `error.type` and `error.message`, for the log only: they're about the request,
+    not the audio (R5). Strings only, on one line, at most STT_ERROR_TEXT_MAX characters.
+
+    A refused key's message may echo part of the key (§1.9), so for one only the type is kept.
+    """
+    try:
+        body = response.json()
+    except ValueError:
+        return {}
+    error = body.get("error") if isinstance(body, dict) else None
+    if not isinstance(error, dict):
+        return {}
+    kept = {}
+    for field in ("type", "message") if with_message else ("type",):
+        value = error.get(field)
+        if isinstance(value, str) and value.strip():
+            kept[f"error_{field}"] = " ".join(value.split())[: limits.STT_ERROR_TEXT_MAX]
+    return kept
+
+
 def _check_status(status: int, found: dict[str, Any]) -> None:
-    """Classifies a refusal (§9.5). Only words of ours: Meta's own message isn't kept.
+    """Classifies a refusal (§9.5). The message is only words of ours.
 
     A permanent error's message becomes the visit's failure reason, which the rep reads, so
-    messages are plain words. The session and the status are in `details`, which the transcribe
-    handler logs with the visit, for Meta's support if a failure repeats (BRIEF §8).
+    messages are plain words. The session, the status and, for a 4xx, Meta's own error type and
+    message are in `details`, which the transcribe handler logs with the visit, for Meta's support
+    if a failure repeats (BRIEF §8).
     """
     if 200 <= status < 300:
         return
@@ -124,10 +151,7 @@ def _check_status(status: int, found: dict[str, Any]) -> None:
         raise RetryableError("stt_rate_limited", "Speech-to-text is busy", details=found)
     if status >= 500 or status == 408:
         raise RetryableError("stt_server_error", "Speech-to-text failed", details=found)
-    why = REFUSALS.get(status, "an answer the app doesn't expect")
-    raise PermanentError(
-        "stt_refused", f"Speech-to-text refused the recording: {why}", details=found
-    )
+    raise PermanentError("stt_refused", REFUSALS.get(status, UNEXPECTED_REFUSAL), details=found)
 
 
 def parse(body: dict[str, Any], duration_ms: int) -> Parsed:

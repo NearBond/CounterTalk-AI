@@ -128,7 +128,10 @@ def import_org_pack(session: Session, org_id: str, pack: OrgPack) -> Imported:
 
 def keywords_for(session: Session, org_id: str) -> list[str]:
     """What transcription is told to listen for (batch 8): the org's brands, its own first, then
-    its products, at most STT_KEYWORDS_MAX. Active items only, in a fixed order."""
+    its products, at most STT_KEYWORDS_MAX. Active items only, in a fixed order.
+
+    One over STT_KEYWORD_MAX_CHARS is left out, and the next takes its place: Meta refuses the
+    whole request for it, and a cut name would be a wrong keyword."""
     items = session.execute(
         select(CatalogItem.kind, CatalogItem.brand, CatalogItem.product)
         .where(CatalogItem.org_id == org_id, CatalogItem.active.is_(True))
@@ -140,4 +143,12 @@ def keywords_for(session: Session, org_id: str) -> list[str]:
         for _, brand, product in items
         if product is not None
     ]
-    return list(dict.fromkeys(brands + products))[: limits.STT_KEYWORDS_MAX]
+    candidates = list(dict.fromkeys(brands + products))
+    fitting = [word for word in candidates if len(word) <= limits.STT_KEYWORD_MAX_CHARS]
+    if len(fitting) < len(candidates):
+        log.info(
+            "catalog keywords too long for speech-to-text, left out org=%s count=%d",
+            org_id,
+            len(candidates) - len(fitting),
+        )
+    return fitting[: limits.STT_KEYWORDS_MAX]

@@ -184,15 +184,19 @@ def _reply_for(
     try:
         reply = stt.transcribe(wav, languages, keywords)
     except DomainError as error:
-        # With the client's session and status, for its support if a failure repeats.
+        # With the client's session and status, and the provider's own words for a refusal, for
+        # its support if a failure repeats.
         found = error.details or {}
         log.warning(
-            "stt call failed visit=%s chunk=%d code=%s session=%s http_status=%s",
+            "stt call failed visit=%s chunk=%d code=%s session=%s http_status=%s error_type=%s"
+            " error_message=%r",
             visit_id,
             chunk.index,
             error.code,
             found.get("session_id"),
             found.get("http_status"),
+            found.get("error_type"),
+            found.get("error_message"),
         )
         raise
     # Another run of this visit (one whose claim was lost) may have saved its reply first: the

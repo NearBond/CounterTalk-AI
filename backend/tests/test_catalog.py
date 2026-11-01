@@ -1,5 +1,6 @@
 """catalog.py: importing an org pack into an org, and the keywords transcription gets (batch 8)."""
 
+import logging
 import shutil
 from pathlib import Path
 
@@ -133,6 +134,78 @@ def test_keywords_are_brands_first_then_products_active_only_and_capped(
     monkeypatch.setattr(limits, "STT_KEYWORDS_MAX", 1)
 
     assert keywords(org_id) == ["Crunchy"]
+
+
+LONGEST = limits.STT_KEYWORD_MAX_CHARS
+
+
+def sized(length: int) -> str:
+    """A name exactly `length` characters long."""
+    return ("Long " + "x" * length)[:length]
+
+
+@pytest.mark.parametrize(
+    ("items", "cap", "expected", "left_out"),
+    [
+        ([("a", "own", sized(LONGEST), None)], 50, [sized(LONGEST)], 0),
+        (
+            [("a", "own", sized(LONGEST + 1), None), ("b", "own", "Crunchy", None)],
+            50,
+            ["Crunchy"],
+            1,
+        ),
+        (
+            [
+                ("a", "own", "Crunchy", None),
+                ("b", "own", sized(LONGEST + 1), None),
+                ("c", "competitor", "Rival", None),
+                ("d", "competitor", "Zesty", None),
+            ],
+            2,
+            ["Crunchy", "Rival"],
+            1,
+        ),
+        (
+            [
+                ("a", "own", "Crunchy", sized(LONGEST - len("Crunchy "))),
+                ("b", "own", "Crunchy", sized(LONGEST - len("Crunchy"))),
+            ],
+            50,
+            ["Crunchy", f"Crunchy {sized(LONGEST - len('Crunchy '))}"],
+            1,
+        ),
+    ],
+    ids=["at-the-limit", "over-it-skipped-not-cut", "the-next-takes-its-place", "with-its-brand"],
+)
+def test_a_keyword_too_long_for_meta_is_left_out_and_the_next_takes_its_place(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    items: list[tuple[str, str, str, str | None]],
+    cap: int,
+    expected: list[str],
+    left_out: int,
+) -> None:
+    # Meta refuses the whole request when one keyword is too long (HTTP 400, 1 Nov).
+    org_id = new_org("Tiny Org")
+    with session_scope() as session:
+        for key, kind, brand, product in items:
+            session.add(
+                CatalogItem(
+                    org_id=org_id, key=key, kind=kind, company="Co", brand=brand, product=product
+                )
+            )
+    monkeypatch.setattr(limits, "STT_KEYWORDS_MAX", cap)
+
+    with caplog.at_level(logging.INFO, logger="countertalk.catalog"):
+        assert keywords(org_id) == expected
+
+    # So a pack's long names don't go unsent unnoticed.
+    noted = [r.getMessage() for r in caplog.records if r.name == "countertalk.catalog"]
+    assert noted == (
+        [f"catalog keywords too long for speech-to-text, left out org={org_id} count={left_out}"]
+        if left_out
+        else []
+    )
 
 
 def test_a_product_named_with_its_brand_isnt_given_the_brand_twice(
