@@ -937,22 +937,26 @@ def test_a_copied_helper_is_found_but_not_one_calling_another_import() -> None:
     assert copied_functions(two_scripts) == []
 
 
-# A rule's tell-tale code, and the one file it's written in (R1): added in batch 15b, when R1
-# came up twice in one part. Another file needs it? Call that one.
+# A rule's tell-tale code, and the one file it's written in, once (R1): added in batch 15b-1,
+# when R1 came up twice in one part; counted per place since 15b-2, when it came up again in a
+# copied query condition within one file. Another place needs it? Call the one that has it.
 WRITTEN_ONCE = {
     # The org's teams by key: routing.team_ids.
     "select(Team.key, Team.id)": "countertalk/routing.py",
     # The playbook's severities in order: issues.severity_rank.
     "list(pack.playbook.severities)": "countertalk/issues.py",
+    # The insights a summary counts: summaries._shown_in.
+    "Visit.created_at >= period.start": "countertalk/summaries.py",
 }
 
 
 def written_in(snippet: str, folders: tuple[str, ...] = ("countertalk", "scripts")) -> list[str]:
+    """The files the snippet is in, once for each time it's written there."""
     return sorted(
         path.relative_to(BACKEND_DIR).as_posix()
         for folder in folders
         for path in (BACKEND_DIR / folder).rglob("*.py")
-        if snippet in path.read_text(encoding="utf-8")
+        for _ in range(path.read_text(encoding="utf-8").count(snippet))
     )
 
 

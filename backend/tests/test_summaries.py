@@ -1,6 +1,7 @@
 """summaries.py's numbers (batch 15b): K6's planted patterns, as the fixture expects them, and the
 trend rule at its edges."""
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from unittest import mock
@@ -12,9 +13,16 @@ from countertalk import issues, limits, review
 from countertalk.db import session_scope
 from countertalk.models import InsightRoute, Issue, Shop, Team, Visit
 from countertalk.summaries import (
+    CategoryArea,
+    CompetitorCount,
     IssueNumbers,
+    Measures,
+    OrgNumbers,
+    Totals,
     age_weeks,
+    check,
     last_complete,
+    org_numbers,
     period_of,
     poisson_at_least,
     team_numbers,
@@ -46,12 +54,15 @@ def issue_of(world: _k6.World, insight_id: str, team: str) -> str:
 
 def summary(world: _k6.World, team: str, week: int) -> list[IssueNumbers]:
     with session_scope(read_only=True) as session:
-        return team_numbers(session, world.pack, world.org_id, world.teams[team], world.week(week))
+        found = team_numbers(session, world.pack, world.org_id, world.teams[team], world.week(week))
+        return found.issues
 
 
-def row(numbers: list[IssueNumbers], issue_id: str) -> tuple[int, IssueNumbers]:
-    """Its rank (from 1) and its numbers."""
-    return next((rank, n) for rank, n in enumerate(numbers, start=1) if n.issue_id == issue_id)
+def row(numbers: list[IssueNumbers], issue_id: str) -> tuple[int, Measures]:
+    """Its rank (from 1) and its measures."""
+    return next(
+        (rank, n.measures) for rank, n in enumerate(numbers, start=1) if n.issue_id == issue_id
+    )
 
 
 def test_k6_before_15c_s_merge(world: _k6.World) -> None:
@@ -142,14 +153,15 @@ def test_k6_s_noise_never_grows_or_outranks_a_pattern(world: _k6.World) -> None:
     for team in world.teams:
         for week in range(1, 7):
             noise = [n for n in summary(world, team, week) if n.issue_id not in patterns]
-            assert [n.label for n in noise if n.label == "growing"] == []
+            assert [n for n in noise if n.measures.label == "growing"] == []
             assert (
-                max((n.open_shops for n in noise), default=0) <= written["most_shops_in_an_issue"]
+                max((n.measures.open_shops for n in noise), default=0)
+                <= written["most_shops_in_an_issue"]
             )
             highest = written[
                 "highest_finance_score" if team == "finance" else "highest_other_score"
             ]
-            assert max((n.score for n in noise), default=0) <= highest
+            assert max((n.measures.score for n in noise), default=0) <= highest
     # W6: P1 and P3 head finance's list, P2 distribution's.
     assert [n.issue_id for n in summary(world, "finance", 6)[:2]] == [
         issue_of(world, world.insights["P1"][0], "finance"),
@@ -305,7 +317,7 @@ def money_numbers(org: Org_, period_day: date) -> list[IssueNumbers]:
         money = session.scalars(
             select(Team.id).where(Team.org_id == org.org_id, Team.key == "money")
         ).one()
-        return team_numbers(session, PACK, org.org_id, money, period_of("week", period_day))
+        return team_numbers(session, PACK, org.org_id, money, period_of("week", period_day)).issues
 
 
 def test_an_issue_counts_in_its_visits_week_however_late_it_was_confirmed() -> None:
@@ -315,11 +327,27 @@ def test_an_issue_counts_in_its_visits_week_however_late_it_was_confirmed() -> N
 
     [numbers] = money_numbers(org, date(2026, 10, 25))
 
-    assert (numbers.label, numbers.shops, numbers.insights) == ("new", 1, 1)
+    measures = numbers.measures
+    assert (measures.label, measures.shops, measures.insights) == ("new", 1, 1)
 
 
-def test_a_reopened_issue_counts_only_the_shops_open_since_its_resolve() -> None:
-    org = tiny_org()
+def resolve(org: Org_, issue_id: str, when: datetime) -> None:
+    with at(when), session_scope() as session:
+        found = session.get_one(Issue, issue_id)
+        issues.change(
+            session,
+            org.org_id,
+            org.rep_id,
+            issue_id,
+            found.version,
+            status="resolved",
+            note="Paid.",
+        )
+
+
+def reopened_by_a_low_one(org: Org_) -> tuple[str, datetime]:
+    """High payments at two shops one week, resolved the next, and a low one at the first shop
+    the week after, which reopens it: the issue's ID, and the low one's time."""
     with session_scope() as session:
         other = Shop(org_id=org.org_id, name="Another Shop", area="Test Area")
         session.add(other)
@@ -330,18 +358,179 @@ def test_a_reopened_issue_counts_only_the_shops_open_since_its_resolve() -> None
     visit_at(org, w1, w1, high)
     visit_at(elsewhere, w1, w1, high)
     [issue] = [n.issue_id for n in money_numbers(org, w1.date())]
-    with at(w2), session_scope() as session:
-        found = session.get_one(Issue, issue)
-        issues.change(
-            session, org.org_id, org.rep_id, issue, found.version, status="resolved", note="Paid."
-        )
-
+    resolve(org, issue, w2)
     visit_at(org, w3, w3)  # low, at the first shop: it reopens
+    return issue, w3
+
+
+def test_a_reopened_issue_counts_only_the_shops_open_since_its_resolve() -> None:
+    org = tiny_org()
+    _, w3 = reopened_by_a_low_one(org)
 
     [numbers] = money_numbers(org, w3.date())
-    assert (numbers.label, numbers.open_shops, numbers.severity, numbers.score) == (
+    measures = numbers.measures
+    assert (measures.label, measures.open_shops, measures.severity, measures.score) == (
         "recurring",
         1,
         "low",
         1 * 1 * (1 + 2),
     )
+
+
+def test_a_resolved_issue_has_its_last_run_s_severity_as_the_inbox_does() -> None:
+    org = tiny_org()
+    issue, w3 = reopened_by_a_low_one(org)
+    resolve(org, issue, w3 + timedelta(hours=1))
+
+    [numbers] = money_numbers(org, w3.date())
+
+    # Its high insights came before the first resolve.
+    measures = numbers.measures
+    assert (measures.label, measures.severity, measures.open_shops) == ("resolved", "low", 0)
+    with session_scope(read_only=True) as session:
+        assert session.get_one(Issue, issue).severity == "low"
+
+
+def test_a_cause_stands_as_it_did_without_a_team_s_issue_that_came_later() -> None:
+    org = tiny_org()
+    w1, w2 = datetime(2026, 10, 5, 6, 0, tzinfo=UTC), datetime(2026, 10, 12, 6, 0, tzinfo=UTC)
+    visit_at(org, w1, w1)  # a low payment: money's alone
+    [issue] = [n.issue_id for n in money_numbers(org, w1.date())]
+    resolve(org, issue, w1 + timedelta(days=1))
+    # A high one the next week: money's reopens, and the field team gets one of its own.
+    visit_at(org, w2, w2, insight(category="payments", severity="high", suggested_team="money"))
+
+    with session_scope(read_only=True) as session:
+        found = org_numbers(session, PACK, org.org_id, period_of("week", w1.date()))
+
+    [cause] = found.causes
+    assert (cause.measures.label, [(w.team_key, w.status) for w in cause.teams]) == (
+        "resolved",
+        [("money", "resolved")],
+    )
+    assert (found.issues_at_end, found.resolved_in_period) == (
+        {"open": 0, "in_progress": 0, "overdue": 0},
+        1,
+    )
+
+
+# --- the org's numbers, and the checker ------------------------------------------------------
+
+
+def leadership(world: _k6.World, week: int) -> OrgNumbers:
+    with session_scope(read_only=True) as session:
+        return org_numbers(session, world.pack, world.org_id, world.week(week))
+
+
+def test_k6_s_p5_is_one_cause_counted_once_across_its_two_teams(world: _k6.World) -> None:
+    written = EXPECTED["written"]["P5"]["W6_org"]
+    p5 = issue_of(world, world.insights["P5"][0], "finance")
+
+    org = leadership(world, 6)
+
+    [cause] = [c for c in org.causes if p5 in {w.issue_id for w in c.teams}]
+    assert (cause.measures.insights, cause.measures.shops) == (
+        written["insights"],
+        written["shops"],
+    )
+    assert [w.team_key for w in cause.teams] == written["teams"]
+    # The org counts each insight once: P5 alone went to two teams in W6.
+    teams_sum = 0
+    with session_scope(read_only=True) as session:
+        for team_id in world.teams.values():
+            teams_sum += team_numbers(
+                session, world.pack, world.org_id, team_id, world.week(6)
+            ).totals.insights
+    assert teams_sum - (org.totals.insights - org.totals.triage) == 1
+
+
+def test_k6_s_summaries_keep_every_rule(world: _k6.World) -> None:
+    with session_scope(read_only=True) as session:
+        for week in (5, 6):
+            period = world.week(week)
+            org = org_numbers(session, world.pack, world.org_id, period)
+            assert check(session, world.org_id, org) == []
+            for team_id in world.teams.values():
+                team = team_numbers(session, world.pack, world.org_id, team_id, period)
+                assert check(session, world.org_id, team) == []
+
+
+def test_the_checker_finds_numbers_that_don_t_add_up(world: _k6.World) -> None:
+    finance = world.teams["finance"]
+    with session_scope(read_only=True) as session:
+        team = team_numbers(session, world.pack, world.org_id, finance, world.week(6))
+        org = org_numbers(session, world.pack, world.org_id, world.week(6))
+        wrong_team = replace(team, totals=replace(team.totals, insights=team.totals.insights + 1))
+        summed = replace(org, totals=replace(org.totals, insights=org.totals.insights + 1))
+        no_triage = replace(org, totals=replace(org.totals, triage=0))
+
+        assert check(session, world.org_id, wrong_team) == [
+            f"the team's totals {wrong_team.totals} aren't a fresh count"
+            f" {(team.totals.insights, team.totals.shops)}",
+            "the team's insights aren't its issues' insights",
+        ]
+        assert check(session, world.org_id, summed) == [
+            f"the org's totals {summed.totals} aren't a fresh count"
+            f" {(org.totals.insights, org.totals.shops)}",
+            "the causes and triage don't account for each insight once",
+        ]
+        assert check(session, world.org_id, no_triage) == [
+            "the org's triage isn't a fresh count",
+            "the causes and triage don't account for each insight once",
+        ]
+
+
+def test_the_checker_finds_a_route_in_no_issue(world: _k6.World) -> None:
+    with session_scope() as session:
+        session.execute(
+            update(InsightRoute)
+            .where(InsightRoute.insight_id == world.insights["P5"][0])
+            .values(issue_id=None)
+        )
+
+    with session_scope(read_only=True) as session:
+        org = org_numbers(session, world.pack, world.org_id, world.week(6))
+        problems = check(session, world.org_id, org)
+
+    assert problems[0] == "2 routes of the period's insights in no issue of their team"
+
+
+def test_the_org_s_categories_competitors_statuses_and_triage() -> None:
+    org = tiny_org()
+    monday = datetime(2026, 10, 5, 5, 30, tzinfo=UTC)  # 11:00 IST
+    rival = insight(
+        category="payments", severity="high", suggested_team="money", competitor_mentions=["Rival"]
+    )
+    visit_at(org, monday, monday, rival)  # money, and field for a high payment
+    visit_at(org, monday, monday, insight(category="demand", suggested_team=None))  # triage
+    # Rival again, at the same shop, in a finding that also waits in triage.
+    again = insight(category="demand", suggested_team=None, competitor_mentions=["Rival"])
+    visit_at(org, monday, monday, again)
+
+    with session_scope(read_only=True) as session:
+        found = org_numbers(session, PACK, org.org_id, period_of("week", monday.date()))
+
+    [cause] = found.causes
+    assert ([w.team_key for w in cause.teams], cause.measures.insights) == (["field", "money"], 1)
+    assert found.totals == Totals(insights=3, shops=1, reps=1, visits=3, triage=2)
+    assert found.by_category_area == [CategoryArea("payments", "Test Area", 1, 1)]
+    assert found.competitors == [CompetitorCount("Rival", 2, 1)]  # 2 insights, 1 shop
+    # Due two days after a high one is confirmed: past due by the week's end.
+    assert found.issues_at_end == {"open": 2, "in_progress": 0, "overdue": 2}
+    assert found.resolved_in_period == 0
+
+
+def test_k6_s_w3_counts_p3_s_resolve_apart_from_the_issues_still_open(world: _k6.World) -> None:
+    org = leadership(world, 3)
+
+    # Finance resolved P3's credit note in W3; the area manager's P3 issue stays open.
+    assert org.resolved_in_period == 1
+    p3_causes = [
+        c
+        for c in org.causes
+        if issue_of(world, world.insights["P3"][0], "finance") in {w.issue_id for w in c.teams}
+    ]
+    assert [(w.team_key, w.status) for w in p3_causes[0].teams] == [
+        ("area_manager", "open"),
+        ("finance", "resolved"),
+    ]
