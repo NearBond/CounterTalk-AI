@@ -45,7 +45,7 @@ class MetaSpeechToText:
         self._api_key = api_key
         self._transport = transport
 
-    def transcribe(self, wav: bytes, languages: Sequence[str]) -> Reply:
+    def transcribe(self, wav: bytes, languages: Sequence[str], keywords: Sequence[str]) -> Reply:
         if not self._api_key:
             # A server set up wrong: a retry works once the key is set.
             raise RetryableError(
@@ -55,6 +55,9 @@ class MetaSpeechToText:
         settings: dict[str, Any] = {"model": MODEL, "audioEncoding": "WAV", "mode": "DIARIZATION"}
         if languages:
             settings["languageBias"] = [LANGUAGE_NAMES[code] for code in languages]
+        if keywords:
+            # Meta documents no limit on these; the caller caps them (STT_KEYWORDS_MAX).
+            settings["keywords"] = list(keywords)
         started = time.monotonic()
         try:
             with httpx.Client(

@@ -57,6 +57,7 @@ def dry_run(visit_id: str, stt: SpeechToText, languages: tuple[str, ...]) -> int
             print(f"visit {visit_id} isn't a completed upload", file=sys.stderr)
             return 1
         status, ext, states = visit.status, visit.source_ext, job_states(session, visit_id)
+        org_id = visit.org_id
         seqs = list(
             session.scalars(
                 select(Segment.seq).where(Segment.visit_id == visit_id).order_by(Segment.seq)
@@ -68,12 +69,15 @@ def dry_run(visit_id: str, stt: SpeechToText, languages: tuple[str, ...]) -> int
         print(f"nothing to send: visit {visit_id} is {status}, jobs: {', '.join(states) or 'none'}")
         return 0
     prepared = audio.prepare(visit_id, ext, seqs)
+    keywords = transcription.visit_keywords(visit_id, org_id)
     print(f"visit {visit_id}: {status}, {prepared.duration_ms / 1000:.1f} s of audio")
     print(f"languageBias: {', '.join(languages) or 'none'}")
+    shown = ", ".join(keywords[:5]) + (", ..." if len(keywords) > 5 else "")
+    print(f"keywords: {len(keywords)}" + (f" ({shown})" if keywords else ""))
     to_send = 0.0
     for chunk in prepared.chunks:
         seconds = (chunk.end_ms - chunk.start_ms) / 1000
-        saved = transcription.saved_reply(visit_id, chunk, stt, list(languages))
+        saved = transcription.saved_reply(visit_id, chunk, stt, list(languages), keywords)
         what = "saved reply, reused" if saved is not None else "to send"
         print(f"chunk {chunk.index}: {what} ({seconds:.1f} s, {chunk.bytes:,} bytes)")
         if saved is None:

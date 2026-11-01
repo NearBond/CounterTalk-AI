@@ -18,13 +18,13 @@ import json
 import logging
 import threading
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 
-from countertalk import audio, storage, visits
+from countertalk import audio, catalog, storage, visits
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, NotFound, PermanentError, RetryableError
 from countertalk.models import Segment, Transcript, Turn, VisitStatus
@@ -41,6 +41,7 @@ SAVED_REPLY_VERSION = 1
 class _Work:
     ext: str
     seqs: list[int]
+    org_id: str
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,9 @@ class SavedReply:
     session_id: str | None
     wall_ms: int
     reply: dict[str, Any]
+    # What speech-to-text was told to listen for (batch 8). A reply saved before keywords were
+    # sent has none, which is just what it was sent with.
+    keywords: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -86,8 +90,10 @@ def transcribe(
     if work is None:
         return
     prepared = audio.prepare(visit_id, work.ext, work.seqs)
+    keywords = visit_keywords(visit_id, work.org_id)
     replies = [
-        _reply_for(visit_id, chunk, stt, list(languages), claim_lost) for chunk in prepared.chunks
+        _reply_for(visit_id, chunk, stt, list(languages), keywords, claim_lost)
+        for chunk in prepared.chunks
     ]
     _finish(visit_id, stt, list(languages), prepared, replies)
 
@@ -107,15 +113,31 @@ def _start(visit_id: str) -> _Work | None:
         seqs = session.scalars(
             select(Segment.seq).where(Segment.visit_id == visit_id).order_by(Segment.seq)
         )
-        return _Work(visit.source_ext, list(seqs))
+        return _Work(visit.source_ext, list(seqs), visit.org_id)
 
 
 def _chunk_key(chunk: audio.Chunk) -> dict[str, int]:
     return {"index": chunk.index, "start_ms": chunk.start_ms, "end_ms": chunk.end_ms}
 
 
+def visit_keywords(visit_id: str, org_id: str) -> list[str]:
+    """The keywords this visit's chunks are sent with. Once a reply is paid for, its keywords
+    stay the visit's: a catalog edit before a retry mustn't make saved replies stop matching
+    (§9.4). Before that, the org's own, read with no lock held."""
+    try:
+        first = json.loads(storage.stt_reply_path(visit_id, 0).read_text(encoding="utf-8"))
+        if first["version"] == SAVED_REPLY_VERSION:
+            kept = first.get("keywords", [])
+            if isinstance(kept, list) and all(isinstance(word, str) for word in kept):
+                return kept
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        pass  # nothing paid for yet, or not what was written: the org's keywords
+    with session_scope(read_only=True) as session:
+        return catalog.keywords_for(session, org_id)
+
+
 def saved_reply(
-    visit_id: str, chunk: audio.Chunk, stt: SpeechToText, languages: list[str]
+    visit_id: str, chunk: audio.Chunk, stt: SpeechToText, languages: list[str], keywords: list[str]
 ) -> SavedReply | None:
     """The reply an earlier try saved for this very audio and request, if any (§9.4)."""
     try:
@@ -126,11 +148,13 @@ def saved_reply(
         saved = SavedReply(**data)
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return None  # missing, or not what was written
-    same = (saved.chunk, saved.provider, saved.model, saved.languages) == (
+    # The same audio, sent the same way: a reply made without keywords isn't one made with them.
+    same = (saved.chunk, saved.provider, saved.model, saved.languages, saved.keywords) == (
         _chunk_key(chunk),
         stt.provider,
         stt.model,
         languages,
+        keywords,
     )
     return saved if same and isinstance(saved.reply, dict) else None
 
@@ -140,9 +164,10 @@ def _reply_for(
     chunk: audio.Chunk,
     stt: SpeechToText,
     languages: list[str],
+    keywords: list[str],
     claim_lost: threading.Event | None,
 ) -> SavedReply:
-    saved = saved_reply(visit_id, chunk, stt, languages)
+    saved = saved_reply(visit_id, chunk, stt, languages, keywords)
     if saved is not None:
         return saved
     if claim_lost is not None and claim_lost.is_set():
@@ -157,7 +182,7 @@ def _reply_for(
         chunk.end_ms - chunk.start_ms,
     )
     try:
-        reply = stt.transcribe(wav, languages)
+        reply = stt.transcribe(wav, languages, keywords)
     except DomainError as error:
         # With the client's session and status, for its support if a failure repeats.
         found = error.details or {}
@@ -172,16 +197,17 @@ def _reply_for(
         raise
     # Another run of this visit (one whose claim was lost) may have saved its reply first: the
     # transcript is made from the first, so keep that one.
-    saved = saved_reply(visit_id, chunk, stt, languages)
+    saved = saved_reply(visit_id, chunk, stt, languages, keywords)
     if saved is None:
         saved = SavedReply(
-            _chunk_key(chunk),
-            stt.provider,
-            stt.model,
-            languages,
-            reply.session_id,
-            reply.wall_ms,
-            reply.body,
+            chunk=_chunk_key(chunk),
+            provider=stt.provider,
+            model=stt.model,
+            languages=languages,
+            session_id=reply.session_id,
+            wall_ms=reply.wall_ms,
+            reply=reply.body,
+            keywords=keywords,
         )
         record = {"version": SAVED_REPLY_VERSION, **asdict(saved)}
         path = storage.stt_reply_path(visit_id, chunk.index)

@@ -6,19 +6,29 @@ Audio is made by ffmpeg in each test, with chunks shortened to 10 s so a visit h
 import json
 import logging
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, select, text, update
 
-from countertalk import audio, limits, storage, transcription, worker
+from countertalk import audio, catalog, limits, storage, transcription, worker
 from countertalk.db import session_scope
 from countertalk.errors import PermanentError, RetryableError
-from countertalk.models import Job, JobKind, JobState, Transcript, Turn, VisitClient, VisitStatus
+from countertalk.models import (
+    CatalogItem,
+    Job,
+    JobKind,
+    JobState,
+    Transcript,
+    Turn,
+    VisitClient,
+    VisitStatus,
+)
+from countertalk.playbooks import load_org_pack
 from countertalk.stt import meta
 from countertalk.stt.base import Reply
-from tests.conftest import SERVER_URL, TEST_DATABASE
+from tests.conftest import ORG_PACK_FIXTURES, SERVER_URL, TEST_DATABASE
 from tests.test_audio import TALK_WITH_PAUSES, wav_file
 from tests.test_visits import Org_, complete, fail_processing, load, make_org, new_visit, upload
 
@@ -93,12 +103,14 @@ class FakeStt:
         self.during = during
         self.calls: list[bytes] = []
         self.languages: list[tuple[str, ...]] = []
+        self.keywords: list[tuple[str, ...]] = []
 
-    def transcribe(self, wav: bytes, languages: tuple[str, ...]) -> Reply:
+    def transcribe(self, wav: bytes, languages: Sequence[str], keywords: Sequence[str]) -> Reply:
         assert open_transactions() == 0, "a transaction was open during a speech-to-text call"
         call = len(self.calls)
         self.calls.append(wav)
         self.languages.append(tuple(languages))
+        self.keywords.append(tuple(keywords))
         if self.during is not None:
             self.during(call)
         answer = self.answers.get(call, reply_body(call))
@@ -358,3 +370,70 @@ def test_the_workers_transcribe_handler_sends_nothing_without_a_key(org: Org_) -
         job = session.scalars(select(Job)).one()
     assert (job.kind, job.state) == (JobKind.TRANSCRIBE, JobState.QUEUED)
     assert job.last_error is not None and "stt_not_configured" in job.last_error
+
+
+def test_the_visits_orgs_brands_and_products_are_sent_as_keywords(org: Org_) -> None:
+    with session_scope() as session:
+        catalog.import_org_pack(
+            session, org.org_id, load_org_pack("tiny-demo", 1, ORG_PACK_FIXTURES)
+        )
+    visit_id = uploaded_visit(org, 5)
+    fake = FakeStt()
+
+    transcription.transcribe(visit_id, fake)
+
+    assert fake.keywords == [("Crunchy", "Rival", "Crunchy Salted")]
+    assert saved(visit_id, 0)["keywords"] == ["Crunchy", "Rival", "Crunchy Salted"]
+
+
+def test_a_retry_sends_the_keywords_its_first_reply_was_sent_with(org: Org_) -> None:
+    # A catalog edit between tries must not make the saved replies stop matching (§9.4).
+    with session_scope() as session:
+        catalog.import_org_pack(
+            session, org.org_id, load_org_pack("tiny-demo", 1, ORG_PACK_FIXTURES)
+        )
+    visit_id = uploaded_visit(org, 15)
+    with pytest.raises(RetryableError):
+        transcription.transcribe(visit_id, FakeStt({1: RetryableError("stt_timeout", "Slow")}))
+    with session_scope() as session:
+        session.execute(update(CatalogItem).where(CatalogItem.key == "rival").values(active=False))
+
+    retry = FakeStt()
+    transcription.transcribe(visit_id, retry)
+
+    assert retry.calls == [chunk_bytes(visit_id, 1)]
+    assert retry.keywords == [("Crunchy", "Rival", "Crunchy Salted")]
+
+
+def test_a_reply_saved_before_keywords_counts_as_sent_without_them(org: Org_) -> None:
+    visit_id = uploaded_visit(org, 15)
+    with pytest.raises(RetryableError):
+        transcription.transcribe(visit_id, FakeStt({1: RetryableError("stt_timeout", "Slow")}))
+    older = saved(visit_id, 0)
+    del older["keywords"]  # as batch 6 wrote it
+    storage.stt_reply_path(visit_id, 0).write_text(json.dumps(older), encoding="utf-8")
+
+    retry = FakeStt()
+    transcription.transcribe(visit_id, retry)
+
+    assert retry.calls == [chunk_bytes(visit_id, 1)]
+
+
+def test_a_reply_saved_with_other_keywords_is_sent_again(org: Org_) -> None:
+    # A reply made without keywords isn't one made with them (batch 6's left-over).
+    with session_scope() as session:
+        catalog.import_org_pack(
+            session, org.org_id, load_org_pack("tiny-demo", 1, ORG_PACK_FIXTURES)
+        )
+    visit_id = uploaded_visit(org, 25)
+    with pytest.raises(RetryableError):
+        transcription.transcribe(visit_id, FakeStt({2: RetryableError("stt_timeout", "Slow")}))
+    without = saved(visit_id, 1)
+    without["keywords"] = []
+    storage.stt_reply_path(visit_id, 1).write_text(json.dumps(without), encoding="utf-8")
+
+    retry = FakeStt()
+    transcription.transcribe(visit_id, retry)
+
+    assert retry.calls == [chunk_bytes(visit_id, 1), chunk_bytes(visit_id, 2)]
+    assert retry.keywords == [("Crunchy", "Rival", "Crunchy Salted")] * 2

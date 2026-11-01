@@ -45,7 +45,7 @@ def test_meta_transcribes_a_two_second_clip(monkeypatch: pytest.MonkeyPatch, cli
         pytest.skip("MODEL_API_KEY isn't set in backend/.env")
     stt = MetaSpeechToText(key)
 
-    reply = stt.transcribe(clip, transcription.LANGUAGES)
+    reply = stt.transcribe(clip, transcription.LANGUAGES, ())
 
     parsed = stt.parse(reply.body, CLIP_MS)
     line = (

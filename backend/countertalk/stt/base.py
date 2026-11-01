@@ -43,9 +43,10 @@ class SpeechToText(Protocol):
     provider: str
     model: str
 
-    def transcribe(self, wav: bytes, languages: Sequence[str]) -> Reply:
-        """One chunk, as 16-bit mono WAV. `languages` are ISO 639-1 codes to bias towards, or
-        none. Raises PermanentError or RetryableError (§9.5)."""
+    def transcribe(self, wav: bytes, languages: Sequence[str], keywords: Sequence[str]) -> Reply:
+        """One chunk, as 16-bit mono WAV. `languages` are ISO 639-1 codes to bias towards, and
+        `keywords` names to listen for (the org's brands and products), either may be empty.
+        Raises PermanentError or RetryableError (§9.5)."""
         ...
 
     def parse(self, body: dict[str, Any], duration_ms: int) -> Parsed:

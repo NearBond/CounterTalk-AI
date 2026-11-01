@@ -45,10 +45,12 @@ def parts(request: httpx.Request) -> dict[str, tuple[dict[str, str], bytes]]:
 
 
 @pytest.mark.parametrize(
-    ("languages", "bias"), [(("hi", "en"), ["Hindi", "English"]), ((), None)], ids=["bias", "none"]
+    ("languages", "bias", "keywords"),
+    [(("hi", "en"), ["Hindi", "English"], ("Kurkure", "Lay's")), ((), None, ())],
+    ids=["bias-and-keywords", "neither"],
 )
 def test_a_request_sends_the_chunk_with_metas_settings(
-    languages: tuple[str, ...], bias: list[str] | None
+    languages: tuple[str, ...], bias: list[str] | None, keywords: tuple[str, ...]
 ) -> None:
     seen: list[httpx.Request] = []
 
@@ -56,7 +58,7 @@ def test_a_request_sends_the_chunk_with_metas_settings(
         seen.append(request)
         return httpx.Response(200, json=REPLY)
 
-    client(answer).transcribe(WAV, languages)
+    client(answer).transcribe(WAV, languages, keywords)
 
     [request] = seen
     assert (request.method, request.url.copy_with(query=None)) == ("POST", meta.URL)
@@ -68,13 +70,15 @@ def test_a_request_sends_the_chunk_with_metas_settings(
     settings_headers, settings = sent["request"]
     assert settings_headers["Content-Type"] == "application/json"
     expected = {"model": meta.MODEL, "audioEncoding": "WAV", "mode": "DIARIZATION"}
-    assert json.loads(settings) == expected | ({"languageBias": bias} if bias else {})
+    expected |= {"languageBias": bias} if bias else {}
+    expected |= {"keywords": list(keywords)} if keywords else {}
+    assert json.loads(settings) == expected
     audio_headers, audio = sent["audio"]
     assert (audio_headers["Content-Type"], audio) == ("audio/wav", WAV)
 
 
 def test_a_reply_comes_back_as_it_came_with_its_session_and_time() -> None:
-    reply = client(lambda request: httpx.Response(200, json=REPLY)).transcribe(WAV, ())
+    reply = client(lambda request: httpx.Response(200, json=REPLY)).transcribe(WAV, (), ())
 
     assert reply.body == REPLY
     assert reply.session_id == "meta-session-1"
@@ -131,7 +135,7 @@ def test_each_failure_is_classified_and_carries_its_session(
         return response
 
     with pytest.raises(kind) as error:
-        client(answer_and_note).transcribe(WAV, ())
+        client(answer_and_note).transcribe(WAV, (), ())
 
     failure = error.value
     assert isinstance(failure, PermanentError | RetryableError)
@@ -151,7 +155,7 @@ def test_without_a_key_nothing_is_sent() -> None:
     stt = meta.MetaSpeechToText("", transport=httpx.MockTransport(answer))
 
     with pytest.raises(RetryableError) as error:
-        stt.transcribe(WAV, ())
+        stt.transcribe(WAV, (), ())
 
     assert error.value.code == "stt_not_configured"
 
