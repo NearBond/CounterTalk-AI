@@ -65,11 +65,19 @@ class Assigned:
 
 
 @dataclass(frozen=True)
-class _Turn:
+class SentTurn:
+    """A turn as it's sent to Muse Spark: by roles, and by extraction."""
+
     turn_id: int
     label: str
     start_ms: int
     text: str
+
+
+def load_turns(session: Session, transcript_id: str) -> list[SentTurn]:
+    query = select(Turn.turn_id, Turn.speaker_label, Turn.start_ms, Turn.text)
+    query = query.where(Turn.transcript_id == transcript_id).order_by(Turn.turn_id)
+    return [SentTurn(*row) for row in session.execute(query)]
 
 
 @dataclass(frozen=True)
@@ -107,13 +115,7 @@ def request_for(transcript_id: str, pack: OrgPack) -> Assigned | Request:
         saved = saved_roles(session, transcript_id)
         if saved:
             return Assigned(saved, ())
-        query = select(Turn.turn_id, Turn.speaker_label, Turn.start_ms, Turn.text)
-        turns = [
-            _Turn(*row)
-            for row in session.execute(
-                query.where(Turn.transcript_id == transcript_id).order_by(Turn.turn_id)
-            )
-        ]
+        turns = load_turns(session, transcript_id)
     if not turns:
         raise PermanentError("transcript_empty", "The transcript has no turns")
     labels = list(dict.fromkeys(turn.label for turn in turns))
@@ -198,7 +200,7 @@ def assign_roles(
     return Assigned(roles, tuple(calls))
 
 
-def sample(turns: list[_Turn], labels: list[str]) -> list[_Turn]:
+def sample(turns: list[SentTurn], labels: list[str]) -> list[SentTurn]:
     """The turns to send, in order (BRIEF §12)."""
     first, rest = turns[: limits.ROLES_FIRST_TURNS], turns[limits.ROLES_FIRST_TURNS :]
     count = limits.ROLES_SAMPLED_TURNS
@@ -221,7 +223,7 @@ def turn_line(turn_id: int, who: str, start_ms: int, text: str) -> str:
     return f"[T{turn_id}][{who}][{seconds // 60:02d}:{seconds % 60:02d}] {words}"
 
 
-def _line(turn: _Turn) -> str:
+def _line(turn: SentTurn) -> str:
     return turn_line(turn.turn_id, turn.label, turn.start_ms, turn.text)
 
 

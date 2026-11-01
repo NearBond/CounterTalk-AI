@@ -168,6 +168,10 @@ def test_a_visit_is_transcribed_into_turns_shifted_by_each_chunks_offset(org: Or
         reply_body(1),
     )
     assert (reply["chunk"]["start_ms"], reply["chunk"]["end_ms"]) == (offset, second.end_ms)
+    # Its next step, queued with it (batch 10): a transcribed visit never sits without one.
+    with session_scope(read_only=True) as session:
+        query = select(Job.state).where(Job.visit_id == visit_id, Job.kind == JobKind.EXTRACT)
+        assert session.scalars(query).all() == [JobState.QUEUED]
 
 
 def test_a_retry_sends_only_the_chunks_with_no_saved_reply(

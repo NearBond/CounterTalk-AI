@@ -24,10 +24,10 @@ from typing import Any
 from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 
-from countertalk import audio, catalog, errors, storage, visits
+from countertalk import audio, catalog, errors, jobs, storage, visits
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, NotFound, PermanentError
-from countertalk.models import Segment, Transcript, Turn, VisitStatus
+from countertalk.models import JobKind, Segment, Transcript, Turn, VisitStatus
 from countertalk.stt.base import Reply, SpeechToText
 
 log = logging.getLogger(__name__)
@@ -277,4 +277,6 @@ def _finish(
         visit.transcript_id = transcript.id
         visit.duration_ms = prepared.duration_ms
         visits.set_status(visit, VisitStatus.TRANSCRIBED)
+        # In the same transaction: a transcribed visit is never left without its next step.
+        jobs.enqueue(session, JobKind.EXTRACT, visit_id=visit_id)
     log.info("transcribed visit=%s chunks=%d turns=%d", visit_id, len(prepared.chunks), len(turns))

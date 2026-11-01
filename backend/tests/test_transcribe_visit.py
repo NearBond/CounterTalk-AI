@@ -8,7 +8,7 @@ from sqlalchemy import select
 from countertalk import jobs, storage
 from countertalk.db import session_scope
 from countertalk.errors import RetryableError
-from countertalk.models import Job, JobState, VisitStatus
+from countertalk.models import Job, JobKind, JobState, VisitStatus
 from scripts.transcribe_visit import main
 from tests.test_transcription import (
     FakeStt,
@@ -27,7 +27,8 @@ def org() -> Org_:
 
 def job_of(visit_id: str) -> Job:
     with session_scope(read_only=True) as session:
-        return session.scalars(select(Job).where(Job.visit_id == visit_id)).one()
+        query = select(Job).where(Job.visit_id == visit_id, Job.kind == JobKind.TRANSCRIBE)
+        return session.scalars(query).one()
 
 
 def test_a_dry_run_prints_what_would_be_sent_and_sends_nothing(

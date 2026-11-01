@@ -337,6 +337,7 @@ def test_housekeeping_recovers_jobs_fails_abandoned_uploads_and_sweeps_staged_fi
         "stale_dead": 0,
         "abandoned_uploads": 1,
         "staged_files": 1,
+        "extractions_queued": 0,  # no MODEL_API_KEY in tests: extraction is off
     }
     assert load(visit_id).status == VisitStatus.FAILED
     assert not staged.exists()

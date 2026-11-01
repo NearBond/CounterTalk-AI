@@ -3,8 +3,10 @@
 Run as `python -m countertalk.worker`; scripts/start.sh starts it next to the server.
 - One job at a time. Its handler runs with no transaction open, and opens its own short ones.
 - While it runs, a heartbeat thread refreshes its claim every JOB_HEARTBEAT_MS.
-- Housekeeping runs at start and every HOUSEKEEPING_INTERVAL_MS: stale jobs, abandoned uploads
-  and old staged files. Each step is safe while another worker runs it too.
+- Housekeeping runs at start and every HOUSEKEEPING_INTERVAL_MS: stale jobs, abandoned uploads,
+  old staged files, and extraction for visits waiting for it. Each step is safe while another
+  worker runs it too.
+- Without MODEL_API_KEY, extraction is off: it says so at start, and transcribed visits wait.
 - The loop survives any single error: it logs, waits WORKER_IDLE_MS and carries on.
 - The first SIGTERM or SIGINT lets the current job finish, then the worker exits 0. A second
   SIGINT quits at once (exit 130); the job's claim then goes stale, and it runs again.
@@ -20,13 +22,16 @@ import threading
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from types import FrameType
 
 # limits as a module, so a test or a manual run can shorten a limit for everything here.
-from countertalk import jobs, limits, storage, transcription, visits
+from countertalk import extraction, jobs, limits, storage, transcription, visits
 from countertalk.config import get_settings
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, PermanentError, RetryableError
+from countertalk.llm.base import StructuredLlm
+from countertalk.llm.client import MetaLlm
 from countertalk.logs import configure_logging, install_frames_only_excepthook
 from countertalk.models import JobKind, JobState
 from countertalk.stt.base import SpeechToText
@@ -79,9 +84,28 @@ def _transcribe(ctx: JobContext) -> None:
     transcribe_with(MetaSpeechToText(key))(ctx)
 
 
+def extract_with(llm: StructuredLlm, **packs: Path) -> Handler:
+    """The extract handler, with this LLM client (and, for tests, other pack folders)."""
+
+    def handler(ctx: JobContext) -> None:
+        if ctx.job.visit_id is None:
+            raise PermanentError("no_visit", "An extract job needs a visit")
+        extraction.extract(ctx.job.visit_id, llm, claim_lost=ctx.claim_lost, **packs)
+
+    return handler
+
+
+def _extract(ctx: JobContext) -> None:
+    key = get_settings().MODEL_API_KEY.get_secret_value()
+    if not key and ctx.job.visit_id is not None and extraction.wait_for_key(ctx.job.visit_id):
+        return  # it waits at transcribed: housekeeping queues it again once a key is set
+    extract_with(MetaLlm(key))(ctx)
+
+
 # Each kind's handler. Its max attempts are in jobs.KINDS; a kind with no handler is retried.
 HANDLERS: dict[str, Handler] = {
     JobKind.TRANSCRIBE: _transcribe,
+    JobKind.EXTRACT: _extract,
     JobKind.PING: _ping,
     JobKind.SLEEP: _sleep,
 }
@@ -108,6 +132,11 @@ class Worker:
 
     def run(self) -> None:
         log.info("worker started worker=%s", self.id)
+        if not get_settings().MODEL_API_KEY.get_secret_value():
+            log.warning(
+                "extraction is off: MODEL_API_KEY isn't set, so transcribed visits wait worker=%s",
+                self.id,
+            )
         while not self.stopping.is_set():
             try:
                 ran = self.run_once()
@@ -206,10 +235,17 @@ def _sweep_staged_files() -> dict[str, int]:
     return {"staged_files": storage.sweep_staged(limits.STAGED_FILE_MAX_AGE_MS)}
 
 
+def _queue_waiting_extractions() -> dict[str, int]:
+    if not get_settings().MODEL_API_KEY.get_secret_value():
+        return {"extractions_queued": 0}
+    return {"extractions_queued": extraction.queue_waiting(limits.EXTRACT_QUEUE_PER_PASS)}
+
+
 _HOUSEKEEPING: list[tuple[str, Callable[[], dict[str, int]]]] = [
     ("stale_jobs", _recover_stale_jobs),
     ("abandoned_uploads", _fail_abandoned_uploads),
     ("staged_files", _sweep_staged_files),
+    ("waiting_extractions", _queue_waiting_extractions),
 ]
 
 
