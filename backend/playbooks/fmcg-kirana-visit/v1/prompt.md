@@ -12,6 +12,7 @@ Each line is one turn: `[T<turn number>][<speaker's role>][<minutes:seconds>] <w
 - Only the shopkeeper's words make an insight. The rep's questions and claims are context: an insight the rep suggests counts only if the shopkeeper says it too. Nothing said by `other` (a customer at the counter, say) is an insight.
 - One insight per distinct point. A point said several times is one insight; two different points in one breath are two insights.
 - A routine order, greetings, small talk and the rep's own sales pitch are not insights. A visit where nothing is raised has no insights: return an empty list.
+- A yes or a short agreement to the rep's question is not an insight unless the shopkeeper adds a problem, request or reason of their own.
 - Choose the category by its definition, and check its excludes: an exclude names the category the point belongs in instead.
 - Choose the severity by the codebook's descriptions: by what the shop has lost or stands to lose, not by how strongly it's said. Money the shop was promised and hasn't received (a scheme's benefit, a payout, a discount, a credit note or a refund) is money owed.
 
