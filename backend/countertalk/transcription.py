@@ -1,0 +1,220 @@
+"""Transcription: the `transcribe` job's handler (BRIEF §2; CODING_GUIDELINES §2.4, §2.5, §9.3).
+
+1. Lock the visit and set it transcribing, in a short transaction.
+2. Prepare its audio (audio.prepare), with no transaction open.
+3. Transcribe each chunk that has no saved reply. Each reply is saved the moment it arrives, so
+   a retry never pays for a chunk twice (Meta bills a reply that's lost). Before each call, stop
+   if the claim was lost, so two workers don't both pay.
+   Each paid call adds its billed seconds and time to the visit, in a short transaction.
+4. In a second transaction, save the transcript, its turns and the duration, then set the visit
+   transcribed.
+
+Safe to run twice: only a visit that's uploaded or transcribing is worked on, so one with a
+transcript is left alone. By status, not by transcript_id: batch 13's reprocess sends a visit
+back to uploaded with its old transcript still current, and expects a new one.
+"""
+
+import json
+import logging
+import threading
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass
+from typing import Any
+
+from sqlalchemy import insert, select
+
+from countertalk import audio, storage, visits
+from countertalk.db import session_scope
+from countertalk.errors import PermanentError, RetryableError
+from countertalk.models import Segment, Transcript, Turn, VisitStatus
+from countertalk.stt.base import Reply, SpeechToText
+
+log = logging.getLogger(__name__)
+
+# Recognition is biased towards these (ISO 639-1). The manual test checks it helps.
+LANGUAGES = ("hi", "en")
+SAVED_REPLY_VERSION = 1
+
+
+@dataclass(frozen=True)
+class _Work:
+    ext: str
+    seqs: list[int]
+
+
+@dataclass(frozen=True)
+class SavedReply:
+    """One chunk's reply as saved on disk (stt/chunk_000.json, …), with what it was for."""
+
+    chunk: dict[str, int]
+    provider: str
+    model: str
+    languages: list[str]
+    session_id: str | None
+    wall_ms: int
+    reply: dict[str, Any]
+
+
+def transcribe(
+    visit_id: str,
+    stt: SpeechToText,
+    *,
+    claim_lost: threading.Event | None = None,
+    languages: Sequence[str] = LANGUAGES,
+) -> None:
+    """Transcribes a visit that's waiting for it. Raises PermanentError or RetryableError."""
+    work = _start(visit_id)
+    if work is None:
+        return
+    prepared = audio.prepare(visit_id, work.ext, work.seqs)
+    replies = [
+        _reply_for(visit_id, chunk, stt, list(languages), claim_lost) for chunk in prepared.chunks
+    ]
+    _finish(visit_id, stt, list(languages), prepared, replies)
+
+
+def _start(visit_id: str) -> _Work | None:
+    with session_scope() as session:
+        visit = visits.lock_for_work(session, visit_id)
+        if visit is None:
+            return None  # a job's visit can't go without the job; nothing to do either way
+        if visit.status == VisitStatus.UPLOADED:
+            visits.set_status(visit, VisitStatus.TRANSCRIBING)
+        elif visit.status != VisitStatus.TRANSCRIBING:  # a retry finds it transcribing
+            log.info("transcription not needed visit=%s status=%s", visit_id, visit.status)
+            return None
+        if visit.source_ext is None:
+            raise PermanentError("upload_not_finished", "The recording's upload never finished")
+        seqs = session.scalars(
+            select(Segment.seq).where(Segment.visit_id == visit_id).order_by(Segment.seq)
+        )
+        return _Work(visit.source_ext, list(seqs))
+
+
+def _chunk_key(chunk: audio.Chunk) -> dict[str, int]:
+    return {"index": chunk.index, "start_ms": chunk.start_ms, "end_ms": chunk.end_ms}
+
+
+def _load_saved(
+    visit_id: str, chunk: audio.Chunk, stt: SpeechToText, languages: list[str]
+) -> SavedReply | None:
+    """The reply an earlier try saved for this very audio and request, if any (§9.4)."""
+    try:
+        path = storage.stt_reply_path(visit_id, chunk.index)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if data.pop("version") != SAVED_REPLY_VERSION:
+            return None
+        saved = SavedReply(**data)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None  # missing, or not what was written
+    same = (saved.chunk, saved.provider, saved.model, saved.languages) == (
+        _chunk_key(chunk),
+        stt.provider,
+        stt.model,
+        languages,
+    )
+    return saved if same and isinstance(saved.reply, dict) else None
+
+
+def _reply_for(
+    visit_id: str,
+    chunk: audio.Chunk,
+    stt: SpeechToText,
+    languages: list[str],
+    claim_lost: threading.Event | None,
+) -> SavedReply:
+    saved = _load_saved(visit_id, chunk, stt, languages)
+    if saved is not None:
+        return saved
+    if claim_lost is not None and claim_lost.is_set():
+        raise RetryableError(
+            "claim_lost", "This worker lost the job, so it stopped before paying for more"
+        )
+    wav = storage.chunk_path(visit_id, chunk.index).read_bytes()
+    log.info(
+        "stt call visit=%s chunk=%d audio_ms=%d",
+        visit_id,
+        chunk.index,
+        chunk.end_ms - chunk.start_ms,
+    )
+    reply = stt.transcribe(wav, languages)
+    # Another run of this visit (one whose claim was lost) may have saved its reply first: the
+    # transcript is made from the first, so keep that one.
+    saved = _load_saved(visit_id, chunk, stt, languages)
+    if saved is None:
+        saved = SavedReply(
+            _chunk_key(chunk),
+            stt.provider,
+            stt.model,
+            languages,
+            reply.session_id,
+            reply.wall_ms,
+            reply.body,
+        )
+        record = {"version": SAVED_REPLY_VERSION, **asdict(saved)}
+        path = storage.stt_reply_path(visit_id, chunk.index)
+        storage.write_file(path, json.dumps(record, ensure_ascii=False, indent=1).encode())
+    _count_paid_call(visit_id, chunk, stt, reply)
+    return saved
+
+
+def _count_paid_call(visit_id: str, chunk: audio.Chunk, stt: SpeechToText, reply: Reply) -> None:
+    """Adds the call's billed seconds and time to the visit, every paid call, reused or not
+    (§9.3). Meta bills each request in whole seconds; a reply that doesn't say counts in full."""
+    length = chunk.end_ms - chunk.start_ms
+    billed_ms = stt.parse(reply.body, length).billed_ms
+    billed_s = (length if billed_ms is None else billed_ms) // 1000
+    log.info(
+        "stt reply visit=%s chunk=%d session=%s billed_s=%d wall_ms=%d",
+        visit_id,
+        chunk.index,
+        reply.session_id,
+        billed_s,
+        reply.wall_ms,
+    )
+    with session_scope() as session:
+        visits.add_stt_cost(session, visit_id, billed_s, reply.wall_ms)
+
+
+def _finish(
+    visit_id: str,
+    stt: SpeechToText,
+    languages: list[str],
+    prepared: audio.Prepared,
+    replies: list[SavedReply],
+) -> None:
+    turns: list[dict[str, Any]] = []
+    for chunk, saved in zip(prepared.chunks, replies, strict=True):
+        for turn in stt.parse(saved.reply, chunk.end_ms - chunk.start_ms).turns:
+            turns.append(
+                {
+                    "turn_id": len(turns),
+                    "speaker_label": f"c{chunk.index}:{turn.speaker}",
+                    "start_ms": chunk.start_ms + turn.start_ms,
+                    "end_ms": chunk.start_ms + turn.end_ms,
+                    "text": turn.text,
+                }
+            )
+    if not turns:
+        raise PermanentError("no_words_heard", "Speech-to-text heard no words in the recording")
+    with session_scope() as session:
+        visit = visits.lock_for_work(session, visit_id)
+        if visit is None or visit.status != VisitStatus.TRANSCRIBING:
+            # Another run of it finished first, or it was failed meanwhile.
+            status = None if visit is None else visit.status
+            log.info("transcript not saved visit=%s status=%s", visit_id, status)
+            return
+        transcript = Transcript(
+            visit_id=visit_id,
+            provider=stt.provider,
+            model=stt.model,
+            language_code=",".join(languages) or None,
+            raw_dir=storage.relative_to_data_dir(storage.stt_dir(visit_id)),
+        )
+        session.add(transcript)
+        session.flush()
+        session.execute(insert(Turn), [{"transcript_id": transcript.id, **t} for t in turns])
+        visit.transcript_id = transcript.id
+        visit.duration_ms = prepared.duration_ms
+        visits.set_status(visit, VisitStatus.TRANSCRIBED)
+    log.info("transcribed visit=%s chunks=%d turns=%d", visit_id, len(prepared.chunks), len(turns))

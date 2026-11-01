@@ -3,7 +3,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import Executable, delete, select, text, update
 from sqlalchemy.exc import IntegrityError, StatementError
 
 from countertalk.db import session_scope
@@ -15,6 +15,8 @@ from countertalk.models import (
     Role,
     Segment,
     Shop,
+    Transcript,
+    Turn,
     User,
     Visit,
     new_id,
@@ -267,3 +269,83 @@ def test_a_visits_jobs_go_with_it() -> None:
 
     with session_scope(read_only=True) as session:
         assert session.scalars(select(Job)).all() == []
+
+
+# --- transcripts (batch 6) --------------------------------------------------------------------
+
+
+def add_transcript(visit: Visit | None = None) -> tuple[str, str]:
+    """A visit with a transcript of one turn: (visit_id, transcript_id)."""
+    visit = visit or visit_row()
+    with session_scope() as session:
+        session.add(visit)
+        session.flush()
+        transcript = Transcript(visit_id=visit.id, provider="fake", model="fake-1", raw_dir="x")
+        session.add(transcript)
+        session.flush()
+        session.add(turn_row(transcript_id=transcript.id))
+        visit.transcript_id = transcript.id
+        return visit.id, transcript.id
+
+
+def turn_row(**overrides: object) -> Turn:
+    values: dict[str, object] = {
+        "turn_id": 0,
+        "speaker_label": "c0:A",
+        "start_ms": 0,
+        "end_ms": 1_000,
+        "text": "Namaste ji.",
+    }
+    return Turn(**{**values, **overrides})
+
+
+@pytest.mark.parametrize(
+    "change",
+    [update(Turn).values(text="Edited."), delete(Turn)],
+    ids=["update", "delete"],
+)
+def test_a_turn_never_changes(change: Executable) -> None:
+    add_transcript()
+
+    with pytest.raises(IntegrityError, match="turns rows never change"), session_scope() as session:
+        session.execute(change)
+
+
+def test_a_visits_transcripts_and_turns_go_with_it() -> None:
+    visit_id, _ = add_transcript()
+
+    with session_scope() as session:
+        session.delete(session.get(Visit, visit_id))
+
+    with session_scope(read_only=True) as session:
+        assert session.scalars(select(Transcript)).all() == []
+        assert session.scalars(select(Turn)).all() == []
+
+
+@pytest.mark.parametrize(
+    "overrides", [{"start_ms": -1}, {"start_ms": 500, "end_ms": 499}], ids=["negative", "backwards"]
+)
+def test_a_turn_with_bad_times_is_refused_by_the_database(overrides: dict) -> None:
+    _, transcript_id = add_transcript()
+
+    with pytest.raises(IntegrityError) as error, session_scope() as session:
+        session.add(turn_row(transcript_id=transcript_id, turn_id=1, **overrides))
+
+    assert constraint_violated(error.value) == "ck_turns_times"
+
+
+def test_a_visit_pointing_at_another_visits_transcript_is_refused() -> None:
+    _, theirs = add_transcript()
+    with session_scope() as session:
+        org_id = session.scalars(select(Org.id)).one()
+        rep_id = session.scalars(select(User.id)).one()
+        shop_id = session.scalars(select(Shop.id)).one()
+        mine = Visit(
+            org_id=org_id, rep_id=rep_id, shop_id=shop_id, kind="conversation", client="web"
+        )
+        session.add(mine)
+
+    with pytest.raises(IntegrityError) as error, session_scope() as session:
+        session.get(Visit, mine.id).transcript_id = theirs  # type: ignore[union-attr]
+
+    assert constraint_violated(error.value) == "fk_visits_id_transcripts"

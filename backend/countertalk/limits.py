@@ -70,3 +70,7 @@ NO_SPEECH_MAX_DB = -45
 FFPROBE_TIMEOUT_MS = 2 * 60_000
 # One decode of an hour into WAV and AAC runs many times faster than real time.
 FFMPEG_DECODE_TIMEOUT_MS = 15 * 60_000
+
+# Transcription (batch 6). Muse Voice Transcribe answers each chunk in one synchronous request;
+# each chunk's real time is recorded, so this can be tuned.
+STT_TIMEOUT_MS = 300_000

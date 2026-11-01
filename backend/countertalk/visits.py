@@ -13,14 +13,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from types import TracebackType
 
-from sqlalchemy import ColumnElement, func, select, tuple_
+from sqlalchemy import ColumnElement, func, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from countertalk import storage
+from countertalk import jobs, storage
 from countertalk.errors import Conflict, Invalid, NotFound, TooLarge
 from countertalk.limits import ABANDONED_UPLOAD_MS, MAX_SEGMENT_BYTES, VISITS_PAGE_SIZE
 from countertalk.models import (
+    JobKind,
     Segment,
     Shop,
     Visit,
@@ -90,20 +91,37 @@ def _revive_if_abandoned(visit: Visit) -> None:
 _PROCESSING = frozenset({S.UPLOADED, S.TRANSCRIBING, S.TRANSCRIBED, S.EXTRACTING})
 
 
+def lock_for_work(session: Session, visit_id: str) -> Visit | None:
+    """lock_visit for the worker: by ID alone, because the worker works across orgs."""
+    query = select(Visit).where(Visit.id == visit_id).with_for_update()
+    return session.scalars(query.execution_options(populate_existing=True)).one_or_none()
+
+
 def fail_processing(session: Session, visit_id: str, reason: str) -> bool:
     """Fails a visit whose background work gave up (§9.1), with a reason the rep can read.
 
     Under the visit's lock, and only while it's being processed: a visit that's already failed,
-    in review or confirmed is left as it is. True if it was failed. By ID alone, because the
-    worker works across orgs.
+    in review or confirmed is left as it is. True if it was failed.
     """
-    query = select(Visit).where(Visit.id == visit_id).with_for_update()
-    visit = session.scalars(query.execution_options(populate_existing=True)).one_or_none()
+    visit = lock_for_work(session, visit_id)
     if visit is None or visit.status not in _PROCESSING:
         return False
     log.info("visit failed visit=%s status=%s", visit.id, visit.status)
     set_status(visit, S.FAILED, reason=reason)
     return True
+
+
+def add_stt_cost(session: Session, visit_id: str, billed_s: int, wall_ms: int) -> None:
+    """Adds one paid speech-to-text call to the visit's totals: one statement, so nothing to
+    check first, and no lock held beyond it."""
+    session.execute(
+        update(Visit)
+        .where(Visit.id == visit_id)
+        .values(
+            stt_seconds_billed=Visit.stt_seconds_billed + billed_s,
+            stt_wall_ms=Visit.stt_wall_ms + wall_ms,
+        )
+    )
 
 
 ABANDONED_REASON = "The recording stopped arriving; it carries on if the recording tab comes back"
@@ -337,7 +355,8 @@ def store_staged_segment(
 
 
 def complete_visit(session: Session, org_id: str, visit_id: str, last_seq: int, ext: str) -> Visit:
-    """Checks the visit has exactly segments 0..last_seq, then marks it uploaded (§9.6)."""
+    """Checks the visit has exactly segments 0..last_seq, then marks it uploaded (§9.6) and
+    queues its transcription, in the same transaction: the visit, then its job (§2.3)."""
     storage.check_ext(ext)
     storage.check_seq(last_seq)
     visit = lock_visit(session, org_id, visit_id)
@@ -363,6 +382,7 @@ def complete_visit(session: Session, org_id: str, visit_id: str, last_seq: int, 
     visit.source_ext = ext
     visit.completed_at = utc_now()
     set_status(visit, S.UPLOADED)
+    jobs.enqueue(session, JobKind.TRANSCRIBE, visit_id=visit.id)
     return visit
 
 

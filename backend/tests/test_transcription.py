@@ -1,0 +1,350 @@
+"""transcription.py: the transcribe handler (batch 6), with a fake speech-to-text client.
+
+Audio is made by ffmpeg in each test, with chunks shortened to 10 s so a visit has several.
+"""
+
+import json
+import threading
+from collections.abc import Callable
+from typing import Any
+
+import pytest
+from sqlalchemy import create_engine, select, text
+
+from countertalk import audio, limits, storage, transcription, worker
+from countertalk.db import session_scope
+from countertalk.errors import PermanentError, RetryableError
+from countertalk.models import Job, JobKind, JobState, Transcript, Turn, VisitClient, VisitStatus
+from countertalk.stt import meta
+from countertalk.stt.base import Reply
+from tests.conftest import SERVER_URL, TEST_DATABASE
+from tests.test_audio import TALK_WITH_PAUSES, wav_file
+from tests.test_visits import Org_, complete, fail_processing, load, make_org, new_visit, upload
+
+
+@pytest.fixture
+def org() -> Org_:
+    return make_org()
+
+
+@pytest.fixture(autouse=True)
+def short_chunks(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(limits, "STT_CHUNK_MS", 10_000)
+    monkeypatch.setattr(limits, "PAUSE_SEARCH_MS", 2_000)
+
+
+def open_transactions() -> int:
+    """Transactions open on the test database, from any connection but this one."""
+    engine = create_engine(f"{SERVER_URL}/postgres", isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as conn:
+            return conn.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity WHERE datname = :name"
+                    " AND xact_start IS NOT NULL AND pid <> pg_backend_pid()"
+                ),
+                {"name": TEST_DATABASE},
+            )
+    finally:
+        engine.dispose()
+
+
+def reply_body(call: int) -> dict[str, Any]:
+    return {
+        "sessionId": f"fake-session-{call}",
+        "transcript": f"call {call} first call {call} second",
+        "audioDurationMs": 4_500,
+        "turns": [
+            {
+                "turnId": 1,
+                "speaker": "A",
+                "startMs": 100,
+                "endMs": 1_000,
+                "transcript": f"call {call} first",
+            },
+            {
+                "turnId": 2,
+                "speaker": "B",
+                "startMs": 1_500,
+                "endMs": 3_000,
+                "transcript": f"call {call} second",
+            },
+        ],
+    }
+
+
+class FakeStt:
+    """Answers call n with `answers[n]` (a reply body, or an error to raise), or a reply of two
+    turns. Every call checks that no transaction is open (§2.4)."""
+
+    provider = "fake"
+    model = "fake-transcribe-1"
+    parse = staticmethod(meta.parse)
+
+    def __init__(
+        self,
+        answers: dict[int, dict[str, Any] | Exception] | None = None,
+        during: Callable[[int], None] | None = None,
+    ) -> None:
+        self.answers = answers or {}
+        self.during = during
+        self.calls: list[bytes] = []
+        self.languages: list[tuple[str, ...]] = []
+
+    def transcribe(self, wav: bytes, languages: tuple[str, ...]) -> Reply:
+        assert open_transactions() == 0, "a transaction was open during a speech-to-text call"
+        call = len(self.calls)
+        self.calls.append(wav)
+        self.languages.append(tuple(languages))
+        if self.during is not None:
+            self.during(call)
+        answer = self.answers.get(call, reply_body(call))
+        if isinstance(answer, Exception):
+            raise answer
+        return Reply(answer, answer.get("sessionId"), wall_ms=1_000 + call)
+
+
+def uploaded_visit(org: Org_, seconds: float, body: bytes | None = None) -> str:
+    visit_id = new_visit(org, client=VisitClient.UPLOAD)
+    upload(org, visit_id, 0, body if body is not None else wav_file(TALK_WITH_PAUSES, seconds))
+    complete(org, visit_id, last_seq=0, ext="wav")
+    return visit_id
+
+
+def chunks(visit_id: str) -> list[audio.Chunk]:
+    return audio.prepare(visit_id, "wav", [0]).chunks  # finished already: reused, nothing runs
+
+
+def chunk_bytes(visit_id: str, index: int) -> bytes:
+    return storage.chunk_path(visit_id, index).read_bytes()
+
+
+def transcripts(visit_id: str) -> list[Transcript]:
+    with session_scope(read_only=True) as session:
+        return list(session.scalars(select(Transcript).where(Transcript.visit_id == visit_id)))
+
+
+def turns_of(transcript_id: str) -> list[tuple[int, str, int, int, str]]:
+    with session_scope(read_only=True) as session:
+        rows = session.scalars(
+            select(Turn).where(Turn.transcript_id == transcript_id).order_by(Turn.turn_id)
+        )
+        return [(t.turn_id, t.speaker_label, t.start_ms, t.end_ms, t.text) for t in rows]
+
+
+def saved(visit_id: str, index: int) -> dict[str, Any]:
+    return json.loads(storage.stt_reply_path(visit_id, index).read_text(encoding="utf-8"))
+
+
+def test_a_visit_is_transcribed_into_turns_shifted_by_each_chunks_offset(org: Org_) -> None:
+    visit_id = uploaded_visit(org, 15)
+    fake = FakeStt()
+
+    transcription.transcribe(visit_id, fake, languages=("hi", "en"))
+
+    first, second = chunks(visit_id)
+    visit = load(visit_id)
+    [transcript] = transcripts(visit_id)
+    assert visit.status == VisitStatus.TRANSCRIBED
+    assert visit.transcript_id == transcript.id
+    assert visit.duration_ms == second.end_ms
+    assert visit.stt_seconds_billed == 2 * 4  # whole seconds, as Meta bills
+    assert visit.stt_wall_ms == 1_000 + 1_001
+    assert (transcript.provider, transcript.model, transcript.language_code) == (
+        "fake",
+        "fake-transcribe-1",
+        "hi,en",
+    )
+    assert transcript.raw_dir == f"visits/{visit_id}/stt"
+    assert fake.languages == [("hi", "en")] * 2
+    offset = second.start_ms
+    assert turns_of(transcript.id) == [
+        (0, "c0:A", 100, 1_000, "call 0 first"),
+        (1, "c0:B", 1_500, 3_000, "call 0 second"),
+        (2, "c1:A", offset + 100, offset + 1_000, "call 1 first"),
+        (3, "c1:B", offset + 1_500, offset + 3_000, "call 1 second"),
+    ]
+    reply = saved(visit_id, 1)
+    assert (reply["session_id"], reply["wall_ms"], reply["reply"]) == (
+        "fake-session-1",
+        1_001,
+        reply_body(1),
+    )
+    assert (reply["chunk"]["start_ms"], reply["chunk"]["end_ms"]) == (offset, second.end_ms)
+
+
+def test_a_retry_sends_only_the_chunks_with_no_saved_reply(org: Org_) -> None:
+    visit_id = uploaded_visit(org, 25)
+    failing = FakeStt({1: RetryableError("stt_server_error", "Speech-to-text failed")})
+    with pytest.raises(RetryableError):
+        transcription.transcribe(visit_id, failing)
+    assert (load(visit_id).status, load(visit_id).stt_seconds_billed) == (
+        VisitStatus.TRANSCRIBING,
+        4,  # chunk 0 was paid for; the failed call isn't billed
+    )
+
+    retry = FakeStt()
+    transcription.transcribe(visit_id, retry)
+
+    assert len(chunks(visit_id)) == 3
+    assert len(failing.calls) == 2
+    assert load(visit_id).stt_seconds_billed == 3 * 4
+    assert retry.calls == [chunk_bytes(visit_id, 1), chunk_bytes(visit_id, 2)]
+    [transcript] = transcripts(visit_id)
+    texts = [turn[4] for turn in turns_of(transcript.id)]
+    assert texts[:2] == ["call 0 first", "call 0 second"]  # chunk 0, from the first try
+
+
+def corrupt(change: Callable[[dict[str, Any]], object]) -> Callable[[str], None]:
+    def apply(visit_id: str) -> None:
+        reply = saved(visit_id, 0)
+        change(reply)
+        storage.stt_reply_path(visit_id, 0).write_text(json.dumps(reply), encoding="utf-8")
+
+    return apply
+
+
+def truncate(visit_id: str) -> None:
+    path = storage.stt_reply_path(visit_id, 0)
+    path.write_bytes(path.read_bytes()[:20])
+
+
+@pytest.mark.parametrize(
+    "spoil",
+    [
+        truncate,
+        corrupt(lambda r: r["chunk"].update(start_ms=r["chunk"]["start_ms"] + 1)),  # cut again
+        corrupt(lambda r: r.update(languages=[])),
+        corrupt(lambda r: r.update(provider="another")),
+        corrupt(lambda r: r.update(model="an-older-model")),
+        corrupt(lambda r: r.update(reply="not an object")),
+    ],
+    ids=[
+        "truncated",
+        "other-audio",
+        "other-languages",
+        "other-provider",
+        "other-model",
+        "bad-reply",
+    ],
+)
+def test_a_saved_reply_that_doesnt_check_out_is_not_reused(
+    org: Org_, spoil: Callable[[str], None]
+) -> None:
+    visit_id = uploaded_visit(org, 15)
+    with pytest.raises(RetryableError):
+        transcription.transcribe(visit_id, FakeStt({1: RetryableError("stt_timeout", "Slow")}))
+    spoil(visit_id)
+
+    retry = FakeStt()
+    transcription.transcribe(visit_id, retry)
+
+    assert retry.calls == [chunk_bytes(visit_id, 0), chunk_bytes(visit_id, 1)]
+
+
+def transcribed_already(org: Org_) -> str:
+    visit_id = uploaded_visit(org, 5)
+    transcription.transcribe(visit_id, FakeStt())
+    return visit_id
+
+
+def failed_before(org: Org_) -> str:
+    visit_id = uploaded_visit(org, 5)
+    fail_processing(visit_id)
+    return visit_id
+
+
+@pytest.mark.parametrize(
+    ("make", "status", "count"),
+    [(transcribed_already, VisitStatus.TRANSCRIBED, 1), (failed_before, VisitStatus.FAILED, 0)],
+    ids=["has-a-transcript", "failed"],
+)
+def test_a_visit_not_waiting_for_transcription_is_left_alone(
+    org: Org_, make: Callable[[Org_], str], status: str, count: int
+) -> None:
+    visit_id = make(org)
+    again = FakeStt()
+
+    transcription.transcribe(visit_id, again)
+
+    assert again.calls == []
+    assert load(visit_id).status == status
+    assert len(transcripts(visit_id)) == count
+
+
+def test_a_run_that_finishes_second_keeps_the_first_runs_transcript(org: Org_) -> None:
+    # Two workers on one visit, as after a lost claim: the inner run finishes during the outer
+    # run's call.
+    visit_id = uploaded_visit(org, 5)
+    inner = FakeStt({0: {**reply_body(0), "sessionId": "inner"}})
+    outer = FakeStt(during=lambda call: transcription.transcribe(visit_id, inner))
+
+    transcription.transcribe(visit_id, outer)
+
+    [transcript] = transcripts(visit_id)
+    assert [turn[4] for turn in turns_of(transcript.id)] == ["call 0 first", "call 0 second"]
+    assert load(visit_id).transcript_id == transcript.id
+    assert saved(visit_id, 0)["session_id"] == "inner"  # what the transcript was made from
+    assert load(visit_id).stt_seconds_billed == 2 * 4  # both runs paid for it
+
+
+def test_a_lost_claim_stops_before_the_next_paid_call(org: Org_) -> None:
+    visit_id = uploaded_visit(org, 15)
+    lost = threading.Event()
+    fake = FakeStt(during=lambda call: lost.set())
+
+    with pytest.raises(RetryableError) as error:
+        transcription.transcribe(visit_id, fake, claim_lost=lost)
+
+    assert error.value.code == "claim_lost"
+    assert len(fake.calls) == 1
+    assert storage.stt_reply_path(visit_id, 0).is_file()  # the paid reply is kept
+
+
+NO_WORDS = {"sessionId": "s", "transcript": "", "turns": [], "audioDurationMs": 4_000}
+
+
+def run_job(fake: FakeStt) -> Job:
+    handlers = {JobKind.TRANSCRIBE: worker.transcribe_with(fake)}
+    assert worker.Worker("test-host:1:aaaaaa", handlers=handlers).run_once()
+    with session_scope(read_only=True) as session:
+        return session.scalars(select(Job).where(Job.kind == JobKind.TRANSCRIBE)).one()
+
+
+@pytest.mark.parametrize(
+    ("body", "fake", "reason"),
+    [
+        (
+            None,
+            FakeStt({0: PermanentError("stt_auth_failed", "Speech-to-text refused the key")}),
+            "Speech-to-text refused the key",
+        ),
+        (None, FakeStt({0: NO_WORDS}), "Speech-to-text heard no words in the recording"),
+        (b"not audio at all", FakeStt(), "The recording can't be read as audio"),
+    ],
+    ids=["stt-refused", "no-words", "unreadable"],
+)
+def test_a_failed_transcription_fails_the_visit_with_a_reason(
+    org: Org_, body: bytes | None, fake: FakeStt, reason: str
+) -> None:
+    visit_id = uploaded_visit(org, 5, body)
+
+    job = run_job(fake)
+
+    visit = load(visit_id)
+    assert job.state == JobState.DEAD
+    assert visit.status == VisitStatus.FAILED
+    assert visit.failure_reason is not None and visit.failure_reason.startswith(reason)
+    assert transcripts(visit_id) == []
+
+
+def test_the_workers_transcribe_handler_sends_nothing_without_a_key(org: Org_) -> None:
+    # MODEL_API_KEY is empty in tests (conftest), as in any process the builder starts.
+    uploaded_visit(org, 5)
+
+    assert worker.Worker("test-host:1:bbbbbb").run_once()
+
+    with session_scope(read_only=True) as session:
+        job = session.scalars(select(Job)).one()
+    assert (job.kind, job.state) == (JobKind.TRANSCRIBE, JobState.QUEUED)
+    assert job.last_error is not None and "stt_not_configured" in job.last_error

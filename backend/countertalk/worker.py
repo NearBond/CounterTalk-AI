@@ -18,16 +18,19 @@ import socket
 import sys
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from types import FrameType
 
 # limits as a module, so a test or a manual run can shorten a limit for everything here.
-from countertalk import jobs, limits, storage, visits
+from countertalk import jobs, limits, storage, transcription, visits
+from countertalk.config import get_settings
 from countertalk.db import session_scope
-from countertalk.errors import DomainError, RetryableError
+from countertalk.errors import DomainError, PermanentError, RetryableError
 from countertalk.logs import configure_logging, install_frames_only_excepthook
 from countertalk.models import JobKind, JobState
+from countertalk.stt.base import SpeechToText
+from countertalk.stt.meta import MetaSpeechToText
 
 # By name: run as `python -m countertalk.worker`, __name__ is "__main__".
 log = logging.getLogger("countertalk.worker")
@@ -55,8 +58,33 @@ def _sleep(ctx: JobContext) -> None:
     time.sleep(limits.SLEEP_JOB_MS / 1000)
 
 
+def transcribe_with(
+    stt: SpeechToText, languages: Sequence[str] = transcription.LANGUAGES
+) -> Handler:
+    """The transcribe handler, with this speech-to-text client."""
+
+    def handler(ctx: JobContext) -> None:
+        if ctx.job.visit_id is None:
+            raise PermanentError("no_visit", "A transcribe job needs a visit")
+        transcription.transcribe(
+            ctx.job.visit_id, stt, claim_lost=ctx.claim_lost, languages=languages
+        )
+
+    return handler
+
+
+def _transcribe(ctx: JobContext) -> None:
+    # Built per job from the settings; with no key it sends nothing (stt_not_configured).
+    key = get_settings().MODEL_API_KEY.get_secret_value()
+    transcribe_with(MetaSpeechToText(key))(ctx)
+
+
 # Each kind's handler. Its max attempts are in jobs.KINDS; a kind with no handler is retried.
-HANDLERS: dict[str, Handler] = {JobKind.PING: _ping, JobKind.SLEEP: _sleep}
+HANDLERS: dict[str, Handler] = {
+    JobKind.TRANSCRIBE: _transcribe,
+    JobKind.PING: _ping,
+    JobKind.SLEEP: _sleep,
+}
 
 
 def new_worker_id() -> str:

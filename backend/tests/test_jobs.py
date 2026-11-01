@@ -43,6 +43,13 @@ def queue(kind: str = JobKind.PING, visit_id: str | None = None) -> str:
     return job_id
 
 
+def queued_for(visit_id: str) -> str:
+    """The transcribe job complete queued for this visit, as for a real one."""
+    with session_scope(read_only=True) as session:
+        query = select(Job.id).where(Job.visit_id == visit_id, Job.kind == JobKind.TRANSCRIBE)
+        return session.scalars(query).one()
+
+
 def claim(worker: str = WORKER) -> jobs.ClaimedJob | None:
     with session_scope() as session:
         return jobs.claim(session, worker)
@@ -113,7 +120,7 @@ def lose(job: jobs.ClaimedJob) -> None:
 def transcribe_job(org: Org_) -> tuple[str, jobs.ClaimedJob]:
     """A visit being transcribed, and its claimed transcribe job."""
     visit_id = visit_at(org, VisitStatus.TRANSCRIBING)
-    queue(JobKind.TRANSCRIBE, visit_id)
+    queued_for(visit_id)
     return visit_id, claimed()
 
 
@@ -130,7 +137,7 @@ def test_a_queued_job_is_due_now_with_no_attempts() -> None:
 
 def test_only_one_active_job_per_visit_and_kind(org: Org_) -> None:
     visit_id = visit_at(org, VisitStatus.UPLOADED)
-    first = queue(JobKind.TRANSCRIBE, visit_id)
+    first = queued_for(visit_id)
 
     with session_scope() as session:
         again = jobs.enqueue(session, JobKind.TRANSCRIBE, visit_id=visit_id)
@@ -148,7 +155,7 @@ def test_a_running_job_is_active_too(org: Org_) -> None:
 
 def test_another_kind_for_the_same_visit_is_queued(org: Org_) -> None:
     visit_id = visit_at(org, VisitStatus.UPLOADED)
-    queue(JobKind.TRANSCRIBE, visit_id)
+    queued_for(visit_id)
 
     queue(JobKind.EXTRACT, visit_id)
 
@@ -158,7 +165,7 @@ def test_another_kind_for_the_same_visit_is_queued(org: Org_) -> None:
 @pytest.mark.parametrize("error", [None, PermanentError("bad_input", "It can't be read.")])
 def test_a_finished_job_doesnt_block_a_new_one(org: Org_, error: BaseException | None) -> None:
     visit_id = visit_at(org, VisitStatus.UPLOADED)
-    first = queue(JobKind.TRANSCRIBE, visit_id)
+    first = queued_for(visit_id)
     job = claimed()
     with session_scope() as session:
         if error is None:
@@ -385,7 +392,7 @@ def test_an_error_that_isnt_ours_is_retried_and_its_text_is_never_kept(
 
 def test_a_job_that_fails_on_its_last_try_dies_and_fails_its_visit(org: Org_) -> None:
     visit_id = visit_at(org, VisitStatus.TRANSCRIBING)
-    job_id = queue(JobKind.TRANSCRIBE, visit_id)
+    job_id = queued_for(visit_id)
     states = []
     for _ in range(JOB_MAX_ATTEMPTS):
         make_due(job_id)
@@ -603,7 +610,7 @@ def test_recovery_never_holds_one_job_while_it_waits_for_a_visit(
     # waiting for that visit would deadlock with the request.
     monkeypatch.setitem(jobs.KINDS, JobKind.EXTRACT, 1)
     visit_id = visit_at(org, VisitStatus.TRANSCRIBING)
-    queue(JobKind.TRANSCRIBE, visit_id)
+    queued_for(visit_id)
     first = claimed()
     queue(JobKind.EXTRACT, visit_id)
     second = claimed()

@@ -77,15 +77,28 @@ def playback_path(visit_id: str) -> Path:
     return visit_dir(visit_id) / "playback.m4a"
 
 
-def chunk_path(visit_id: str, index: int) -> Path:
+def _check_chunk(index: int) -> int:
     if isinstance(index, bool) or not 0 <= index < MAX_CHUNKS:
         raise Invalid("invalid_chunk", f"A chunk number runs from 0 to {MAX_CHUNKS - 1}")
-    return visit_dir(visit_id) / "chunks" / f"chunk_{index:03d}.wav"
+    return index
+
+
+def chunk_path(visit_id: str, index: int) -> Path:
+    return visit_dir(visit_id) / "chunks" / f"chunk_{_check_chunk(index):03d}.wav"
 
 
 def chunks_manifest_path(visit_id: str) -> Path:
     """Written last: while it's there and checks out, the preparation is finished."""
     return visit_dir(visit_id) / "chunks.json"
+
+
+def stt_dir(visit_id: str) -> Path:
+    """Speech-to-text's replies, one per chunk, each saved as soon as it arrives."""
+    return visit_dir(visit_id) / "stt"
+
+
+def stt_reply_path(visit_id: str, index: int) -> Path:
+    return stt_dir(visit_id) / f"chunk_{_check_chunk(index):03d}.json"
 
 
 def new_temp() -> Path:
@@ -128,6 +141,15 @@ def move_into_place(staged: Path, path: Path) -> None:
             os.fsync(folder)
         finally:
             os.close(folder)
+
+
+def write_file(path: Path, body: bytes) -> None:
+    """Writes a whole file: flushed to disk in the staging folder, then moved into place."""
+    staged = stage(body)
+    try:
+        move_into_place(staged, path)
+    finally:
+        staged.unlink(missing_ok=True)
 
 
 def discard(staged: Path) -> None:

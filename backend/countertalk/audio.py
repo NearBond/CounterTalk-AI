@@ -361,11 +361,9 @@ def _cut(visit_id: str, ladder: Ladder, source_bytes: int) -> Prepared:
         "duration_ms": prepared.duration_ms,
         "chunks": [asdict(chunk) for chunk in chunks],
     }
-    partial = storage.stage(json.dumps(manifest, indent=2).encode())
-    try:
-        storage.move_into_place(partial, storage.chunks_manifest_path(visit_id))
-    finally:
-        partial.unlink(missing_ok=True)
+    storage.write_file(
+        storage.chunks_manifest_path(visit_id), json.dumps(manifest, indent=2).encode()
+    )
     return prepared
 
 

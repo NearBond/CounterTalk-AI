@@ -21,7 +21,7 @@ from countertalk.db import session_scope
 from countertalk.errors import PermanentError, RetryableError
 from countertalk.models import Job, JobKind, JobState, VisitStatus
 from tests.conftest import PINNED_SETTINGS
-from tests.test_jobs import OTHER_WORKER, claimed, job_row, make_stale, queue
+from tests.test_jobs import OTHER_WORKER, claimed, job_row, make_stale, queue, queued_for
 from tests.test_storage import OLD_MS, file_aged
 from tests.test_visits import Org_, load, make_org, new_visit, quiet_for, visit_at
 
@@ -103,7 +103,7 @@ def test_a_handlers_error_is_retried_or_kills_the_job(
 
 def test_a_job_that_dies_in_the_worker_fails_its_visit(org: Org_) -> None:
     visit_id = visit_at(org, VisitStatus.TRANSCRIBING)
-    queue(JobKind.TRANSCRIBE, visit_id)
+    queued_for(visit_id)
     unreadable = PermanentError("unreadable_audio", "The recording can't be read.")
 
     worker.Worker(WORKER_ID, handlers={JobKind.TRANSCRIBE: raising(unreadable)}).run_once()
@@ -117,7 +117,7 @@ def test_housekeeping_fails_the_visit_of_a_job_stale_on_its_last_try(
 ) -> None:
     monkeypatch.setitem(jobs.KINDS, JobKind.TRANSCRIBE, 1)
     visit_id = visit_at(org, VisitStatus.TRANSCRIBING)
-    queue(JobKind.TRANSCRIBE, visit_id)
+    queued_for(visit_id)
     make_stale(claimed(OTHER_WORKER).id)
 
     worker.Worker(WORKER_ID).housekeep()

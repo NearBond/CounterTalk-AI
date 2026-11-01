@@ -166,6 +166,10 @@ class Visit(Base):
         # The shop and the rep belong to the visit's own org: the database refuses anything else.
         ForeignKeyConstraint(["org_id", "shop_id"], ["shops.org_id", "shops.id"]),
         ForeignKeyConstraint(["org_id", "rep_id"], ["users.org_id", "users.id"]),
+        # The current transcript is one of the visit's own. Added after both tables exist.
+        ForeignKeyConstraint(
+            ["id", "transcript_id"], ["transcripts.visit_id", "transcripts.id"], use_alter=True
+        ),
     )
     # The insert returns seq, so it's there after a flush without another query.
     __mapper_args__ = {"eager_defaults": True}
@@ -182,6 +186,8 @@ class Visit(Base):
     failure_reason: Mapped[str | None] = mapped_column(String)
     # The uploaded stream's extension, from complete(); storage.check_ext() allows it first.
     source_ext: Mapped[str | None] = mapped_column(String)
+    # The current transcript (batch 6). Reprocessing makes a new one; turns never change.
+    transcript_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
     duration_ms: Mapped[int | None]
     stt_seconds_billed: Mapped[int] = mapped_column(default=0)
     stt_wall_ms: Mapped[int] = mapped_column(default=0)
@@ -210,6 +216,45 @@ class Segment(Base):
     bytes: Mapped[int]
     sha256: Mapped[str] = mapped_column(String)
     received_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class Transcript(Base):
+    """One transcription of a visit (batch 6). raw_dir holds each chunk's reply as it came."""
+
+    __tablename__ = "transcripts"
+    # The target of visits' (id, transcript_id) key: a visit's transcript is its own.
+    __table_args__ = (UniqueConstraint("visit_id", "id"),)
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    visit_id: Mapped[str] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("visits.id", ondelete="CASCADE")
+    )
+    provider: Mapped[str] = mapped_column(String)
+    model: Mapped[str] = mapped_column(String)
+    # The languages recognition was biased towards, as ISO 639-1 codes ("hi,en"), or None.
+    language_code: Mapped[str | None] = mapped_column(String)
+    # Relative to DATA_DIR (storage.relative_to_data_dir), so the folder can move.
+    raw_dir: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class Turn(Base):
+    """One speaker's turn, in visit time. Never changed: a trigger refuses UPDATE and DELETE,
+    except a delete that cascades from its visit (the migration's refuse_change())."""
+
+    __tablename__ = "turns"
+    __table_args__ = (CheckConstraint("start_ms >= 0 AND end_ms >= start_ms", name="times"),)
+
+    transcript_id: Mapped[str] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("transcripts.id", ondelete="CASCADE"), primary_key=True
+    )
+    # 0, 1, 2, … in time order across the visit's chunks.
+    turn_id: Mapped[int] = mapped_column(primary_key=True)
+    # Speech-to-text's label, prefixed with its chunk: c0:A, c1:A.
+    speaker_label: Mapped[str] = mapped_column(String)
+    start_ms: Mapped[int]
+    end_ms: Mapped[int]
+    text: Mapped[str] = mapped_column(String)
 
 
 class JobState(StrEnum):

@@ -17,6 +17,9 @@ from countertalk.db import session_scope
 from countertalk.errors import Conflict, Invalid, NotFound, TooLarge
 from countertalk.limits import ABANDONED_UPLOAD_MS, LOCK_TIMEOUT_MS, MAX_SEGMENTS_PER_VISIT
 from countertalk.models import (
+    Job,
+    JobKind,
+    JobState,
     Org,
     Role,
     Segment,
@@ -411,7 +414,13 @@ def test_another_visit_doesnt_wait(org: Org_) -> None:
 # --- complete_visit ---------------------------------------------------------------------------
 
 
-def test_complete_with_every_segment_marks_the_visit_uploaded(org: Org_) -> None:
+def transcribe_jobs(visit_id: str) -> list[str]:
+    with session_scope(read_only=True) as session:
+        query = select(Job.state).where(Job.visit_id == visit_id, Job.kind == JobKind.TRANSCRIBE)
+        return list(session.scalars(query))
+
+
+def test_complete_with_every_segment_marks_the_visit_uploaded_and_queues_it(org: Org_) -> None:
     visit_id = new_visit(org)
     for seq in range(3):
         upload(org, visit_id, seq, f"part {seq}".encode())
@@ -420,6 +429,7 @@ def test_complete_with_every_segment_marks_the_visit_uploaded(org: Org_) -> None
 
     assert (visit.status, visit.source_ext) == ("uploaded", "webm")
     assert visit.completed_at is not None
+    assert transcribe_jobs(visit_id) == [JobState.QUEUED]
 
 
 @pytest.mark.parametrize(
@@ -452,6 +462,7 @@ def test_complete_twice_is_safe(org: Org_) -> None:
     again = complete(org, visit_id, last_seq=0)
 
     assert (again.status, again.completed_at) == ("uploaded", first.completed_at)
+    assert transcribe_jobs(visit_id) == [JobState.QUEUED]
 
 
 def test_complete_again_with_other_values_is_a_conflict(org: Org_) -> None:
