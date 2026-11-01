@@ -9,17 +9,17 @@ import base64
 import hashlib
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from types import TracebackType
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import ColumnElement, func, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from countertalk import storage
 from countertalk.errors import Conflict, Invalid, NotFound, TooLarge
-from countertalk.limits import MAX_SEGMENT_BYTES, VISITS_PAGE_SIZE
+from countertalk.limits import ABANDONED_UPLOAD_MS, MAX_SEGMENT_BYTES, VISITS_PAGE_SIZE
 from countertalk.models import (
     Segment,
     Shop,
@@ -104,6 +104,68 @@ def fail_processing(session: Session, visit_id: str, reason: str) -> bool:
     log.info("visit failed visit=%s status=%s", visit.id, visit.status)
     set_status(visit, S.FAILED, reason=reason)
     return True
+
+
+ABANDONED_REASON = "The recording stopped arriving; it carries on if the recording tab comes back"
+
+
+def _last_activity() -> ColumnElement:
+    """When the visit last changed or last got a segment.
+
+    Those times come from the app's clock and are compared with Postgres's now(): a clock a few
+    seconds off doesn't matter against a 12-hour limit.
+    """
+    last_segment = (
+        select(func.max(Segment.received_at)).where(Segment.visit_id == Visit.id).scalar_subquery()
+    )
+    # updated_at too: a visit revived by a replayed old segment isn't failed again at once.
+    return func.greatest(Visit.updated_at, last_segment)
+
+
+def _quiet_visits(session: Session, quiet_since: ColumnElement) -> list[Visit]:
+    """Browser visits still recording with nothing new since then, locked. Held ones are skipped."""
+    query = (
+        select(Visit)
+        .where(
+            Visit.status == S.RECORDING,
+            Visit.client.in_(_REVIVABLE_CLIENTS),
+            _last_activity() < quiet_since,
+        )
+        .order_by(Visit.seq)
+        .with_for_update(skip_locked=True, of=Visit)
+    )
+    return list(session.scalars(query.execution_options(populate_existing=True)))
+
+
+def fail_abandoned_uploads(session: Session) -> int:
+    """Fails web and upload visits still recording with nothing new for ABANDONED_UPLOAD_MS (§9.1).
+
+    It can be undone (§9.7): abandoned_at is set, so the tab's next segment, or complete, brings
+    the visit back. Safe while another worker does the same: a visit another transaction holds
+    is skipped, and the quiet is checked again under the lock, so a segment that arrived since
+    counts. Returns how many it failed.
+    """
+    quiet_since = func.now() - timedelta(milliseconds=ABANDONED_UPLOAD_MS)
+    picked = _quiet_visits(session, quiet_since)
+    if not picked:
+        return 0
+    # A new statement sees what was committed before the locks were taken.
+    still_quiet = set(
+        session.scalars(
+            select(Visit.id).where(
+                Visit.id.in_([visit.id for visit in picked]), _last_activity() < quiet_since
+            )
+        )
+    )
+    failed = 0
+    for visit in picked:
+        if visit.id not in still_quiet:
+            continue
+        log.info("visit abandoned visit=%s", visit.id)
+        set_status(visit, S.FAILED, reason=ABANDONED_REASON)
+        visit.abandoned_at = utc_now()
+        failed += 1
+    return failed
 
 
 def _find_visit(session: Session, org_id: str, visit_id: str, *, for_update: bool) -> Visit:

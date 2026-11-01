@@ -107,7 +107,7 @@ def enqueue(session: Session, kind: str, *, visit_id: str | None = None) -> str 
     if row is None:
         log.info("job already active kind=%s visit=%s", kind, visit_id)
         return None
-    log.info("job queued job=%s kind=%s visit=%s", row.id, kind, visit_id)
+    log.info("job queued job=%s kind=%s visit=%s attempt=0", row.id, kind, visit_id)
     return row.id
 
 
@@ -150,7 +150,7 @@ def mark_done(session: Session, job: ClaimedJob, worker_id: str) -> bool:
     """False if the claim was lost: the result is dropped, and the job is left to its new owner."""
     done = _change_held(session, job, worker_id, "mark_done", _released(JobState.DONE))
     if done:
-        log.info("job done %s", _fields(job))
+        log.info("job done %s", log_fields(job))
     return done
 
 
@@ -176,7 +176,7 @@ def mark_failed(
         _log_lost(job, worker_id, "mark_failed")
         return None
     level, outcome = (logging.ERROR, "dead") if dead else (logging.WARNING, "retrying")
-    log.log(level, "job %s %s error=%s", outcome, _fields(job), values["last_error"])
+    log.log(level, "job %s %s error=%s", outcome, log_fields(job), values["last_error"])
     return values["state"]
 
 
@@ -210,14 +210,14 @@ def recover_stale() -> list[Recovered]:
                 )
         except (SQLAlchemyError, DomainError) as error:
             # Still running and stale, so the next housekeeping tries it again.
-            log.warning("stale job not recovered %s error=%s", _fields(job), error_text(error))
+            log.warning("stale job not recovered %s error=%s", log_fields(job), error_text(error))
             continue
         if found:
             log.log(
                 logging.ERROR if dead else logging.WARNING,
                 "stale job %s %s locked_by=%s",
                 "dead" if dead else "queued again",
-                _fields(job),
+                log_fields(job),
                 locked_by,
             )
             recovered.append(Recovered(job, values["state"]))
@@ -301,8 +301,11 @@ def _finish(
 
 
 def _log_lost(job: ClaimedJob, worker_id: str, step: str) -> None:
-    log.warning("claim lost, nothing changed step=%s %s worker=%s", step, _fields(job), worker_id)
+    log.warning(
+        "claim lost, nothing changed step=%s %s worker=%s", step, log_fields(job), worker_id
+    )
 
 
-def _fields(job: ClaimedJob) -> str:
+def log_fields(job: ClaimedJob) -> str:
+    """job=, kind=, visit= and attempt=: every log line about a job has them."""
     return f"job={job.id} kind={job.kind} visit={job.visit_id} attempt={job.attempts}"

@@ -31,3 +31,15 @@ JOB_MAX_ATTEMPTS = 5
 JOB_BACKOFF_BASE_MS = 30_000
 JOB_BACKOFF_MAX_MS = 10 * 60_000
 JOB_BACKOFF_JITTER = 0.2
+
+# The worker (batch 4). Housekeeping runs at start and then every HOUSEKEEPING_INTERVAL_MS.
+HOUSEKEEPING_INTERVAL_MS = 10 * 60_000
+# A web or upload visit still recording with nothing new for this long is failed as abandoned;
+# its tab's next segment, or complete, brings it back (§9.7).
+ABANDONED_UPLOAD_MS = 12 * 60 * 60_000
+# A staging file older than this was left by a crash; no upload takes anywhere near this long.
+STAGED_FILE_MAX_AGE_MS = 60 * 60_000
+# How long an idle worker waits before looking for a job again: the only sleep in the app.
+WORKER_IDLE_MS = 1_000
+# How long the `sleep` test job runs: long enough to kill a worker part-way.
+SLEEP_JOB_MS = 30_000

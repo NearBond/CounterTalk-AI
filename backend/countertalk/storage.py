@@ -6,7 +6,10 @@ it came. Files are written to a temporary file first and moved into place with o
 a crash never leaves half a file where a whole one should be.
 """
 
+import logging
 import os
+import stat
+import time
 import uuid
 from pathlib import Path
 
@@ -14,6 +17,8 @@ from countertalk.config import get_settings
 from countertalk.errors import Invalid
 from countertalk.limits import MAX_SEGMENTS_PER_VISIT
 from countertalk.models import parse_id
+
+log = logging.getLogger(__name__)
 
 # The extensions an uploaded stream may have (complete(ext)); batch 5 names the joined file so.
 ALLOWED_EXTS = ("webm", "m4a", "mp4", "aac", "ogg", "wav")
@@ -91,6 +96,36 @@ def discard(staged: Path) -> None:
     if staged.parent.resolve() != _staging_dir().resolve():
         raise ValueError("discard() only removes staged files")
     staged.unlink(missing_ok=True)
+
+
+def sweep_staged(older_than_ms: int) -> int:
+    """Deletes staged files older than this, left by a crash between staging and cleanup.
+
+    Only regular `.part` files in the staging folder, and only old ones, so an upload in
+    progress is never touched. Safe while another worker sweeps: a file it took first is skipped.
+    """
+    cutoff = time.time() - older_than_ms / 1000
+    try:
+        entries = list(_staging_dir().iterdir())
+    except FileNotFoundError:
+        return 0
+    removed = 0
+    for path in entries:
+        if path.suffix != ".part":
+            continue
+        try:
+            info = path.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_mtime >= cutoff:
+                continue
+            path.unlink()
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            # One stuck file (held open on Windows, say) doesn't stop the sweep.
+            log.warning("staged file not swept error=%s", type(error).__name__)
+            continue
+        removed += 1
+    return removed
 
 
 def relative_to_data_dir(path: Path) -> str:

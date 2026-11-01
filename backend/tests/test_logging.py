@@ -22,7 +22,7 @@ from sqlalchemy import select
 
 from countertalk import visits
 from countertalk.db import DbSession, session_scope
-from countertalk.logs import HANDLER_NAME, configure_logging
+from countertalk.logs import HANDLER_NAME, configure_logging, install_frames_only_excepthook
 from countertalk.main import create_app
 from countertalk.models import Org, Role, User, new_id
 from scripts.seed_dev import seed
@@ -258,3 +258,23 @@ def test_a_500_in_an_included_router_logs_the_routes_whole_template(
     assert response.status_code == 500
     # The template, prefix and all, never the path with its IDs.
     assert "route=/api/visits/{visit_id} " in caplog.text
+
+
+def test_an_exception_escaping_a_thread_prints_only_its_frames(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys, "excepthook", sys.excepthook)
+    monkeypatch.setattr(threading, "excepthook", threading.excepthook)
+    install_frames_only_excepthook()
+
+    def heartbeat_that_breaks() -> None:
+        raise ValueError(f"Key (email)=({FAKE_EMAIL}) already exists")
+
+    thread = threading.Thread(target=heartbeat_that_breaks)
+    thread.start()
+    thread.join()
+
+    printed = capsys.readouterr().err
+    assert "ValueError" in printed
+    assert "heartbeat_that_breaks" in printed
+    assert "leaky" not in printed

@@ -3,13 +3,14 @@
 import os
 import stat
 import sys
+import time
 from pathlib import Path
 
 import pytest
 
 from countertalk import storage
 from countertalk.errors import Invalid
-from countertalk.limits import MAX_SEGMENTS_PER_VISIT
+from countertalk.limits import MAX_SEGMENTS_PER_VISIT, STAGED_FILE_MAX_AGE_MS
 from countertalk.models import new_id
 
 
@@ -146,3 +147,71 @@ def test_moving_into_place_also_flushes_the_folder(monkeypatch: pytest.MonkeyPat
 
     # Without it, a crash after the commit could lose the rename the database already records.
     assert len(flushed_folders) == 1
+
+
+# --- sweeping staged files (batch 4) -----------------------------------------------------------
+
+OLD_MS = STAGED_FILE_MAX_AGE_MS + 60_000
+
+
+def file_aged(path: Path, age_ms: int) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"half a segment")
+    then = time.time() - age_ms / 1000
+    os.utime(path, (then, then))
+    return path
+
+
+def test_old_staged_files_are_swept_and_new_ones_kept(tmp_path: Path) -> None:
+    old = file_aged(tmp_path / "tmp" / "old.part", OLD_MS)
+    new = file_aged(tmp_path / "tmp" / "uploading-now.part", 1_000)
+
+    assert storage.sweep_staged(STAGED_FILE_MAX_AGE_MS) == 1
+
+    assert not old.exists()
+    assert new.exists()
+
+
+def test_only_part_files_in_the_staging_folder_are_swept(tmp_path: Path) -> None:
+    kept = [
+        file_aged(tmp_path / "tmp" / "notes.txt", OLD_MS),
+        file_aged(tmp_path / "visits" / new_id() / "segments" / "000000.part", OLD_MS),
+    ]
+    folder = tmp_path / "tmp" / "looks-staged.part"
+    folder.mkdir()
+    then = time.time() - OLD_MS / 1000
+    os.utime(folder, (then, then))
+
+    assert storage.sweep_staged(STAGED_FILE_MAX_AGE_MS) == 0
+
+    assert all(path.exists() for path in [*kept, folder])
+
+
+def test_sweeping_with_no_staging_folder_does_nothing(tmp_path: Path) -> None:
+    assert storage.sweep_staged(STAGED_FILE_MAX_AGE_MS) == 0
+
+
+def test_a_file_another_worker_swept_first_is_skipped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old = file_aged(tmp_path / "tmp" / "old.part", OLD_MS)
+    already_gone = tmp_path / "tmp" / "already-gone.part"
+    monkeypatch.setattr(Path, "iterdir", lambda self: iter([already_gone, old]))
+
+    assert storage.sweep_staged(STAGED_FILE_MAX_AGE_MS) == 1
+    assert not old.exists()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need extra rights on Windows")
+def test_a_symlink_named_like_a_staged_file_is_left_alone(tmp_path: Path) -> None:
+    target = file_aged(tmp_path / "visits" / "keep.bin", OLD_MS)
+    link = tmp_path / "tmp" / "link.part"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(target)
+    then = time.time() - OLD_MS / 1000
+    os.utime(link, (then, then), follow_symlinks=False)
+
+    assert storage.sweep_staged(STAGED_FILE_MAX_AGE_MS) == 0
+
+    assert link.is_symlink()
+    assert target.exists()

@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Starts the service: a database check, the migrations, then the server (batch 4 adds the
-# worker).
+# Starts the service: a database check, the migrations, then the server and the worker.
 #
 # - A database that can't be reached, or a failed migration, exits here, before anything serves.
 # - If any process exits, the others are stopped and the script exits non-zero, so the host
 #   restarts the service.
-# - SIGTERM and SIGINT are passed on, so a redeploy shuts the server down cleanly.
+# - SIGTERM and SIGINT are passed on, so a redeploy stops the server and the worker cleanly.
 #
 # Everything comes from the environment (DATABASE_URL, PORT, ...); nothing here is host-specific.
 set -euo pipefail
@@ -51,7 +50,9 @@ uvicorn countertalk.main:app \
   --proxy-headers --forwarded-allow-ips='*' &
 pids+=("$!")
 
-# TODO(batch 4): start the worker here, and add its PID to pids.
+# The worker runs the background jobs. SIGTERM lets its current job finish (worker.py).
+python -m countertalk.worker &
+pids+=("$!")
 
 # Whichever process exits first, stop the rest and exit with an error.
 set +e

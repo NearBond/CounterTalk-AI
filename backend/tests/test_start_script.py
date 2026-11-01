@@ -128,6 +128,54 @@ def test_sigterm_reaches_the_server_and_start_sh_exits() -> None:
             process.kill()
 
 
+def children_of(pid: int) -> dict[int, str]:
+    """The processes whose parent is `pid`, and their command lines (Linux /proc)."""
+    found = {}
+    for stat in Path("/proc").glob("[0-9]*/stat"):
+        try:
+            # The command name is in brackets and may hold spaces; the parent comes after it.
+            ppid = int(stat.read_text().rsplit(")", 1)[1].split()[1])
+            if ppid == pid:
+                found[int(stat.parent.name)] = (stat.parent / "cmdline").read_bytes().decode()
+        except (OSError, ValueError, IndexError):
+            continue  # it exited while being read
+    return found
+
+
+@pytest.mark.skipif(not Path("/proc").is_dir(), reason="finds child processes in /proc (Linux)")
+def test_sigterm_stops_both_the_server_and_the_worker(tmp_path: Path) -> None:
+    port = free_port()
+    output = tmp_path / "start.log"
+    with output.open("w") as sink:
+        process = subprocess.Popen(
+            [BASH, str(START)],
+            env=start_env(PINNED_SETTINGS["DATABASE_URL"], port),
+            stdout=sink,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    try:
+        deadline = time.monotonic() + RUN_TIMEOUT_S
+        while "worker started" not in output.read_text() or "Uvicorn running" not in (
+            output.read_text()
+        ):
+            assert process.poll() is None, "start.sh exited early:\n" + output.read_text()
+            assert time.monotonic() < deadline, "the server or the worker didn't start"
+            time.sleep(0.2)
+        children = children_of(process.pid)
+        assert any("uvicorn" in command for command in children.values())
+        assert any("countertalk.worker" in command for command in children.values())
+
+        process.send_signal(signal.SIGTERM)
+
+        assert process.wait(timeout=RUN_TIMEOUT_S) != 0
+        assert [pid for pid in children if Path(f"/proc/{pid}").exists()] == []
+        assert "worker stopped" in output.read_text()
+    finally:
+        if process.poll() is None:
+            process.kill()
+
+
 SLOW_ALEMBIC = """#!/usr/bin/env bash
 trap 'echo "got TERM" > "$ALEMBIC_MARKER"; exit 143' TERM
 echo "started" > "$ALEMBIC_MARKER"

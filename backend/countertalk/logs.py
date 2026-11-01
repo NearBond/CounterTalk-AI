@@ -11,6 +11,7 @@ what §1.9 forbids:
 import logging
 import logging.config
 import sys
+import threading
 import traceback
 from types import TracebackType
 from typing import Any
@@ -109,9 +110,15 @@ def configure_logging() -> None:
 
 
 def install_frames_only_excepthook() -> None:
-    """An uncaught exception, such as a failed migration in the alembic CLI, prints like a log."""
+    """An uncaught exception prints like a log: a failed migration in the alembic CLI, or an
+    error escaping the worker or one of its threads."""
 
     def hook(exc_type: type[BaseException], error: BaseException, tb: TracebackType | None) -> None:
         sys.stderr.write(frames_only(error) + "\n")
 
+    def thread_hook(args: threading.ExceptHookArgs) -> None:
+        if args.exc_value is not None:
+            sys.stderr.write(frames_only(args.exc_value) + "\n")
+
     sys.excepthook = hook
+    threading.excepthook = thread_hook

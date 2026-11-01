@@ -3,17 +3,19 @@
 import base64
 import hashlib
 import threading
+import time
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select, update
+from sqlalchemy.orm import Session
 
 from countertalk import shops, storage, visits
 from countertalk.db import session_scope
 from countertalk.errors import Conflict, Invalid, NotFound, TooLarge
-from countertalk.limits import LOCK_TIMEOUT_MS, MAX_SEGMENTS_PER_VISIT
+from countertalk.limits import ABANDONED_UPLOAD_MS, LOCK_TIMEOUT_MS, MAX_SEGMENTS_PER_VISIT
 from countertalk.models import (
     Org,
     Role,
@@ -866,3 +868,137 @@ def test_fail_processing_waits_for_a_change_to_the_same_visit(org: Org_) -> None
     # It read the visit again under the lock, saw review, and left it.
     assert results == [False]
     assert load(visit_id).status == VisitStatus.REVIEW
+
+
+# --- fail_abandoned_uploads (batch 4) ---------------------------------------------------------
+
+QUIET_MS = ABANDONED_UPLOAD_MS + 60_000
+
+
+def quiet_for(visit_id: str, ms: int) -> None:
+    """Moves the visit's last change and its segments' arrival ms into the past (Postgres clock)."""
+    ago = func.now() - timedelta(milliseconds=ms)
+    with session_scope() as session:
+        session.execute(update(Visit).where(Visit.id == visit_id).values(updated_at=ago))
+        session.execute(update(Segment).where(Segment.visit_id == visit_id).values(received_at=ago))
+
+
+def fail_abandoned() -> int:
+    with session_scope() as session:
+        return visits.fail_abandoned_uploads(session)
+
+
+@pytest.mark.parametrize("client", [VisitClient.WEB, VisitClient.UPLOAD])
+def test_a_browser_visit_quiet_for_too_long_is_failed_as_abandoned(org: Org_, client: str) -> None:
+    visit_id = new_visit(org, client=client)
+    upload(org, visit_id, 0)
+    quiet_for(visit_id, QUIET_MS)
+
+    assert fail_abandoned() == 1
+
+    visit = load(visit_id)
+    assert visit.status == VisitStatus.FAILED
+    assert visit.failure_reason == visits.ABANDONED_REASON
+    assert visit.abandoned_at is not None
+
+
+def test_a_visit_created_long_ago_with_nothing_uploaded_is_failed(org: Org_) -> None:
+    visit_id = new_visit(org)
+    quiet_for(visit_id, QUIET_MS)
+
+    assert fail_abandoned() == 1
+
+
+def test_a_visit_whose_last_segment_is_recent_is_left_alone(org: Org_) -> None:
+    visit_id = new_visit(org)
+    upload(org, visit_id, 0)
+    quiet_for(visit_id, QUIET_MS)
+    upload(org, visit_id, 1)  # just now
+
+    assert fail_abandoned() == 0
+    assert load(visit_id).status == VisitStatus.RECORDING
+
+
+def test_a_visit_quiet_for_less_than_the_limit_is_left_alone(org: Org_) -> None:
+    visit_id = new_visit(org)
+    upload(org, visit_id, 0)
+    quiet_for(visit_id, ABANDONED_UPLOAD_MS - 60_000)
+
+    assert fail_abandoned() == 0
+
+
+def test_a_phone_visit_or_one_that_isnt_recording_is_left_alone(org: Org_) -> None:
+    phone = new_visit(org, client=VisitClient.PHONE)
+    uploaded = visit_at(org, VisitStatus.UPLOADED)
+    for visit_id in (phone, uploaded):
+        quiet_for(visit_id, QUIET_MS)
+
+    assert fail_abandoned() == 0
+
+
+@pytest.mark.parametrize("comes_back_with", ["segment", "complete"])
+def test_an_abandoned_visit_comes_back_with_its_next_segment_or_complete(
+    org: Org_, comes_back_with: str
+) -> None:
+    visit_id = new_visit(org)
+    upload(org, visit_id, 0)
+    quiet_for(visit_id, QUIET_MS)
+    assert fail_abandoned() == 1
+
+    if comes_back_with == "segment":
+        upload(org, visit_id, 1)
+        expected = VisitStatus.RECORDING
+    else:
+        complete(org, visit_id, last_seq=0)
+        expected = VisitStatus.UPLOADED
+
+    visit = load(visit_id)
+    assert (visit.status, visit.abandoned_at, visit.failure_reason) == (expected, None, None)
+
+
+def test_a_visit_revived_by_an_old_segment_isnt_failed_again_at_once(org: Org_) -> None:
+    visit_id = new_visit(org)
+    upload(org, visit_id, 0)
+    quiet_for(visit_id, QUIET_MS)
+    assert fail_abandoned() == 1
+
+    upload(org, visit_id, 0)  # the same segment again: it revives the visit, and arrived long ago
+
+    assert fail_abandoned() == 0
+    assert load(visit_id).status == VisitStatus.RECORDING
+
+
+def test_a_visit_another_transaction_holds_is_skipped_not_waited_for(org: Org_) -> None:
+    visit_id = new_visit(org)
+    quiet_for(visit_id, QUIET_MS)
+
+    with session_scope() as holder:
+        visits.lock_visit(holder, org.org_id, visit_id)
+        started = time.monotonic()
+        assert fail_abandoned() == 0
+        waited_s = time.monotonic() - started
+
+    assert waited_s < LOCK_TIMEOUT_MS / 1000 / 2
+    assert fail_abandoned() == 1
+
+
+def test_a_segment_that_arrived_after_the_visit_was_picked_is_seen_under_the_lock(
+    org: Org_, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    visit_id = new_visit(org)
+    upload(org, visit_id, 0)
+    quiet_for(visit_id, QUIET_MS)
+    real_quiet_visits = visits._quiet_visits
+
+    def then_a_segment_lands(session: Session, quiet_since: object) -> list[Visit]:
+        picked = real_quiet_visits(session, quiet_since)  # type: ignore[arg-type]
+        with session_scope() as other:
+            other.execute(
+                update(Segment).where(Segment.visit_id == visit_id).values(received_at=func.now())
+            )
+        return picked
+
+    monkeypatch.setattr(visits, "_quiet_visits", then_a_segment_lands)
+
+    assert fail_abandoned() == 0
+    assert load(visit_id).status == VisitStatus.RECORDING
