@@ -13,6 +13,7 @@ Each line is one turn: `[T<turn number>][<speaker's role>][<minutes:seconds>] <w
 - One insight per distinct point. A point said several times is one insight; two different points in one breath are two insights.
 - A routine order, greetings, small talk and the rep's own sales pitch are not insights. A visit where nothing is raised has no insights: return an empty list.
 - Choose the category by its definition, and check its excludes: an exclude names the category the point belongs in instead.
+- Choose the severity by the codebook's descriptions: by what the shop has lost or stands to lose, not by how strongly it's said. Money the shop was promised and hasn't received (a scheme's benefit, a payout, a discount, a credit note or a refund) is money owed.
 
 ## Evidence
 
