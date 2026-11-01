@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { ApiError, deleteInsight, patchInsight } from "../lib/api";
-import { formatDuration } from "../lib/format";
 import { useSave } from "../lib/hooks";
+import { STATUS_LABELS } from "../lib/issues";
 import { changesOf, type Draft, draftOf, labelOf, saveWithRetry } from "../lib/review";
 import { type Choice, type Insight, SUMMARY_MAX_CHARS } from "../types/api";
 import { ChoiceSelect } from "./ChoiceSelect";
+import { QuoteLine } from "./QuoteLine";
 import { SaveError } from "./SaveError";
 
 export interface Codebook {
@@ -138,20 +139,8 @@ export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved
       {insight.quotes.length > 0 && (
         <ul className="flex flex-col gap-1">
           {insight.quotes.map((quote) => (
-            <li key={quote.seq} className="flex items-start gap-2">
-              {quote.start_ms !== null && (
-                <button
-                  type="button"
-                  aria-label={`Play from ${formatDuration(quote.start_ms)}`}
-                  onClick={() => quote.start_ms !== null && onPlay(quote.start_ms)}
-                  className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-sm"
-                >
-                  ▶
-                </button>
-              )}
-              <q lang={lang} className="italic">
-                {quote.text}
-              </q>
+            <li key={quote.seq}>
+              <QuoteLine quote={quote} lang={lang} onPlay={onPlay} />
             </li>
           ))}
         </ul>
@@ -168,8 +157,23 @@ export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved
             .join(" · ")}
         </p>
       )}
-      {insight.verified && (
+      {insight.verified && (editable || insight.routes.length === 0) && (
         <p className="text-sm text-gray-600">{teams === "" ? "No team yet: it goes to triage" : `Sent to ${teams}`}</p>
+      )}
+      {insight.verified && !editable && insight.routes.length > 0 && (
+        // Confirmed: each team's issue status and its answer, for the rep to tell the shop. A
+        // route confirmed before issues existed shows its team alone.
+        <ul aria-label="Teams" className="flex flex-col gap-1 text-sm">
+          {insight.routes.map((route) => (
+            <li key={route.slot}>
+              <span className="font-medium">{route.team_name}</span>
+              {route.issue_status !== null && ` · ${STATUS_LABELS[route.issue_status]}`}
+              {route.resolution_note !== null && (
+                <span className="block text-gray-700">Answer: {route.resolution_note}</span>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
       {!insight.verified && editable && (
         <p className="text-sm">If it was said, add it yourself from the transcript.</p>

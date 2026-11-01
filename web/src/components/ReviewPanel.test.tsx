@@ -1,7 +1,7 @@
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { jsonResponse as json, rejectOnAbort } from "../testUtils";
+import { fakeApi, jsonResponse as json } from "../testUtils";
 import type { Insight, Review, Route, Turn } from "../types/api";
 import { ReviewPanel } from "./ReviewPanel";
 
@@ -92,34 +92,6 @@ function reviewOf(status: "review" | "confirmed", insights: Insight[] = [PAYMENT
       { key: "high", label: "High" },
       { key: "low", label: "Low" },
     ],
-  };
-}
-
-type Handler = (body: unknown) => Response | Promise<Response>;
-
-/** A fake API: answers by "METHOD /path", recording each request's body; one may wait. */
-function fakeApi(routes: Record<string, Handler | Handler[]>) {
-  const sent: Array<{ route: string; body: unknown }> = [];
-  const fake = vi.fn(
-    (url: string, init?: RequestInit) =>
-      new Promise<Response>((resolve, reject) => {
-        rejectOnAbort(init, reject);
-        const route = `${init?.method ?? "GET"} ${url}`;
-        const body = typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined;
-        sent.push({ route, body });
-        const found = routes[route];
-        const handler = Array.isArray(found) ? found.shift() : found;
-        if (handler === undefined) {
-          resolve(json(500, { error: { code: "no_fake", message: `nothing for ${route}` } }));
-          return;
-        }
-        void Promise.resolve(handler(body)).then(resolve, reject);
-      }),
-  );
-  vi.stubGlobal("fetch", fake);
-  return {
-    sent: () => sent.filter((request) => !request.route.startsWith("GET")),
-    gets: () => sent.filter((request) => request.route.startsWith("GET")).length,
   };
 }
 
@@ -381,6 +353,30 @@ describe("ReviewPanel", () => {
     expect(api.gets()).toBe(1);
     expect(screen.queryByRole("button", { name: /Edit|Delete|Add finding|Add note|Confirm visit/ })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Add a note")).not.toBeInTheDocument();
+  });
+
+  it("shows a confirmed finding's teams with their issue's status and answer, for the shop", async () => {
+    const resolved: Route = {
+      ...route("money", "Money desk"),
+      issue_id: "issue-1",
+      issue_status: "resolved",
+      resolution_note: "Credit note sent.",
+    };
+    // Confirmed before issues existed: its team, and no status.
+    const before: Route = { ...route("field", "Field team"), slot: 2 };
+    fakeApi({
+      "GET /api/visits/v1/review": () =>
+        json(200, reviewOf("confirmed", [{ ...PAYMENT, visible: true, routes: [resolved, before] }])),
+    });
+
+    show();
+
+    const teams = within(await cardOf("A payout is late.")).getByRole("list", { name: "Teams" });
+    expect(within(teams).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Money desk · ResolvedAnswer: Credit note sent.",
+      "Field team",
+    ]);
+    expect(screen.queryByText(/^Sent to/)).not.toBeInTheDocument();
   });
 
   it("offers Try again when the review can't be loaded", async () => {

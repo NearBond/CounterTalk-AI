@@ -54,9 +54,14 @@ export function VisitsPage() {
         ))}
       </ul>
 
-      <Link to="/health" className="text-sm text-gray-500 underline">
-        Server status
-      </Link>
+      <div className="flex gap-4 text-sm">
+        <Link to="/inbox" className="text-blue-700 underline">
+          Team inbox
+        </Link>
+        <Link to="/health" className="text-gray-500 underline">
+          Server status
+        </Link>
+      </div>
     </main>
   );
 }

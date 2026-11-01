@@ -28,10 +28,12 @@ from countertalk.api.insights import (
     TeamFor,
 )
 from countertalk.api.issues import (
+    DistributorOut,
     IssueChange,
     IssueDetailOut,
     IssueOut,
     MemberOut,
+    OptionsOut,
     TeamOut,
     UntriagedOut,
 )
@@ -71,6 +73,8 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "Choice": ChoiceOut,
     "Review": ReviewOut,
     "Team": TeamOut,
+    "Distributor": DistributorOut,
+    "InboxOptions": OptionsOut,
     "Issue": IssueOut,
     "Member": MemberOut,
     "IssueDetail": IssueDetailOut,

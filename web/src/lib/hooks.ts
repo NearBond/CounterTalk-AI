@@ -1,10 +1,11 @@
 /**
  * Polling (CODING_GUIDELINES §4.5, §4.6, §9.5, §9.9, §9.12). A page asks again every POLL_MS only
- * while shouldPoll says the server is still working. Each load is retried, so one dropped request
- * never stops the polling. Leaving the page stops it: the request is aborted, the timer cleared,
- * and an answer that still arrives is ignored.
+ * while shouldPoll says the server is still working, and only while the tab is visible: hidden, it
+ * waits, and asks again as soon as it's shown. Each load is retried, so one dropped request never
+ * stops the polling. Leaving the page stops it: the request is aborted, the timer cleared, and an
+ * answer that still arrives is ignored.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import type { Page, Shop } from "../types/api";
 import { ABORTED, ApiError, listShops } from "./api";
 import { POLL_MS, READ_ATTEMPTS } from "./limits";
@@ -46,6 +47,19 @@ export function usePolling<T>(
     let alive = true;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // Due while the tab was hidden: asked again as soon as it's shown (§9.12).
+    let waiting = false;
+    const visible = () => document.visibilityState === "visible";
+    const next = () => {
+      timer = undefined;
+      if (visible()) void run();
+      else waiting = true;
+    };
+    const onShown = () => {
+      if (!visible() || !waiting) return;
+      waiting = false;
+      void run();
+    };
     const run = async () => {
       try {
         const value = await withRetry(() => latest.current.load(controller.signal), {
@@ -55,7 +69,7 @@ export function usePolling<T>(
         if (!alive) return;
         setLoaded({ key, data: value, error: null });
         const { shouldPoll, intervalMs = POLL_MS } = latest.current.options;
-        if (shouldPoll(value)) timer = setTimeout(() => void run(), intervalMs);
+        if (shouldPoll(value)) timer = setTimeout(next, intervalMs);
       } catch (failure) {
         if (!alive || (failure instanceof ApiError && failure.code === ABORTED)) return;
         const error =
@@ -66,10 +80,12 @@ export function usePolling<T>(
       }
     };
     void run();
+    document.addEventListener("visibilitychange", onShown);
     return () => {
       alive = false;
       controller.abort();
       clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onShown);
     };
   }, [key, attempt, skip]);
 
@@ -164,4 +180,91 @@ export function useLeaveWarning(dirty: boolean): void {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
+}
+
+/** A page's one player (§9.11): ▶ on a quote or a line plays from its moment, one at a time. */
+export interface Player {
+  /** For the page's <audio>. */
+  audio: RefObject<HTMLAudioElement | null>;
+  onError: () => void;
+  onLoadedMetadata: () => void;
+  /** The recording at `src` couldn't be loaded (its file lost, say): the page says so. */
+  unplayable: boolean;
+  /** The message's Try again: ▶ moves to it, so it's read out again. */
+  retry: RefObject<HTMLButtonElement | null>;
+  tryAgain: () => void;
+  /** The recording it plays: the page's own, or the one last asked for (playFrom). */
+  src: string | null;
+  /** The current recording from `ms`. */
+  playAt: (ms: number) => void;
+  /** Another page's way: `url`'s recording from `ms`, once it's loaded if it's a new one. */
+  playFrom: (url: string, ms: number) => void;
+}
+
+/** The player for a visit's recording, `fixed` (batch 14), or for whichever one an inbox page
+ * last asked for (batch 15). A recording that can't be loaded never fails silently. */
+export function usePlayer(fixed: string | null = null): Player {
+  const audio = useRef<HTMLAudioElement>(null);
+  const retry = useRef<HTMLButtonElement>(null);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const src = fixed ?? chosen;
+  const [failed, setFailed] = useState<string | null>(null);
+  // A start asked for before its recording was loaded: onLoadedMetadata plays it.
+  const pending = useRef<number | null>(null);
+  const start = useCallback((ms: number) => {
+    const player = audio.current;
+    if (player === null) return;
+    player.currentTime = ms / 1000;
+    player.play().catch(() => {}); // a browser that refuses to play still moved to the moment
+  }, []);
+  const playAt = useCallback(
+    (ms: number) => {
+      const player = audio.current;
+      if (player === null) return;
+      if (player.error !== null) {
+        setFailed(src);
+        retry.current?.focus(); // the message, read out again, and in view
+        return;
+      }
+      start(ms);
+    },
+    [src, start],
+  );
+  const playFrom = useCallback(
+    (url: string, ms: number) => {
+      if (url === src) {
+        playAt(ms);
+        return;
+      }
+      // A new recording: the page renders its player with it, and it plays once loaded.
+      pending.current = ms;
+      setChosen(url);
+    },
+    [src, playAt],
+  );
+  const onLoadedMetadata = useCallback(() => {
+    if (pending.current === null) return;
+    const ms = pending.current;
+    pending.current = null;
+    start(ms);
+  }, [start]);
+  const onError = useCallback(() => {
+    pending.current = null;
+    setFailed(src);
+  }, [src]);
+  const tryAgain = useCallback(() => {
+    setFailed(null);
+    audio.current?.load(); // a failure again sets the message again
+  }, []);
+  return {
+    audio,
+    onError,
+    onLoadedMetadata,
+    unplayable: src !== null && failed === src,
+    retry,
+    tryAgain,
+    src,
+    playAt,
+    playFrom,
+  };
 }

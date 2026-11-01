@@ -62,7 +62,8 @@ def issue(client: TestClient, issue_id: str) -> dict[str, Any]:
 
 
 def team_id(client: TestClient, key: str) -> str:
-    return next(t["id"] for t in client.get("/api/issues/teams").json() if t["key"] == key)
+    teams = client.get("/api/issues/options").json()["teams"]
+    return next(t["id"] for t in teams if t["key"] == key)
 
 
 # --- the cards -------------------------------------------------------------------------------
@@ -139,14 +140,30 @@ def test_the_team_is_a_query_parameter_and_must_be_one_of_the_org_s(
         "team_not_found",
     )
     assert client.get("/api/issues").status_code == 422
+
+
+def test_the_options_are_the_org_s_teams_categories_areas_and_distributors(
+    client: TestClient, demo: Org_
+) -> None:
+    found = client.get("/api/issues/options").json()
+
     # The dropdown's teams, by name.
-    assert [(t["key"], t["name"]) for t in client.get("/api/issues/teams").json()] == [
+    assert [(t["key"], t["name"]) for t in found["teams"]] == [
         ("area_manager", "Area manager"),
         ("distribution", "Distribution"),
         ("finance", "Finance"),
         ("sales_ops", "Sales operations"),
         ("trade_marketing", "Trade marketing"),
     ]
+    assert {"key": "payments", "label": "Credit and payments"} in found["categories"]
+    assert found["categories"][-1] == {"key": "other", "label": "Other"}
+    assert found["areas"] == ["Old Market", "Riverside", "Station Road"]
+    assert [d["name"] for d in found["distributors"]] == [
+        "Northgate Agencies (example)",
+        "Riverbend Traders (example)",
+        "Station Road Distributors (example)",
+    ]
+    assert found["distributors"][0]["id"] == distributor(demo, "d1")
 
 
 # --- one issue, and changing it --------------------------------------------------------------

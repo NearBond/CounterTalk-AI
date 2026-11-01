@@ -9,6 +9,9 @@ export const SEGMENT_MS = 30_000;
 /** How often a page asks again about a visit, or the list, while it's processing (§9.12). */
 export const POLL_MS = 3_000;
 
+/** How often the inbox asks again for its issues (batch 15): only while the tab is visible. */
+export const INBOX_POLL_MS = 30_000;
+
 /** A retry waits RETRY_BASE_MS * 2^(attempt - 1), at most RETRY_MAX_MS, give or take JITTER. */
 export const RETRY_BASE_MS = 1_000;
 export const RETRY_MAX_MS = 30_000;

@@ -19,6 +19,7 @@ from countertalk import issues, review
 from countertalk.errors import NotFound
 from countertalk.models import (
     ACTIVE_ISSUE,
+    Distributor,
     Insight,
     InsightRoute,
     Issue,
@@ -95,8 +96,30 @@ def team_of(session: Session, org_id: str, key: str) -> Team:
     return team
 
 
-def teams(session: Session, org_id: str) -> list[Team]:
-    return list(session.scalars(select(Team).where(Team.org_id == org_id).order_by(Team.name)))
+@dataclass(frozen=True)
+class Options:
+    """What the inbox's pickers offer: the teams (the dev dropdown, Move and triage), and the
+    filters' categories, areas and distributors (ID and name)."""
+
+    teams: list[Team]
+    categories: list[review.Choice]
+    areas: list[str]
+    distributors: list[tuple[str, str]]
+
+
+def options(session: Session, pack_for: Callable[[], OrgPack], org_id: str) -> Options:
+    areas = select(Shop.area).where(Shop.org_id == org_id).distinct().order_by(Shop.area)
+    distributors = (
+        select(Distributor.id, Distributor.name)
+        .where(Distributor.org_id == org_id)
+        .order_by(Distributor.name)
+    )
+    return Options(
+        teams=list(session.scalars(select(Team).where(Team.org_id == org_id).order_by(Team.name))),
+        categories=review.category_choices(pack_for()),
+        areas=list(session.scalars(areas)),
+        distributors=[(found_id, name) for found_id, name in session.execute(distributors)],
+    )
 
 
 def cards(

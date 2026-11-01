@@ -1,6 +1,6 @@
 """/api/issues: a team's inbox (batch 15). The team is the `team` query parameter, its key: the
-dev dropdown's until batch 16 takes it from the signed-in member. GET /api/issues/teams lists
-the org's teams for that dropdown and for Move and triage."""
+dev dropdown's until batch 16 takes it from the signed-in member. GET /api/issues/options gives
+that dropdown's teams (and Move's and triage's), and the filters' choices."""
 
 from datetime import datetime
 from functools import partial
@@ -12,7 +12,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, StrictBool, StrictInt
 
 from countertalk import extraction, inbox, issues
 from countertalk.api.deps import CurrentUser
-from countertalk.api.insights import InsightOut, RouteOut, insight_out
+from countertalk.api.insights import ChoiceOut, InsightOut, RouteOut, insight_out
 from countertalk.db import DbSession
 
 router = APIRouter(prefix="/api/issues", tags=["issues"])
@@ -25,6 +25,21 @@ class TeamOut(BaseModel):
     id: str
     key: str
     name: str
+
+
+class DistributorOut(BaseModel):
+    id: str
+    name: str
+
+
+class OptionsOut(BaseModel):
+    """What the inbox's pickers offer: the teams (the dev dropdown, Move and triage), and the
+    filters' categories, areas and distributors."""
+
+    teams: list[TeamOut]
+    categories: list[ChoiceOut]
+    areas: list[str]
+    distributors: list[DistributorOut]
 
 
 class IssueOut(BaseModel):
@@ -137,9 +152,16 @@ def detail_out(found: inbox.Detail) -> IssueDetailOut:
     )
 
 
-@router.get("/teams")
-def list_teams(user: CurrentUser, session: DbSession) -> list[TeamOut]:
-    return [TeamOut(id=t.id, key=t.key, name=t.name) for t in inbox.teams(session, user.org_id)]
+@router.get("/options")
+def list_options(user: CurrentUser, session: DbSession) -> OptionsOut:
+    pack = partial(extraction.pack_for, user.org_id, session=session)
+    found = inbox.options(session, pack, user.org_id)
+    return OptionsOut(
+        teams=[TeamOut(id=t.id, key=t.key, name=t.name) for t in found.teams],
+        categories=[ChoiceOut(key=c.key, label=c.label) for c in found.categories],
+        areas=found.areas,
+        distributors=[DistributorOut(id=i, name=n) for i, n in found.distributors],
+    )
 
 
 @router.get("/triage")

@@ -375,6 +375,11 @@ class ReviewView:
     severities: list[Choice]
 
 
+def category_choices(pack: OrgPack) -> list[Choice]:
+    """The playbook's categories, with their names, in its order: the pickers' and filters'."""
+    return [Choice(key, category.name) for key, category in pack.playbook.categories.items()]
+
+
 def _label(key: str) -> str:
     return key.replace("_", " ").capitalize()
 
@@ -422,7 +427,7 @@ def review_of(
             ).items()
         },
         kinds=[Choice(key, _label(key)) for key in book.kinds],
-        categories=[Choice(key, category.name) for key, category in book.categories.items()],
+        categories=category_choices(pack),
         severities=[Choice(key, _label(key)) for key in book.severities],
     )
 

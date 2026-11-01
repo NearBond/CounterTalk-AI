@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useBlocker, useParams } from "react-router";
 import { ReviewPanel } from "../components/ReviewPanel";
+import { PagePlayer } from "../components/PagePlayer";
 import { RetryAlert } from "../components/RetryAlert";
 import { StatusBadge } from "../components/StatusBadge";
 import { audioUrl, getTranscript, getVisit } from "../lib/api";
 import { formatDateTime, formatDuration, shopLabel } from "../lib/format";
-import { usePolling, useShops } from "../lib/hooks";
+import { usePlayer, usePolling, useShops } from "../lib/hooks";
 import type { Turn } from "../types/api";
 
 // One colour per speaker label, in the order they first speak. Until batch 9 decides roles, the
@@ -33,7 +34,6 @@ function chipColours(turns: Turn[]): Map<string, string> {
  * while processing. */
 export function VisitPage() {
   const { visitId = "" } = useParams();
-  const audio = useRef<HTMLAudioElement>(null);
   const visit = usePolling((signal) => getVisit(visitId, signal), {
     key: visitId,
     shouldPoll: (value) => value.processing,
@@ -49,27 +49,9 @@ export function VisitPage() {
   const shops = useShops();
   const shop = shops.data?.items.find((item) => item.id === visit.data?.shop_id);
 
-  // A recording that can't be loaded (its file lost, say) says so, under the player: ▶ never
-  // fails silently. The player's error event sets it, for this visit only; Try again loads the
-  // recording afresh.
-  const [unplayableFor, setUnplayableFor] = useState<string | null>(null);
-  const unplayable = unplayableFor === visitId;
-  const retry = useRef<HTMLButtonElement>(null);
-  // The page's one player: a quote's ▶ and a transcript line both start it, one at a time.
-  const playAt = useCallback(
-    (ms: number) => {
-      const player = audio.current;
-      if (player === null) return;
-      if (player.error !== null) {
-        setUnplayableFor(visitId);
-        retry.current?.focus(); // the message, read out again, and in view
-        return;
-      }
-      player.currentTime = ms / 1000;
-      player.play().catch(() => {}); // a browser that refuses to play still moved to the moment
-    },
-    [visitId],
-  );
+  // The page's one player: a quote's ▶ and a transcript line both start it, one at a time. A
+  // recording that can't be loaded says so, for this visit only (usePlayer).
+  const { playAt, playFrom: _, src: __, ...player } = usePlayer(audioUrl(visitId));
   const [dirty, setDirty] = useState(false);
   // Any navigation away with unsaved changes asks first: a link, or the back button (§9.9).
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname);
@@ -116,30 +98,7 @@ export function VisitPage() {
         </section>
       )}
 
-      {transcribed && (
-        // Seekable: the server answers Range requests (batch 6).
-        <audio
-          ref={audio}
-          controls
-          preload="metadata"
-          src={audioUrl(visitId)}
-          onError={() => setUnplayableFor(visitId)}
-          className="w-full"
-        >
-          <track kind="captions" />
-        </audio>
-      )}
-      {unplayable && (
-        <RetryAlert
-          retryRef={retry}
-          onRetry={() => {
-            setUnplayableFor(null);
-            audio.current?.load(); // a failure again sets the message again
-          }}
-        >
-          The recording can't be played right now. Everything else on this page still works.
-        </RetryAlert>
-      )}
+      {transcribed && <PagePlayer {...player} src={audioUrl(visitId)} />}
 
       {reviewing && (
         <ReviewPanel

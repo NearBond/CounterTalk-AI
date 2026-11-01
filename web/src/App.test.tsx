@@ -13,6 +13,8 @@ describe("App", () => {
     ["/", "Visits"],
     ["/record", "Record a visit"],
     ["/visits/v-1", "Visit"],
+    ["/inbox", "Inbox"],
+    ["/inbox/triage", "Triage"],
     ["/health", "Server status"],
   ])("shows its page at %s", (path, heading) => {
     renderAt(path);

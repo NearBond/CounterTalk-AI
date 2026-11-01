@@ -308,11 +308,26 @@ export const SUMMARY_MAX_CHARS = 500;
 
 // --- the inbox (batch 15) ----------------------------------------------------------------------
 
-/** GET /api/issues/teams: TeamOut. */
+/** TeamOut: one of the org's teams. */
 export interface Team {
   id: string;
   key: string;
   name: string;
+}
+
+/** DistributorOut. */
+export interface Distributor {
+  id: string;
+  name: string;
+}
+
+/** GET /api/issues/options: OptionsOut, what the inbox's pickers offer: the teams (the dev
+ * dropdown, Move and triage), and the filters' categories, areas and distributors. */
+export interface InboxOptions {
+  teams: Team[];
+  categories: Choice[];
+  areas: string[];
+  distributors: Distributor[];
 }
 
 /**

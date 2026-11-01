@@ -7,17 +7,25 @@ import type {
   ErrorBody,
   FrameworkErrorCode,
   Health,
+  InboxOptions,
   Insight,
   InsightChange,
+  IssueChange,
+  IssueDetail,
+  IssueStatus,
+  Issue,
   NewInsight,
   NewNote,
   NewVisit,
   Note,
   Page,
   Review,
+  RouteSeen,
+  RouteTo,
   Segment,
   Shop,
   Transcript,
+  Untriaged,
   Visit,
 } from "../types/api";
 
@@ -195,6 +203,63 @@ export function addNote(visitId: string, body: NewNote, signal?: AbortSignal): P
 /** Use review.confirmReview, which retries it: confirming again returns the same visit. */
 export function postConfirm(visitId: string, signal?: AbortSignal): Promise<Visit> {
   return apiRequest(`/visits/${encodeURIComponent(visitId)}/confirm`, { method: "POST", signal });
+}
+
+// --- the inbox (batch 15). Its changes name the version they read, so none is retried
+// silently: a lost answer's retry would be refused as out of date (§9.11). ---------------------
+
+/** The filters an inbox list takes: none is "open and in progress", of any of the rest. */
+export interface IssueFilters {
+  status?: Exclude<IssueStatus, "merged">;
+  category?: string;
+  area?: string;
+  distributor?: string;
+}
+
+export function getInboxOptions(signal?: AbortSignal): Promise<InboxOptions> {
+  return apiRequest("/issues/options", { signal });
+}
+
+/** The team's issues: `team` is its key, the dev dropdown's until batch 16. */
+export function listIssues(team: string, filters: IssueFilters, signal?: AbortSignal): Promise<Issue[]> {
+  const query = new URLSearchParams({ team });
+  for (const [name, value] of Object.entries(filters)) {
+    if (value) query.set(name, value);
+  }
+  return apiRequest(`/issues?${query.toString()}`, { signal });
+}
+
+export function getIssue(issueId: string, signal?: AbortSignal): Promise<IssueDetail> {
+  return apiRequest(`/issues/${encodeURIComponent(issueId)}`, { signal });
+}
+
+export function changeIssue(issueId: string, change: IssueChange, signal?: AbortSignal): Promise<IssueDetail> {
+  return apiRequest(`/issues/${encodeURIComponent(issueId)}`, { method: "PATCH", body: change, signal });
+}
+
+export function listTriage(signal?: AbortSignal): Promise<Untriaged[]> {
+  return apiRequest("/issues/triage", { signal });
+}
+
+export function acceptRoute(insightId: string, seen: RouteSeen, signal?: AbortSignal): Promise<Insight> {
+  return apiRequest(`/insights/${encodeURIComponent(insightId)}/accept`, { method: "POST", body: seen, signal });
+}
+
+export function moveRoute(insightId: string, to: RouteTo, signal?: AbortSignal): Promise<Insight> {
+  return apiRequest(`/insights/${encodeURIComponent(insightId)}/move`, { method: "POST", body: to, signal });
+}
+
+export function alsoSend(insightId: string, to: RouteTo, signal?: AbortSignal): Promise<Insight> {
+  return apiRequest(`/insights/${encodeURIComponent(insightId)}/also-send`, { method: "POST", body: to, signal });
+}
+
+/** From triage: 409 `already_routed` if someone gave it a team meanwhile. */
+export function assignTeam(insightId: string, teamId: string, signal?: AbortSignal): Promise<Insight> {
+  return apiRequest(`/insights/${encodeURIComponent(insightId)}/team`, {
+    method: "POST",
+    body: { team_id: teamId },
+    signal,
+  });
 }
 
 /** The visit's audio, for an <audio> element: the browser fetches it, seeking with Range. */

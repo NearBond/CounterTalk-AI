@@ -102,6 +102,35 @@ describe("usePolling", () => {
 
     expect(result.current.data).toBe("loaded 2");
   });
+
+  it("asks again only while the tab is visible, and as soon as it's shown (§9.12)", async () => {
+    let shown = true;
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => (shown ? "visible" : "hidden"),
+    });
+    try {
+      const load = vi.fn(async () => "issues");
+      renderHook(() => usePolling(load, { key: "inbox", shouldPoll: () => true }));
+      await tick(0);
+      expect(load).toHaveBeenCalledTimes(1);
+
+      shown = false;
+      await tick(POLL_MS * 5);
+      expect(load).toHaveBeenCalledTimes(1);
+
+      shown = true;
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await tick(0);
+      expect(load).toHaveBeenCalledTimes(2);
+      await tick(POLL_MS);
+      expect(load).toHaveBeenCalledTimes(3);
+    } finally {
+      Reflect.deleteProperty(document, "visibilityState");
+    }
+  });
 });
 
 describe("useSave", () => {
