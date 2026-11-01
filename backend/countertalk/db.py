@@ -7,8 +7,9 @@ from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends, Request
+from pydantic import ValidationError
 from sqlalchemy import Connection, Engine, create_engine, event, select
-from sqlalchemy.exc import DBAPIError, SQLAlchemyError
+from sqlalchemy.exc import ArgumentError, DBAPIError, OperationalError, SQLAlchemyError
 from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.orm import Session, SessionTransaction
 
@@ -95,3 +96,25 @@ def database_reachable(session: Session) -> bool:
         _rollback_quietly(session)
         return False
     return True
+
+
+# What a dev script catches around its database work, to say in one line what went wrong.
+SETUP_ERRORS = (ValidationError, ArgumentError, DBAPIError)
+
+
+def setup_trouble(error: BaseException) -> str:
+    """One line for a settings or database failure, never the driver's text (it can quote the
+    URL and its password)."""
+    if isinstance(error, ValidationError | ArgumentError):
+        return "the settings aren't valid; run scripts/check_setup.py"
+    if isinstance(error, OperationalError):
+        return (
+            f"the database didn't answer ({type(error.orig).__name__}); run scripts/check_setup.py"
+        )
+    if isinstance(error, DBAPIError):
+        # It answered, and refused: most often a database that isn't migrated yet.
+        return (
+            f"the database refused it ({type(error.orig).__name__});"
+            " is it migrated? run uv run alembic upgrade head"
+        )
+    return type(error).__name__

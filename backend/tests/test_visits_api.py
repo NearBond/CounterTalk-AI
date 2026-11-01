@@ -22,7 +22,8 @@ from countertalk import storage, visits
 from countertalk.db import session_scope
 from countertalk.limits import LOCK_TIMEOUT_MS, MAX_SEGMENT_BYTES, MAX_SEGMENTS_PER_VISIT
 from countertalk.models import Org, Role, Shop, Transcript, Turn, User, Visit
-from scripts.seed_dev import seed
+from countertalk.playbooks import load_org_pack
+from scripts.seed_dev import DEMO_PACK, seed
 
 RACE_TIMEOUT_S = 2 * LOCK_TIMEOUT_MS / 1000
 
@@ -30,7 +31,7 @@ RACE_TIMEOUT_S = 2 * LOCK_TIMEOUT_MS / 1000
 @pytest.fixture(autouse=True)
 def demo() -> None:
     with session_scope() as session:
-        seed(session)
+        seed(session, load_org_pack(*DEMO_PACK))
 
 
 def a_shop(client: TestClient) -> dict:

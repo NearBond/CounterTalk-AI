@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError, StatementError
 
 from countertalk.db import session_scope
 from countertalk.models import (
+    Distributor,
     Job,
     JobKind,
     JobState,
@@ -349,3 +350,22 @@ def test_a_visit_pointing_at_another_visits_transcript_is_refused() -> None:
         session.get(Visit, mine.id).transcript_id = theirs  # type: ignore[union-attr]
 
     assert constraint_violated(error.value) == "fk_visits_id_transcripts"
+
+
+def test_a_shop_with_another_orgs_distributor_is_refused() -> None:
+    org_id, _, shop_id = add_visit_parts()
+    with session_scope() as session:
+        other = Org(name="Distributor's Org")
+        session.add(other)
+        session.flush()
+        theirs = Distributor(org_id=other.id, key="d1", name="Elsewhere (example)", area="Far")
+        session.add(theirs)
+        session.flush()
+        theirs_id = theirs.id
+
+    with pytest.raises(IntegrityError) as error, session_scope() as session:
+        shop = session.get(Shop, shop_id)
+        assert shop is not None
+        shop.distributor_id = theirs_id
+
+    assert constraint_violated(error.value) == "fk_shops_org_id_distributors"

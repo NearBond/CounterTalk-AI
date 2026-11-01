@@ -89,6 +89,38 @@ class Org(Base):
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
     name: Mapped[str] = mapped_column(String, unique=True)
+    # The org pack it runs on (batch 8): its teams, routing, schemes and the catalog it seeded.
+    org_pack_id: Mapped[str | None] = mapped_column(String)
+    org_pack_version: Mapped[int | None]
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class Team(Base):
+    """One of an org's teams, seeded by key from its org pack (batch 8). What it handles and its
+    routing stay in the pack's files."""
+
+    __tablename__ = "teams"
+    __table_args__ = (UniqueConstraint("org_id", "key"), UniqueConstraint("org_id", "id"))
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    key: Mapped[str] = mapped_column(String)
+    name: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class Distributor(Base):
+    """A distributor serving the org's shops, imported from its pack's distributors.csv. Issues
+    group by it (batch 15): the most likely shared cause of payout and delivery problems."""
+
+    __tablename__ = "distributors"
+    __table_args__ = (UniqueConstraint("org_id", "key"), UniqueConstraint("org_id", "id"))
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    key: Mapped[str] = mapped_column(String)
+    name: Mapped[str] = mapped_column(String)
+    area: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
 
 
@@ -117,14 +149,81 @@ class Shop(Base):
         UniqueConstraint("org_id", "name", "area"),
         # The target of visits' (org_id, shop_id) key: a visit's shop is in the visit's org.
         UniqueConstraint("org_id", "id"),
+        # Its distributor is in its own org: the database refuses anything else.
+        ForeignKeyConstraint(
+            ["org_id", "distributor_id"], ["distributors.org_id", "distributors.id"]
+        ),
     )
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
     org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
     name: Mapped[str] = mapped_column(String)
     area: Mapped[str] = mapped_column(String)
+    # None until it's known; a shop with none groups by its area (batch 15).
+    distributor_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), index=True)
+    # The distributor salesman's route that covers it, as the org names it.
+    beat: Mapped[str | None] = mapped_column(String)
     # The shop said no to recording: only notes mode is allowed (§7.4, batches 3 and 17).
     do_not_record: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class CatalogKind(StrEnum):
+    OWN = "own"
+    COMPETITOR = "competitor"
+
+
+class AliasSource(StrEnum):
+    PACK = "pack"
+    # From a reviewed unknown name (batch 12), and from the catalog screen (batch 16b).
+    REVIEW = "review"
+    ADMIN = "admin"
+
+
+class CatalogItem(Base):
+    """A brand or product, the org's own or a competitor's. Seeded from the org pack's CSVs, then
+    edited on the catalog screen (batch 16b): an import never changes a row."""
+
+    __tablename__ = "catalog_items"
+    __table_args__ = (
+        CheckConstraint(_one_of("kind", CatalogKind), name="kind"),
+        UniqueConstraint("org_id", "key"),
+        UniqueConstraint("org_id", "id"),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    # The CSV's key: the natural key an import matches on.
+    key: Mapped[str] = mapped_column(String)
+    kind: Mapped[str] = mapped_column(String)
+    company: Mapped[str] = mapped_column(String)
+    brand: Mapped[str] = mapped_column(String)
+    # None for a brand as a whole.
+    product: Mapped[str | None] = mapped_column(String)
+    active: Mapped[bool] = mapped_column(default=True)
+    # For compare-and-set edits on the catalog screen (§2.3).
+    version: Mapped[int] = mapped_column(default=1)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now, onupdate=utc_now)
+
+
+class CatalogAlias(Base):
+    """Another way a catalog item is said or written: Devanagari, spoken forms. Linking matches
+    on these (batch 12)."""
+
+    __tablename__ = "catalog_aliases"
+    __table_args__ = (
+        CheckConstraint(_one_of("source", AliasSource), name="source"),
+        ForeignKeyConstraint(
+            ["org_id", "item_id"], ["catalog_items.org_id", "catalog_items.id"], ondelete="CASCADE"
+        ),
+        UniqueConstraint("item_id", "text"),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"), index=True)
+    item_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    text: Mapped[str] = mapped_column(String)
+    source: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
 
 

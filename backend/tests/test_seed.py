@@ -6,9 +6,11 @@ from sqlalchemy import func, select
 from countertalk.db import session_scope
 from countertalk.errors import Conflict
 from countertalk.limits import LOCK_TIMEOUT_MS
-from countertalk.models import Org, Role, Shop, User
-from scripts.seed_dev import DEMO_ORG_NAME, DEMO_REP, DEMO_SHOPS, main, seed
+from countertalk.models import Distributor, Org, Role, Shop, User
+from countertalk.playbooks import load_org_pack
+from scripts.seed_dev import DEMO_ORG_NAME, DEMO_PACK, DEMO_REP, DEMO_SHOPS, main, seed
 
+PACK = load_org_pack(*DEMO_PACK)
 # A racing seed waits at most one lock timeout for the other; allow two before giving up.
 RACE_TIMEOUT_S = 2 * LOCK_TIMEOUT_MS / 1000
 
@@ -24,7 +26,7 @@ def counts() -> tuple[int, int, int]:
 
 def test_seed_creates_the_demo_org_one_rep_and_its_shops() -> None:
     with session_scope() as session:
-        seed(session)
+        seed(session, PACK)
 
     with session_scope(read_only=True) as session:
         org = session.scalars(select(Org)).one()
@@ -40,9 +42,9 @@ def test_seed_creates_the_demo_org_one_rep_and_its_shops() -> None:
 
 def test_seeding_twice_creates_no_duplicates() -> None:
     with session_scope() as session:
-        first = seed(session)
+        first = seed(session, PACK)
     with session_scope() as session:
-        second = seed(session)
+        second = seed(session, PACK)
 
     assert counts() == (1, 1, len(DEMO_SHOPS))
     assert (first.created, first.existing) == (sum(counts()), 0)
@@ -51,19 +53,35 @@ def test_seeding_twice_creates_no_duplicates() -> None:
 
 def test_seeding_again_keeps_changes_made_since() -> None:
     with session_scope() as session:
-        seed(session)
+        seed(session, PACK)
     with session_scope() as session:
         shop = session.scalars(select(Shop).limit(1)).one()
         shop.do_not_record = True
+        shop.beat = "Saturday route"
         changed_id = shop.id
 
     with session_scope() as session:
-        seed(session)
+        seed(session, PACK)
 
     with session_scope(read_only=True) as session:
         shop = session.get(Shop, changed_id)
     assert shop is not None
-    assert shop.do_not_record is True
+    assert (shop.do_not_record, shop.beat) == (True, "Saturday route")
+
+
+def test_the_demo_org_is_on_the_example_pack_with_its_shops_on_distributors() -> None:
+    with session_scope() as session:
+        seed(session, PACK)
+
+    with session_scope(read_only=True) as session:
+        org = session.scalars(select(Org)).one()
+        shops = session.execute(
+            select(Shop.name, Distributor.key, Shop.beat)
+            .join(Distributor, Shop.distributor_id == Distributor.id)
+            .order_by(Shop.name)
+        ).all()
+    assert (org.org_pack_id, org.org_pack_version) == DEMO_PACK
+    assert [tuple(row) for row in shops] == sorted((n, d, b) for n, _, d, b in DEMO_SHOPS)
 
 
 def test_seed_refuses_when_the_demo_rep_belongs_to_another_org() -> None:
@@ -74,7 +92,7 @@ def test_seed_refuses_when_the_demo_rep_belongs_to_another_org() -> None:
         session.add(User(org_id=other.id, email=DEMO_REP["email"], name="Other", role=Role.REP))
 
     with pytest.raises(Conflict, match="another org"), session_scope() as session:
-        seed(session)
+        seed(session, PACK)
 
     assert counts() == (1, 1, 0)
 
@@ -87,7 +105,7 @@ def test_two_seeds_racing_create_no_duplicates() -> None:
         try:
             with session_scope() as session:
                 start.wait()
-                seed(session)
+                seed(session, PACK)
         except BaseException as error:  # noqa: BLE001 - collected and checked below
             errors.append(error)
 
@@ -110,3 +128,22 @@ def test_main_prints_what_it_created(capsys: pytest.CaptureFixture[str]) -> None
     first, second = capsys.readouterr().out.strip().splitlines()
     assert first == f"seeded: created {total}, already there 0"
     assert second == f"seeded: created 0, already there {total}"
+
+
+def test_a_shop_with_a_beat_but_no_distributor_gets_one_and_keeps_its_beat() -> None:
+    with session_scope() as session:
+        seed(session, PACK)
+    with session_scope() as session:
+        shop = session.scalars(select(Shop).where(Shop.name == "Sunrise Kirana")).one()
+        shop.distributor_id, shop.beat = None, "Saturday route"
+
+    with session_scope() as session:
+        seed(session, PACK)
+
+    with session_scope(read_only=True) as session:
+        found = session.execute(
+            select(Distributor.key, Shop.beat)
+            .join(Distributor, Shop.distributor_id == Distributor.id)
+            .where(Shop.name == "Sunrise Kirana")
+        ).one()
+    assert tuple(found) == ("d1", "Saturday route")

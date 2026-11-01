@@ -74,3 +74,6 @@ FFMPEG_DECODE_TIMEOUT_MS = 15 * 60_000
 # Transcription (batch 6). Muse Voice Transcribe answers each chunk in one synchronous request;
 # each chunk's real time is recorded, so this can be tuned.
 STT_TIMEOUT_MS = 300_000
+# Brand and product names sent as Muse Voice Transcribe's keywords (batch 8). Meta documents no
+# limit (checked 1 Nov), so a cap of our own: brands first, then products.
+STT_KEYWORDS_MAX = 50

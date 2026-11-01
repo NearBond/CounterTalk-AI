@@ -10,7 +10,7 @@ import pytest
 
 from countertalk.config import BACKEND_DIR
 from countertalk.models import new_id
-from tests.conftest import SERVER_URL
+from tests.conftest import ORG_PACK_FIXTURES, SERVER_URL
 
 SCRIPTS = BACKEND_DIR / "scripts"
 NO_SUCH_DATABASE = f"{SERVER_URL}/countertalk_no_such_database"
@@ -22,6 +22,7 @@ BAD_INPUTS = {
     "check_setup.py": (["--database"], {"DATABASE_URL": NO_SUCH_DATABASE}),
     "compare_transcript.py": ([UNKNOWN, "no-such-reference.turns.json"], {}),
     "e2e_setup.py": ([], {}),  # the test database isn't named for e2e, so it's refused
+    "import_org_pack.py": (["No Such Org", "tiny-demo", "1", "--root", str(ORG_PACK_FIXTURES)], {}),
     "make_test_audio.py": (["rp99", "--samples", "no-such-folder"], {}),
     "prepare_visit.py": ([UNKNOWN], {}),
     "seed_dev.py": ([], {"DATABASE_URL": NO_SUCH_DATABASE}),

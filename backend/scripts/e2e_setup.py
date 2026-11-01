@@ -32,8 +32,9 @@ from countertalk.models import (
     VisitStatus,
     utc_now,
 )
+from countertalk.playbooks import load_org_pack
 from countertalk.users import demo_rep
-from scripts.seed_dev import seed
+from scripts.seed_dev import DEMO_PACK, seed
 
 E2E_SUFFIX = "_e2e"
 PLAYBACK_MS = 20_000
@@ -78,8 +79,9 @@ def main() -> int:
         return 1
     recreate(name)
     command.upgrade(Config(toml_file=str(BACKEND_DIR / "pyproject.toml")), "head")
+    pack = load_org_pack(*DEMO_PACK)
     with session_scope() as session:
-        seed(session)
+        seed(session, pack)
         rep = demo_rep(session)
         shop_id = session.scalars(
             select(Shop.id).where(Shop.org_id == rep.org_id).order_by(Shop.name)
