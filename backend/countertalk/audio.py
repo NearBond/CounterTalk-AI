@@ -19,7 +19,6 @@ recording's metadata tags, which can hold personal data (§1.9).
 
 import json
 import logging
-import os
 import re
 import subprocess
 import tempfile
@@ -125,22 +124,15 @@ def join(visit_id: str, ext: str, seqs: Sequence[int]) -> Path:
         return source
     if total > limits.MAX_SOURCE_BYTES:
         raise _too_large()
-    partial = storage.new_temp()
-    try:
-        written = 0
-        with partial.open("wb") as out:
-            for part in parts:
-                with part.open("rb") as piece:
-                    while block := piece.read(COPY_BLOCK_BYTES):
-                        written += len(block)
-                        if written > limits.MAX_SOURCE_BYTES:  # a segment grew since
-                            raise _too_large()
-                        out.write(block)
-            out.flush()
-            os.fsync(out.fileno())
-        storage.move_into_place(partial, source)
-    finally:
-        partial.unlink(missing_ok=True)
+    written = 0
+    with storage.writing(source) as out:
+        for part in parts:
+            with part.open("rb") as piece:
+                while block := piece.read(COPY_BLOCK_BYTES):
+                    written += len(block)
+                    if written > limits.MAX_SOURCE_BYTES:  # a segment grew since
+                        raise _too_large()
+                    out.write(block)
     return source
 
 
@@ -251,8 +243,8 @@ def _decode(visit_id: str, source: Path) -> Ladder:
             storage.sync(part)
             storage.move_into_place(part, path)
     finally:
-        wav_part.unlink(missing_ok=True)
-        m4a_part.unlink(missing_ok=True)
+        storage.drop_temp(wav_part)
+        storage.drop_temp(m4a_part)
     return ladder
 
 
@@ -352,15 +344,10 @@ def _cut(visit_id: str, ladder: Ladder, source_bytes: int) -> Prepared:
                 )
         for chunk, cut in zip(chunks, cuts, strict=True):
             whole.setpos(cut.start)
-            partial = storage.new_temp()
-            try:
-                with wave.open(str(partial), "wb") as out:
+            with storage.writing(storage.chunk_path(visit_id, chunk.index)) as file:
+                with wave.open(file, "wb") as out:  # closed first: it writes the header last
                     out.setparams(params)
                     out.writeframes(whole.readframes(chunk.frames))
-                storage.sync(partial)
-                storage.move_into_place(partial, storage.chunk_path(visit_id, chunk.index))
-            finally:
-                partial.unlink(missing_ok=True)
     # Only chunks an earlier, longer cut left behind: each of this cut's is written whole, so a
     # run of the same visit at the same time loses nothing here.
     keep = {storage.chunk_path(visit_id, chunk.index).name for chunk in chunks}

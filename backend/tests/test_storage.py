@@ -215,3 +215,51 @@ def test_a_symlink_named_like_a_staged_file_is_left_alone(tmp_path: Path) -> Non
 
     assert link.is_symlink()
     assert target.exists()
+
+
+def test_a_streamed_file_appears_whole_and_flushed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = storage.source_path(new_id(), "webm")
+    steps: list[str] = []
+    real_fsync, real_replace = os.fsync, os.replace
+    monkeypatch.setattr(storage.os, "fsync", lambda fd: steps.append("fsync") or real_fsync(fd))
+    monkeypatch.setattr(
+        storage.os, "replace", lambda a, b: steps.append("replace") or real_replace(a, b)
+    )
+
+    with storage.writing(target) as out:
+        out.write(b"first part ")
+        assert not target.exists()  # nothing is in place until the block finishes
+        out.write(b"second part")
+
+    assert target.read_bytes() == b"first part second part"
+    assert steps[:2] == ["fsync", "replace"]  # the file itself is flushed before it's moved
+    assert list((tmp_path / "tmp").iterdir()) == []
+
+
+def test_a_streamed_file_that_fails_leaves_the_old_one_and_no_partial(tmp_path: Path) -> None:
+    target = storage.source_path(new_id(), "webm")
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"the earlier file")
+
+    with pytest.raises(ValueError, match="^too large$"), storage.writing(target) as out:
+        out.write(b"half of it")
+        raise ValueError("too large")
+
+    assert target.read_bytes() == b"the earlier file"
+    assert list((tmp_path / "tmp").iterdir()) == []
+
+
+def test_a_cleanup_that_fails_never_hides_the_real_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def stuck(self: Path, missing_ok: bool = False) -> None:
+        raise PermissionError("held open")
+
+    monkeypatch.setattr(storage.Path, "unlink", stuck)
+
+    with pytest.raises(ValueError, match="^too large$"):
+        with storage.writing(storage.source_path(new_id(), "webm")) as out:
+            out.write(b"half of it")
+            raise ValueError("too large")

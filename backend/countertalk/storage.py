@@ -11,7 +11,10 @@ import os
 import stat
 import time
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import BinaryIO
 
 from countertalk.config import get_settings
 from countertalk.errors import Invalid
@@ -109,23 +112,39 @@ def new_temp() -> Path:
     return staging / f"{uuid.uuid4().hex}.part"
 
 
-def stage(body: bytes | bytearray) -> Path:
-    """Writes the bytes to a new temporary file, flushed to disk, and returns its path."""
+def drop_temp(path: Path) -> None:
+    """Removes a temporary file, if it's still there, for a finally or except block: a failure
+    is logged and never raised over the error on its way out (R2). The sweep gets it later."""
+    try:
+        path.unlink(missing_ok=True)
+    except OSError as error:
+        log.warning("temporary file not removed error=%s", type(error).__name__)
+
+
+@contextmanager
+def _temp_file() -> Iterator[tuple[Path, BinaryIO]]:
+    """A new temporary file, flushed to disk when the block finishes. If the block (or the
+    flush) fails, it goes: a full disk must not leave half a file behind (§9.10)."""
     path = new_temp()
     try:
         with path.open("xb") as file:
-            file.write(body)
+            yield path, file
             file.flush()
             os.fsync(file.fileno())
     except BaseException:
-        # A full disk or an I/O error must not leave half a file behind (§9.10).
-        path.unlink(missing_ok=True)
+        drop_temp(path)
         raise
+
+
+def stage(body: bytes | bytearray) -> Path:
+    """Writes the bytes to a new temporary file, flushed to disk, and returns its path."""
+    with _temp_file() as (path, file):
+        file.write(body)
     return path
 
 
 def sync(path: Path) -> None:
-    """Flushes a file another writer made (ffmpeg, wave) to disk, before it moves into place."""
+    """Flushes a file another writer made (ffmpeg) to disk, before it moves into place."""
     with path.open("rb+") as file:
         os.fsync(file.fileno())
 
@@ -143,13 +162,23 @@ def move_into_place(staged: Path, path: Path) -> None:
             os.close(folder)
 
 
+@contextmanager
+def writing(path: Path) -> Iterator[BinaryIO]:
+    """A file to stream into, which appears at path only whole: it's written to a new temporary
+    file, flushed to disk, moved into place and its folder flushed. If the block raises, the
+    temporary file goes, and whatever was at path stays as it was."""
+    with _temp_file() as (partial, file):
+        yield file
+    try:
+        move_into_place(partial, path)
+    finally:
+        drop_temp(partial)  # already gone once it's moved
+
+
 def write_file(path: Path, body: bytes) -> None:
     """Writes a whole file: flushed to disk in the staging folder, then moved into place."""
-    staged = stage(body)
-    try:
-        move_into_place(staged, path)
-    finally:
-        staged.unlink(missing_ok=True)
+    with writing(path) as file:
+        file.write(body)
 
 
 def discard(staged: Path) -> None:

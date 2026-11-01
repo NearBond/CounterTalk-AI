@@ -359,6 +359,71 @@ def job_times_come_from_postgres(sources: list[Source]) -> list[str]:
     return banned_names(sources, banned, lambda path: path != "jobs.py")
 
 
+MODE = re.compile(r"[rwxabt+]+")
+# Writing or moving a file by name, outside storage.py's temporary-file-then-replace.
+WRITERS = {"os.replace", "os.rename", "os.renames", "os.open", "os.fdopen", "shutil.move"}
+WRITERS |= {"shutil.copy", "shutil.copy2", "shutil.copyfile", "shutil.copytree"}
+
+
+def _writes(call: ast.Call) -> bool:
+    """Whether an open() call was given a writing mode: the second argument (open, wave.open,
+    gzip.open …), the first (Path.open), or mode=. Only a string that is all mode letters counts,
+    so a file name ("talk.wav") is never taken for one."""
+    given = [arg for arg in call.args[:2]] + [k.value for k in call.keywords if k.arg == "mode"]
+    return any(
+        isinstance(arg, ast.Constant)
+        and isinstance(arg.value, str)
+        and MODE.fullmatch(arg.value) is not None
+        and any(letter in arg.value for letter in "wax+")
+        for arg in given
+    )
+
+
+def _writing_files(tree: ast.Module) -> set[str]:
+    """Names bound by `with storage.writing(...) as name`: files storage.py moves into place."""
+    return {
+        item.optional_vars.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.With)
+        for item in node.items
+        if isinstance(item.context_expr, ast.Call)
+        and dotted(item.context_expr.func).endswith("writing")
+        and isinstance(item.optional_vars, ast.Name)
+    }
+
+
+def files_written_only_by_storage(sources: list[Source]) -> list[str]:
+    """R3: files are written only by storage.py: a temporary file, fsync, os.replace, then the
+    folder fsynced. wave may write only into a file storage.writing() gave it. (`.replace` is
+    left alone: str.replace looks the same.)"""
+    found = []
+    for path, tree in sources:
+        if path == "storage.py":
+            continue
+        found += [f"{path}:{line} {name}" for line, name in names(tree) if matches(name, WRITERS)]
+        aliases = imported_as(tree)
+        handed_over = _writing_files(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = dotted(func)
+            root, dot, rest = name.partition(".")
+            name = aliases.get(root, root) + dot + rest
+            if isinstance(func, ast.Attribute) and func.attr in (
+                "write_bytes",
+                "write_text",
+                "rename",
+            ):
+                found.append(f"{path}:{node.lineno} {func.attr}")
+            elif (name == "open" or name.endswith(".open")) and _writes(node):
+                into = node.args[0] if node.args else None
+                if name == "wave.open" and isinstance(into, ast.Name) and into.id in handed_over:
+                    continue
+                found.append(f"{path}:{node.lineno} {name}")
+    return found
+
+
 RULES: dict[str, Callable[[list[Source]], list[str]]] = {
     rule.__name__: rule
     for rule in [
@@ -375,10 +440,34 @@ RULES: dict[str, Callable[[list[Source]], list[str]]] = {
         job_times_come_from_postgres,
         clients_import_only_the_allowlist,
         jobs_imports_no_domain_module,
+        files_written_only_by_storage,
     ]
 }
 
 BAD_EXAMPLES = [
+    (
+        "files_written_only_by_storage",
+        "audio.py",
+        "def f(path):\n    with path.open('wb') as out:\n        pass\n",
+    ),
+    ("files_written_only_by_storage", "audio.py", "with open(name, 'a') as log:\n    pass\n"),
+    ("files_written_only_by_storage", "audio.py", "with open(name, mode='w+') as log:\n    pass\n"),
+    ("files_written_only_by_storage", "transcription.py", "path.write_text('{}')\n"),
+    ("files_written_only_by_storage", "transcription.py", "path.write_bytes(b'')\n"),
+    ("files_written_only_by_storage", "audio.py", "import os\nos.replace(a, b)\n"),
+    ("files_written_only_by_storage", "audio.py", "from os import rename\nrename(a, b)\n"),
+    ("files_written_only_by_storage", "audio.py", "import wave\nwave.open(str(path), 'wb')\n"),
+    ("files_written_only_by_storage", "audio.py", "import wave as w\nw.open(str(path), 'wb')\n"),
+    (
+        "files_written_only_by_storage",
+        "audio.py",
+        "import wave\nname = str(p)\nwave.open(name, 'wb')\n",
+    ),
+    ("files_written_only_by_storage", "audio.py", "import gzip\ngzip.open(path, 'wb')\n"),
+    ("files_written_only_by_storage", "audio.py", "import shutil\nshutil.move(a, b)\n"),
+    ("files_written_only_by_storage", "audio.py", "from shutil import copyfile\ncopyfile(a, b)\n"),
+    ("files_written_only_by_storage", "audio.py", "import os\nos.fdopen(fd, 'wb')\n"),
+    ("files_written_only_by_storage", "audio.py", "part.rename(target)\n"),
     ("clients_import_only_the_allowlist", "stt/meta.py", "from countertalk import visits\n"),
     (
         "clients_import_only_the_allowlist",
@@ -453,6 +542,25 @@ BAD_EXAMPLES = [
 ]
 
 ALLOWED_EXAMPLES = [
+    (
+        "files_written_only_by_storage",
+        "storage.py",
+        "import os\nos.replace(a, b)\npath.open('xb')\n",
+    ),
+    ("files_written_only_by_storage", "audio.py", "with part.open('rb') as piece:\n    pass\n"),
+    ("files_written_only_by_storage", "audio.py", "with open(name) as f:\n    pass\n"),
+    ("files_written_only_by_storage", "audio.py", "import wave\nwave.open(str(path), 'rb')\n"),
+    (
+        "files_written_only_by_storage",
+        "audio.py",
+        "from PIL import Image\nImage.open('talk.wav')\n",
+    ),
+    ("files_written_only_by_storage", "audio.py", "text.replace('a', 'b')\n"),
+    (
+        "files_written_only_by_storage",
+        "audio.py",
+        "import wave\nwith storage.writing(p) as out:\n    wave.open(out, 'wb')\n",
+    ),
     ("clients_import_only_the_allowlist", "stt/meta.py", "import json\nimport httpx\n"),
     (
         "clients_import_only_the_allowlist",
