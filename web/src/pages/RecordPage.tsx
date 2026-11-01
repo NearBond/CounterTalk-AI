@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { RetryAlert } from "../components/RetryAlert";
 import { UploadPanel } from "../components/UploadPanel";
 import { messageOf } from "../lib/api";
 import { formatDuration, shopLabel } from "../lib/format";
@@ -185,12 +186,7 @@ export function RecordPage() {
         </select>
       </label>
       {shops.error !== null && (
-        <p role="alert" className="text-red-700">
-          {shops.error.message}{" "}
-          <button type="button" onClick={shops.reload} className="underline">
-            Try again
-          </button>
-        </p>
+        <RetryAlert onRetry={shops.reload}>{shops.error.message}</RetryAlert>
       )}
 
       <section aria-labelledby="record-heading" className="flex flex-col gap-3">
@@ -235,9 +231,7 @@ export function RecordPage() {
         )}
         {notice !== null && <p className="text-amber-800">{notice}</p>}
         {error !== null && (
-          <p role="alert" className="text-red-700">
-            {error}
-          </p>
+          <RetryAlert>{error}</RetryAlert>
         )}
       </section>
 

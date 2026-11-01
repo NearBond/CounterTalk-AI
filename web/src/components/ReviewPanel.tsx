@@ -6,6 +6,7 @@ import type { Insight, Note, Review, Turn, Visit } from "../types/api";
 import { AddFinding } from "./AddFinding";
 import { InsightCard } from "./InsightCard";
 import { NotesPanel } from "./NotesPanel";
+import { RetryAlert } from "./RetryAlert";
 import { SaveError } from "./SaveError";
 
 interface Props {
@@ -47,12 +48,7 @@ export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed
 
   if (loaded.error !== null) {
     return (
-      <p role="alert" className="text-red-700">
-        The review couldn't be loaded: {loaded.error.message}{" "}
-        <button type="button" onClick={loaded.reload} className="underline">
-          Try again
-        </button>
-      </p>
+      <RetryAlert onRetry={loaded.reload}>The review couldn't be loaded: {loaded.error.message}</RetryAlert>
     );
   }
   if (review === null) {

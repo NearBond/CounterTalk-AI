@@ -137,6 +137,11 @@ def team_ids(session: Session, org_id: str) -> dict[str, str]:
     return {key: team_id for key, team_id in session.execute(query)}
 
 
+def team_keys(session: Session, org_id: str) -> dict[str, str]:
+    """The org's teams the other way round, id: key, for showing a route's team (R1)."""
+    return {team_id: key for key, team_id in team_ids(session, org_id).items()}
+
+
 def ai_team_key(session: Session, insight: Insight, teams: dict[str, str]) -> str | None:
     """The AI's team for an insight being routed again: its ai_team_id's key, or the unknown
     key its first routing recorded, so a re-route records it again."""

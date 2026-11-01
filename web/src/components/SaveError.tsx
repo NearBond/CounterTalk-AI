@@ -1,5 +1,6 @@
 import type { ApiError } from "../lib/api";
 import { isRetryable } from "../lib/retry";
+import { RetryAlert } from "./RetryAlert";
 
 interface Props {
   error: ApiError | null;
@@ -11,13 +12,8 @@ interface Props {
 export function SaveError({ error, onRetry }: Props) {
   if (error === null) return null;
   return (
-    <p role="alert" className="text-sm text-red-700">
-      {error.message}{" "}
-      {isRetryable(error) && (
-        <button type="button" onClick={onRetry} className="underline">
-          Try again
-        </button>
-      )}
-    </p>
+    <RetryAlert small onRetry={isRetryable(error) ? onRetry : undefined}>
+      {error.message}
+    </RetryAlert>
   );
 }

@@ -39,6 +39,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import func, select, tuple_
 
+from countertalk import routing
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.errors import DomainError, describe
 from countertalk.logs import configure_logging
@@ -50,7 +51,6 @@ from countertalk.models import (
     Evidence,
     Insight,
     RoutingDecision,
-    Team,
     Turn,
     Visit,
     parse_id,
@@ -210,7 +210,7 @@ def load_extracted(visit_id: str) -> tuple[list[Extracted], list[Review]] | None
         visit = session.get(Visit, visit_id)
         if visit is None or visit.transcript_id is None:
             return None
-        teams = {team_id: key for key, team_id in session.execute(select(Team.key, Team.id))}
+        teams = routing.team_keys(session, visit.org_id)
         items = select(CatalogItem.id, CatalogItem.key).where(CatalogItem.org_id == visit.org_id)
         keys = {item_id: key for item_id, key in session.execute(items)}
         decided: dict[str, list[str]] = {}

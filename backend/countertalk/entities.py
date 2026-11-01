@@ -189,6 +189,24 @@ def load_catalog(session: Session, org_id: str) -> Catalog:
     )
 
 
+def item_name(brand: str, product: str | None) -> str:
+    """A catalog item's name as people read it: "Kurkure", "Kurkure Masala Munch"."""
+    return f"{brand} {product}" if product else brand
+
+
+def item_names(session: Session, org_id: str, ids: Iterable[str | None]) -> dict[str, str]:
+    """Each of these of the org's catalog items' item_name, in one query."""
+    wanted = {item_id for item_id in ids if item_id is not None}
+    if not wanted:
+        return {}
+    query = select(CatalogItem.id, CatalogItem.brand, CatalogItem.product).where(
+        CatalogItem.org_id == org_id, CatalogItem.id.in_(wanted)
+    )
+    return {
+        item_id: item_name(brand, product) for item_id, brand, product in session.execute(query)
+    }
+
+
 # --- an insight's links ----------------------------------------------------------------------
 
 

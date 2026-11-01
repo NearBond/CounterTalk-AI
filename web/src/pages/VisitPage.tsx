@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useBlocker, useParams } from "react-router";
 import { ReviewPanel } from "../components/ReviewPanel";
+import { RetryAlert } from "../components/RetryAlert";
 import { StatusBadge } from "../components/StatusBadge";
 import { audioUrl, getTranscript, getVisit } from "../lib/api";
 import { formatDateTime, formatDuration, shopLabel } from "../lib/format";
@@ -91,20 +92,10 @@ export function VisitPage() {
       <h1 className="text-2xl font-semibold">{shop === undefined ? "Visit" : shopLabel(shop)}</h1>
 
       {visit.error !== null && (
-        <p role="alert" className="text-red-700">
-          {visit.error.message}{" "}
-          <button type="button" onClick={visit.reload} className="underline">
-            Try again
-          </button>
-        </p>
+        <RetryAlert onRetry={visit.reload}>{visit.error.message}</RetryAlert>
       )}
       {shops.error !== null && (
-        <p role="alert" className="text-red-700">
-          The shop names couldn't be loaded.{" "}
-          <button type="button" onClick={shops.reload} className="underline">
-            Try again
-          </button>
-        </p>
+        <RetryAlert onRetry={shops.reload}>The shop names couldn't be loaded.</RetryAlert>
       )}
       {visit.data === undefined && visit.error === null && (
         <p role="status" className="text-gray-600">
@@ -139,20 +130,15 @@ export function VisitPage() {
         </audio>
       )}
       {unplayable && (
-        <p role="alert" className="text-red-700">
-          The recording can't be played right now. Everything else on this page still works.{" "}
-          <button
-            ref={retry}
-            type="button"
-            onClick={() => {
-              setUnplayableFor(null);
-              audio.current?.load(); // a failure again sets the message again
-            }}
-            className="underline"
-          >
-            Try again
-          </button>
-        </p>
+        <RetryAlert
+          retryRef={retry}
+          onRetry={() => {
+            setUnplayableFor(null);
+            audio.current?.load(); // a failure again sets the message again
+          }}
+        >
+          The recording can't be played right now. Everything else on this page still works.
+        </RetryAlert>
       )}
 
       {reviewing && (
@@ -167,12 +153,9 @@ export function VisitPage() {
       )}
 
       {transcript.error !== null && (
-        <p role="alert" className="text-red-700">
-          The transcript couldn't be loaded: {transcript.error.message}{" "}
-          <button type="button" onClick={transcript.reload} className="underline">
-            Try again
-          </button>
-        </p>
+        <RetryAlert onRetry={transcript.reload}>
+          The transcript couldn't be loaded: {transcript.error.message}
+        </RetryAlert>
       )}
       {turns.length > 0 && (
         <section aria-labelledby="transcript-heading" className="flex flex-col gap-3">

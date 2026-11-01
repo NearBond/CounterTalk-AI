@@ -336,7 +336,7 @@ def test_the_database_holds_the_note_length_too(org: Org_) -> None:
 
 def confirm(org: Org_, visit_id: str) -> Visit:
     with session_scope() as session:
-        return review.confirm(session, org.org_id, org.rep_id, visit_id)
+        return review.confirm(session, lambda: PACK, org.org_id, org.rep_id, visit_id)
 
 
 def test_confirm_shows_the_verified_insights_and_locks_the_visit(org: Org_) -> None:
@@ -373,7 +373,7 @@ def test_an_edit_waiting_on_a_confirm_finds_the_visit_confirmed(org: Org_) -> No
     visit_id, [insight_id] = reviewed(org)
 
     with ThreadPoolExecutor(max_workers=1) as pool, session_scope() as session:
-        review.confirm(session, org.org_id, org.rep_id, visit_id)  # holds the visit's lock
+        review.confirm(session, lambda: PACK, org.org_id, org.rep_id, visit_id)  # its lock
         editing = pool.submit(code_of, edit, org, insight_id, summary_en="x")
         wait_for(lambda: lock_waiters() == 1, "the edit never waited for the visit's lock")
         session.commit()

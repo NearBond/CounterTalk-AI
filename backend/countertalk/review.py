@@ -17,7 +17,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from countertalk import limits, roles, routing, verify, visits
+from countertalk import entities, issues, limits, roles, routing, verify, visits
 from countertalk.errors import Conflict, Invalid, NotFound
 from countertalk.models import (
     CREATED,
@@ -282,9 +282,12 @@ def add_note(
     return note
 
 
-def confirm(session: Session, org_id: str, actor: str, visit_id: str) -> Visit:
-    """Review to confirmed: the verified insights become visible, and the visit is locked
-    against edits. Confirming again returns it as it is (§2.5)."""
+def confirm(
+    session: Session, pack_for: Callable[[], OrgPack], org_id: str, actor: str, visit_id: str
+) -> Visit:
+    """Review to confirmed: the verified insights become visible, each of their routes joins
+    its team's issue (batch 15, issues.py: the visit's lock, then the issues'), and the visit is
+    locked against edits. Confirming again returns it as it is (§2.5)."""
     visit = visits.lock_visit(session, org_id, visit_id)
     if visit.status == VisitStatus.CONFIRMED:
         return visit
@@ -293,6 +296,7 @@ def confirm(session: Session, org_id: str, actor: str, visit_id: str) -> Visit:
     session.execute(
         update(Insight).where(Insight.visit_id == visit.id).values(visible=Insight.verified)
     )
+    issues.attach_visit(session, pack_for(), visit, actor)
     was, now = VisitStatus.REVIEW.value, VisitStatus.CONFIRMED.value
     _edit_row(session, visit, actor, (EditObject.VISIT, visit.id), "status", was, now)
     log.info("visit confirmed visit=%s", visit.id)
@@ -396,7 +400,7 @@ def review_of(
                 name=item.name,
                 quantity=None if item.quantity is None else float(item.quantity),
                 unit=item.unit,
-                sku=None if brand is None else item_name(brand, product),
+                sku=None if brand is None else entities.item_name(brand, product),
             )
             for item, brand, product in session.execute(order)
         ],
@@ -438,7 +442,8 @@ def insight_views(session: Session, insights: list[Insight]) -> list[InsightView
         .order_by(InsightRoute.slot)
     ):
         routes.setdefault(insight_id, []).append(RouteView(slot, key, name, routed_by))
-    names = _item_names(session, {i.sku_id for i in insights} | {i.competitor_id for i in insights})
+    linked = [i.sku_id for i in insights] + [i.competitor_id for i in insights]
+    names = entities.item_names(session, insights[0].org_id, linked) if insights else {}
     teams = {
         team_id: key
         for team_id, key in session.execute(
@@ -456,20 +461,3 @@ def insight_views(session: Session, insights: list[Insight]) -> list[InsightView
         )
         for insight in insights
     ]
-
-
-def item_name(brand: str, product: str | None) -> str:
-    """A catalog item's name as the review shows it: "Kurkure", "Kurkure Masala Munch"."""
-    return f"{brand} {product}" if product else brand
-
-
-def _item_names(session: Session, ids: set[str | None]) -> dict[str | None, str]:
-    """Each of these catalog items' item_name, in one query."""
-    return {
-        item_id: item_name(brand, product)
-        for item_id, brand, product in session.execute(
-            select(CatalogItem.id, CatalogItem.brand, CatalogItem.product).where(
-                CatalogItem.id.in_(ids - {None})
-            )
-        )
-    }

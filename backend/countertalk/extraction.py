@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import delete, select, text
+from sqlalchemy.orm import Session
 
 from countertalk import (
     entities,
@@ -108,11 +109,21 @@ class Request:
     turn_rows: tuple[roles.SentTurn, ...]
 
 
-def pack_for(org_id: str, packs: Path = ORG_PACKS_DIR, playbooks: Path = PLAYBOOKS_DIR) -> OrgPack:
-    """The org's own pack (BRIEF §12: each org uses only its own)."""
-    with session_scope(read_only=True) as session:
-        org = session.get_one(Org, org_id)
-        pack_id, version = org.org_pack_id, org.org_pack_version
+def pack_for(
+    org_id: str,
+    packs: Path = ORG_PACKS_DIR,
+    playbooks: Path = PLAYBOOKS_DIR,
+    *,
+    session: Session | None = None,
+) -> OrgPack:
+    """The org's own pack (BRIEF §12: each org uses only its own). An API request passes its
+    own session, so it never holds one connection, and maybe a visit's lock, while waiting for a
+    second; the worker's jobs read in a short session of their own."""
+    if session is None:
+        with session_scope(read_only=True) as own:
+            return pack_for(org_id, packs, playbooks, session=own)
+    org = session.get_one(Org, org_id)
+    pack_id, version = org.org_pack_id, org.org_pack_version
     if pack_id is None or version is None:
         raise PermanentError(
             "no_org_pack", "The visit's organisation isn't set up with an org pack"

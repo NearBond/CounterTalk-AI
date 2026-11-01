@@ -253,6 +253,28 @@ ROUTE_STATEMENTS = {"insert", "update", "delete", "merge"}
 ROUTE_SQL = re.compile(r"\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+insight_routes\b", re.IGNORECASE)
 
 
+def issue_membership_only_in_issues(sources: list[Source]) -> list[str]:
+    """Batch 15: only issues.py sets a route's issue_id, so a route joins its issue the one way,
+    in §2.3's lock order. Reading it is fine anywhere."""
+    found = []
+    for path, tree in sources:
+        if path in {"issues.py", "models.py"}:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                targets = node.targets
+            elif isinstance(node, ast.AugAssign | ast.AnnAssign):
+                targets = [node.target]
+            else:
+                continue
+            found += [
+                f"{path}:{node.lineno}"
+                for target in targets
+                if isinstance(target, ast.Attribute) and target.attr == "issue_id"
+            ]
+    return found
+
+
 def insight_routes_only_through_routing(sources: list[Source]) -> list[str]:
     """Batch 12: only routing.py writes InsightRoute, so every change has its RoutingDecision
     row. Reading routes is fine anywhere. Making one isn't, nor a statement on one (insert,
@@ -489,6 +511,7 @@ RULES: dict[str, Callable[[list[Source]], list[str]]] = {
         get_session_only_through_db_session,
         visit_status_only_through_set_status,
         insight_routes_only_through_routing,
+        issue_membership_only_in_issues,
         routers_carry_their_own_prefix,
         job_times_come_from_postgres,
         clients_import_only_the_allowlist,
@@ -593,6 +616,7 @@ BAD_EXAMPLES = [
         "def fail(job):\n    job.visit.status = 'x'\n",
     ),
     ("insight_routes_only_through_routing", "inbox.py", "session.add(InsightRoute(slot=2))\n"),
+    ("issue_membership_only_in_issues", "routing.py", "route.issue_id = issue.id\n"),
     (
         "insight_routes_only_through_routing",
         "inbox.py",
@@ -631,6 +655,8 @@ BAD_EXAMPLES = [
 
 ALLOWED_EXAMPLES = [
     ("insight_routes_only_through_routing", "inbox.py", "session.delete(visit)\n"),
+    ("issue_membership_only_in_issues", "issues.py", "member.route.issue_id = issue.id\n"),
+    ("issue_membership_only_in_issues", "inbox.py", "shown = route.issue_id\n"),
     (
         "insight_routes_only_through_routing",
         "inbox.py",

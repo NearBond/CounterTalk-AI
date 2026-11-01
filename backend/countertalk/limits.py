@@ -118,6 +118,12 @@ NOTE_MAX_CHARS = 2_000
 # A rep's summary of an insight, edited or added (batch 14): a sentence or two.
 SUMMARY_MAX_CHARS = 500
 
+# Issues (batch 15): a matching insight reopens an issue resolved less than this long ago;
+# after it, a new issue starts.
+REOPEN_WINDOW_DAYS = 30
+# What a team member writes when resolving an issue: the rep reads it back to the shop.
+RESOLUTION_NOTE_MAX_CHARS = 2_000
+
 # Linking (batch 12): a fuzzy match needs this rapidfuzz ratio or more on the linking key. From
 # the tests and K1 (1 Nov): misspellings of the right item scored 87 and up, and "Crunchy", in
 # no pepsico pack, scored 80 against Balaji's "crunchem". No two pepsico names of different

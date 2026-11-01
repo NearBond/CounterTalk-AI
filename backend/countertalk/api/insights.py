@@ -148,7 +148,7 @@ def edit_insight(
 ) -> InsightOut:
     """Only in review; 409 insight_unverified for one that couldn't be found in the recording."""
     changes = body.model_dump(exclude_none=True)
-    pack = partial(extraction.pack_for, user.org_id)
+    pack = partial(extraction.pack_for, user.org_id, session=session)
     found = review.edit_insight(session, pack, user.org_id, user.id, str(insight_id), **changes)
     [view] = review.insight_views(session, [found])
     return insight_out(view)

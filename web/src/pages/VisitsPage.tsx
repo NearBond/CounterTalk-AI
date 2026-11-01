@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { RetryAlert } from "../components/RetryAlert";
 import { StatusBadge } from "../components/StatusBadge";
 import { listVisits } from "../lib/api";
 import { formatDateTime, formatDuration, shopLabel } from "../lib/format";
@@ -27,20 +28,10 @@ export function VisitsPage() {
       </div>
 
       {visits.error !== null && (
-        <p role="alert" className="text-red-700">
-          {visits.error.message}{" "}
-          <button type="button" onClick={visits.reload} className="underline">
-            Try again
-          </button>
-        </p>
+        <RetryAlert onRetry={visits.reload}>{visits.error.message}</RetryAlert>
       )}
       {shops.error !== null && (
-        <p role="alert" className="text-red-700">
-          The shop names couldn't be loaded.{" "}
-          <button type="button" onClick={shops.reload} className="underline">
-            Try again
-          </button>
-        </p>
+        <RetryAlert onRetry={shops.reload}>The shop names couldn't be loaded.</RetryAlert>
       )}
       {visits.data === undefined && visits.error === null && (
         <p role="status" className="text-gray-600">

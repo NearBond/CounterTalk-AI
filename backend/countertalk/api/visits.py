@@ -273,7 +273,7 @@ def reprocess_visit(
 
 @router.get("/{visit_id}/review")
 def get_review(visit_id: UUID, user: CurrentUser, session: DbSession) -> ReviewOut:
-    pack = partial(extraction.pack_for, user.org_id)
+    pack = partial(extraction.pack_for, user.org_id, session=session)
     found = review.review_of(session, pack, user.org_id, str(visit_id))
 
     def choices(items: list[review.Choice]) -> list[ChoiceOut]:
@@ -303,7 +303,7 @@ def add_insight(
 ) -> InsightOut:
     """A finding the AI missed: the turn becomes its quote, exact and playable. 404 for a turn
     that isn't in the visit's transcript. The same ID again returns the one added."""
-    pack = extraction.pack_for(user.org_id)
+    pack = extraction.pack_for(user.org_id, session=session)
     fields = body.model_dump(exclude={"id"})
     found = review.add_insight(
         session, pack, user.org_id, user.id, str(visit_id), insight_id=str(body.id), **fields
@@ -322,7 +322,8 @@ def add_note(visit_id: UUID, body: NewNote, user: CurrentUser, session: DbSessio
 @router.post("/{visit_id}/confirm")
 def confirm_visit(visit_id: UUID, user: CurrentUser, session: DbSession) -> VisitOut:
     """Review to confirmed, and locked against edits; confirming again returns it as it is."""
-    visit = review.confirm(session, user.org_id, user.id, str(visit_id))
+    pack = partial(extraction.pack_for, user.org_id, session=session)
+    visit = review.confirm(session, pack, user.org_id, user.id, str(visit_id))
     return _one_visit_out(session, visit)
 
 

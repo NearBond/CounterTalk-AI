@@ -828,8 +828,9 @@ class InsightRoute(Base):
     its category's override or a team member's Also send. An insight with no route is in triage.
 
     Only routing.py writes these (an architecture test), each change with its RoutingDecision
-    row. A route goes with its insight (cascade): a re-extraction's new insights are routed
-    afresh, and the history stays in routing_decisions."""
+    row; but for issue_id, which issue the route sits in, which only issues.py sets (batch 15).
+    A route goes with its insight (cascade): a re-extraction's new insights are routed afresh,
+    and the history stays in routing_decisions."""
 
     __tablename__ = "insight_routes"
     __table_args__ = (
@@ -843,6 +844,13 @@ class InsightRoute(Base):
         ),
         # Teams are never deleted (they're the pack's), so nothing happens on delete.
         ForeignKeyConstraint(["org_id", "team_id"], ["teams.org_id", "teams.id"]),
+        # Its issue is its own team's. Issues are never deleted (a merge marks one merged), so
+        # nothing happens on delete.
+        ForeignKeyConstraint(
+            ["org_id", "team_id", "issue_id"],
+            ["issues.org_id", "issues.team_id", "issues.id"],
+            name="fk_insight_routes_issue_id_issues",
+        ),
     )
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
@@ -853,6 +861,9 @@ class InsightRoute(Base):
     routed_by: Mapped[str] = mapped_column(String)
     # For compare-and-set changes (batch 14, §2.3).
     version: Mapped[int] = mapped_column(default=1)
+    # Its team's issue (batch 15), once its insight's visit is confirmed: None before, and for a
+    # route confirmed before issues existed.
+    issue_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), index=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now, onupdate=utc_now)
 
@@ -992,4 +1003,138 @@ class VisitNote(Base):
     visit_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
     author_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
     text: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class IssueStatus(StrEnum):
+    OPEN = "open"
+    IN_PROGRESS = "in_progress"
+    RESOLVED = "resolved"
+    # Folded into another issue (batch 15c).
+    MERGED = "merged"
+
+
+# An issue a new insight can join: at most one per team and key (the partial unique index).
+ACTIVE_ISSUE = (IssueStatus.OPEN, IssueStatus.IN_PROGRESS)
+ACTIVE_ISSUE_SQL = "status IN ('open', 'in_progress')"
+
+
+class Issue(Base):
+    """A team's confirmed insights that share a likely cause (batch 15; BRIEF D16): the category
+    and the values of its codebook entry's group_by fields, as issue_key. Its insights are its
+    routes (insight_routes.issue_id), so an insight sent to two teams is in one issue of each.
+    Counted in shops, not mentions. Never deleted: a merge marks it merged (batch 15c).
+
+    Every change bumps version: a change made from the inbox names the version it read, and is
+    refused (409) if the issue moved on (§2.3)."""
+
+    __tablename__ = "issues"
+    __table_args__ = (
+        CheckConstraint(_one_of("status", IssueStatus), name="status"),
+        # Resolved, and only then, with when and the note the rep reads back to the shop.
+        CheckConstraint(
+            f"(status = '{IssueStatus.RESOLVED}') = (resolved_at IS NOT NULL)", name="resolved_at"
+        ),
+        CheckConstraint(
+            f"(status = '{IssueStatus.RESOLVED}') = (resolution_note IS NOT NULL)",
+            name="resolution_note",
+        ),
+        CheckConstraint(
+            f"char_length(resolution_note) BETWEEN 1 AND {limits.RESOLUTION_NOTE_MAX_CHARS}",
+            name="resolution_note_length",
+        ),
+        # Merged, and only then, into another issue.
+        CheckConstraint(
+            f"(status = '{IssueStatus.MERGED}') = (merged_into_id IS NOT NULL)"
+            " AND (merged_into_id IS NULL OR merged_into_id <> id)",
+            name="merged",
+        ),
+        CheckConstraint("version >= 1 AND reopened_count >= 0", name="counts"),
+        CheckConstraint("last_seen_at >= first_seen_at", name="seen"),
+        # The target of its events' and merges' (org_id, issue_id), and of its routes'
+        # (org_id, team_id, issue_id): a route's issue is its own team's.
+        UniqueConstraint("org_id", "id"),
+        UniqueConstraint("org_id", "team_id", "id"),
+        # One issue a new insight can join per team and key: two confirms making the same one
+        # at once end with one (INSERT … ON CONFLICT DO NOTHING, issues.py).
+        Index(
+            "uq_issues_active_key",
+            "org_id",
+            "team_id",
+            "issue_key",
+            unique=True,
+            postgresql_where=text(ACTIVE_ISSUE_SQL),
+        ),
+        # Its team, owner and the issue it was merged into are its own org's. None is ever
+        # deleted while it's referred to (teams and issues never are; users aren't), so nothing
+        # happens on delete.
+        ForeignKeyConstraint(["org_id", "team_id"], ["teams.org_id", "teams.id"]),
+        ForeignKeyConstraint(
+            ["org_id", "owner_id"], ["users.org_id", "users.id"], name="fk_issues_owner_id_users"
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "merged_into_id"],
+            ["issues.org_id", "issues.id"],
+            name="fk_issues_merged_into_id_issues",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(), unique=True)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    team_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    category: Mapped[str] = mapped_column(String)
+    # "payments|<distributor id>": the category, then each group_by field's value in order, "-"
+    # for a missing one (issues.issue_key).
+    issue_key: Mapped[str] = mapped_column(String)
+    # The same values by field name, for the title and the summaries (batch 15b).
+    key_fields: Mapped[dict] = mapped_column(JSONB)
+    title_en: Mapped[str] = mapped_column(String)
+    # The highest of its insights'.
+    severity: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default=IssueStatus.OPEN.value)
+    owner_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    due_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    # When its insights' visits happened: the first, and the latest.
+    first_seen_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    resolved_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    resolution_note: Mapped[str | None] = mapped_column(String)
+    reopened_count: Mapped[int] = mapped_column(default=0)
+    merged_into_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    version: Mapped[int] = mapped_column(default=1)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now, onupdate=utc_now)
+
+
+class IssueEventField(StrEnum):
+    STATUS = "status"
+    OWNER = "owner"
+    DUE_AT = "due_at"
+
+
+class IssueEvent(Base):
+    """An issue's history (batch 15): each change of its status (a reopen too), owner or due
+    date, who made it, and the note a resolve carries.
+
+    Append-only: refuse_change() refuses UPDATE and DELETE. Its issue and actor are never
+    deleted, so nothing happens on delete."""
+
+    __tablename__ = "issue_events"
+    __table_args__ = (
+        CheckConstraint(_one_of("field", IssueEventField), name="field"),
+        CheckConstraint("from_value IS DISTINCT FROM to_value", name="changed"),
+        ForeignKeyConstraint(["org_id", "issue_id"], ["issues.org_id", "issues.id"]),
+        ForeignKeyConstraint(["org_id", "actor_id"], ["users.org_id", "users.id"]),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    issue_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    actor_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    field: Mapped[str] = mapped_column(String)
+    # As text: a status, a user's ID or an ISO time; None for no owner.
+    from_value: Mapped[str | None] = mapped_column(String)
+    to_value: Mapped[str | None] = mapped_column(String)
+    note: Mapped[str | None] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)

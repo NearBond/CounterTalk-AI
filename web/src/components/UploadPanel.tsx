@@ -4,6 +4,7 @@ import { messageOf } from "../lib/api";
 import type { QueueState, UploadQueue } from "../lib/uploadQueue";
 import { byteRanges, extOf, finishVisit, openVisit } from "../lib/visits";
 import { ALLOWED_EXTS, type RecordingExt } from "../types/api";
+import { RetryAlert } from "./RetryAlert";
 
 interface Props {
   shopId: string;
@@ -144,14 +145,9 @@ export function UploadPanel({ shopId, disabled, onBusyChange }: Props) {
         {busy && progress?.retrying && " (check the connection)"}
       </p>
       {error !== null && (
-        <p role="alert" className="text-red-700">
-          {error}{" "}
-          {canRetry && (
-            <button type="button" onClick={tryAgain} disabled={disabled} className="underline disabled:opacity-50">
-              Try again
-            </button>
-          )}
-        </p>
+        <RetryAlert onRetry={canRetry ? tryAgain : undefined} disabled={disabled}>
+          {error}
+        </RetryAlert>
       )}
     </section>
   );

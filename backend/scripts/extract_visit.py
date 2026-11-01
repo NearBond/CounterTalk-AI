@@ -24,7 +24,7 @@ from pathlib import Path
 
 from sqlalchemy import func, select
 
-from countertalk import extraction, llm_calls, roles
+from countertalk import extraction, llm_calls, roles, routing
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.errors import DomainError, describe
 from countertalk.llm.base import StructuredLlm
@@ -37,7 +37,6 @@ from countertalk.models import (
     JobState,
     OrderItem,
     Task,
-    Team,
     Visit,
     VisitStatus,
     parse_id,
@@ -86,7 +85,7 @@ def show_result(visit_id: str) -> None:
     """Counts, kinds, categories and severities: never the words."""
     with session_scope(read_only=True) as session:
         visit = session.get_one(Visit, visit_id)
-        teams = {team_id: key for key, team_id in session.execute(select(Team.key, Team.id))}
+        teams = routing.team_keys(session, visit.org_id)
         found = session.scalars(
             select(Insight).where(Insight.visit_id == visit_id).order_by(Insight.seq)
         ).all()

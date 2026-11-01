@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./api";
-import { usePolling } from "./hooks";
+import { usePolling, useSave } from "./hooks";
 import { POLL_MS, RETRY_MAX_MS } from "./limits";
 
 beforeEach(() => {
@@ -101,5 +101,32 @@ describe("usePolling", () => {
     await tick(0);
 
     expect(result.current.data).toBe("loaded 2");
+  });
+});
+
+describe("useSave", () => {
+  it("aborts its save and calls nothing back once the page is left mid-save", async () => {
+    let seen: AbortSignal | undefined;
+    let finish: (value: string) => void = () => {};
+    const onDone = vi.fn();
+    const { result, unmount } = renderHook(() => useSave());
+
+    act(() =>
+      result.current.run(
+        (signal) =>
+          new Promise<string>((resolve) => {
+            seen = signal;
+            finish = resolve;
+          }),
+        onDone,
+      ),
+    );
+    expect(result.current.saving).toBe(true);
+    unmount();
+    finish("saved anyway");
+    await tick(0);
+
+    expect(seen?.aborted).toBe(true);
+    expect(onDone).not.toHaveBeenCalled();
   });
 });
