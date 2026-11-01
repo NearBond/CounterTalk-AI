@@ -39,6 +39,7 @@ Link only brands, products and schemes that the quote's speaker actually names, 
 - `summary_en`: the insight in one English sentence. Translations go here, never in quotes. The visit's own `summary_en` is two or three sentences.
 - A task is a follow-up that was promised or asked for. `due` is a date only if one was said; work out a day like "kal" or "next Monday" from the visit date.
 - `next_visit_date`: only if the next visit's day was said.
+- `order_items`: what the shop orders on this visit, each as said: the product's name, the quantity and the unit. An order item is never an insight.
 
 ## Never invent
 

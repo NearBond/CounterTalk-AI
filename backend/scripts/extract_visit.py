@@ -35,6 +35,7 @@ from countertalk.models import (
     Job,
     JobKind,
     JobState,
+    OrderItem,
     Task,
     Team,
     Visit,
@@ -93,7 +94,11 @@ def show_result(visit_id: str) -> None:
             session.scalars(select(Evidence.insight_id).where(Evidence.visit_id == visit_id))
         )
         tasks = session.scalar(select(func.count()).where(Task.visit_id == visit_id))
-        print(f"visit {visit_id}: {visit.status}, {len(found)} insights, {tasks} tasks")
+        order = session.scalar(select(func.count()).where(OrderItem.visit_id == visit_id))
+        print(
+            f"visit {visit_id}: {visit.status}, {len(found)} insights, {tasks} tasks,"
+            f" {order} order items"
+        )
         for row in found:
             team = teams.get(row.ai_team_id, "-") if row.ai_team_id else "-"
             print(

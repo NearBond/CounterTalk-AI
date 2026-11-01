@@ -25,6 +25,7 @@ from countertalk.api.insights import (
     NewInsight,
     NewNote,
     NoteOut,
+    OrderItemOut,
     ReportOut,
     TaskOut,
     insight_out,
@@ -93,6 +94,8 @@ class ReviewOut(BaseModel):
     visit: VisitOut
     report: ReportOut | None
     tasks: list[TaskOut]
+    # Read-only for now: the rep can't edit them yet.
+    order_items: list[OrderItemOut]
     insights: list[InsightOut]
     notes: list[NoteOut]
     # Each speaker label's saved role ("c0:A": "rep"), for the add-a-finding picker.
@@ -282,6 +285,9 @@ def get_review(visit_id: UUID, user: CurrentUser, session: DbSession) -> ReviewO
         if found.report is not None
         else None,
         tasks=[TaskOut.model_validate(task, from_attributes=True) for task in found.tasks],
+        order_items=[
+            OrderItemOut.model_validate(item, from_attributes=True) for item in found.order_items
+        ],
         insights=[insight_out(view) for view in found.insights],
         notes=[NoteOut.model_validate(note, from_attributes=True) for note in found.notes],
         speaker_roles=found.speaker_roles,

@@ -20,8 +20,8 @@ from countertalk.playbooks import build_extraction_schema, load_org_pack
 from tests.conftest import print_utf8
 
 PROMPT = (
-    "This shop visit had no insights and no tasks. Reply with empty insights and tasks lists,"
-    ' summary_en "Nothing to report.", and next_visit_date null.'
+    "This shop visit had no insights, no tasks and no order. Reply with empty insights, tasks"
+    ' and order_items lists, summary_en "Nothing to report.", and next_visit_date null.'
 )
 
 

@@ -18,6 +18,7 @@ from countertalk.api.insights import (
     NewInsight,
     NewNote,
     NoteOut,
+    OrderItemOut,
     QuoteOut,
     ReportOut,
     RouteOut,
@@ -55,6 +56,7 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "Note": NoteOut,
     "Report": ReportOut,
     "Task": TaskOut,
+    "OrderItem": OrderItemOut,
     "Choice": ChoiceOut,
     "Review": ReviewOut,
 }

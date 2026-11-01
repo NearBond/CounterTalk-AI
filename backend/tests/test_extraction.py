@@ -79,6 +79,7 @@ def answer(*insights: dict[str, Any], **changes: Any) -> dict[str, Any]:
         "next_visit_date": "2026-11-22",
         "insights": list(insights) if insights else [insight()],
         "tasks": [task],
+        "order_items": [],
     }
     return found | changes
 

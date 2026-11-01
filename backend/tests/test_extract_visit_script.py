@@ -66,7 +66,7 @@ def test_yes_runs_the_visits_extract_job_and_prints_no_words(
     paid = f"900 input (0 cached), 60 output (20 reasoning), 1.2 s, ${each:.4f}"
     assert (code, load(visit_id).status) == (0, VisitStatus.REVIEW)
     assert out.splitlines() == [
-        f"visit {visit_id}: review, 1 insights, 1 tasks",
+        f"visit {visit_id}: review, 1 insights, 1 tasks, 0 order items",
         "  #0 product_request demand low, team field, scheme -, 1 quotes",
         f"call 1: roles ok, {paid}",
         f"call 2: extraction ok, {paid}",
@@ -87,7 +87,8 @@ def test_again_extracts_a_visit_in_review_with_no_roles_paid_for(
 
     assert without_again[1] == f"visit {visit_id} is review: --again extracts it again\n"
     assert [name for _, name, _ in again.asked] == ["extraction"]
-    assert (code, out.splitlines()[0]) == (0, f"visit {visit_id}: review, 2 insights, 1 tasks")
+    headline = f"visit {visit_id}: review, 2 insights, 1 tasks, 0 order items"
+    assert (code, out.splitlines()[0]) == (0, headline)
 
 
 def test_again_on_a_confirmed_visit_is_one_line(

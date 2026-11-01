@@ -105,6 +105,16 @@ class TaskOut(BaseModel):
     status: str
 
 
+class OrderItemOut(BaseModel):
+    """What the shop ordered, as said; `sku` is the catalog item it links to, if it does."""
+
+    seq: int
+    name: str
+    quantity: float | None
+    unit: str | None
+    sku: str | None
+
+
 class ChoiceOut(BaseModel):
     key: str
     label: str

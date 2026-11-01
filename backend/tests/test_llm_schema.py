@@ -120,6 +120,12 @@ def test_a_schema_it_cant_check_is_found_whatever_the_answer(
 
 def test_the_extraction_schema_uses_only_keywords_it_checks() -> None:
     pack = load_org_pack("tiny-demo", 1, ORG_PACK_FIXTURES)
-    empty = {"insights": [], "tasks": [], "summary_en": "", "next_visit_date": None}
+    empty = {
+        "insights": [],
+        "tasks": [],
+        "summary_en": "",
+        "next_visit_date": None,
+        "order_items": [{"name": "Crunchy", "quantity": 2.5, "unit": None}],
+    }
 
     assert problem(empty, build_extraction_schema(pack.playbook, pack)) is None

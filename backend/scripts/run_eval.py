@@ -43,17 +43,21 @@ from typing import Annotated, Any, Literal
 from alembic import command
 from alembic.config import Config
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 
-from countertalk import catalog, extraction, routing, storage
+from countertalk import catalog, entities, extraction, routing, storage
 from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import SETUP_ERRORS, get_engine, session_scope, setup_trouble
 from countertalk.errors import DomainError, describe
 from countertalk.llm.base import StructuredLlm
 from countertalk.logs import configure_logging
 from countertalk.models import (
+    AliasReview,
+    CatalogItem,
+    CatalogKind,
     JobState,
+    OrderItem,
     Org,
     Role,
     Shop,
@@ -75,7 +79,7 @@ from countertalk.playbooks import (
     first_problem,
     load_org_pack,
 )
-from countertalk.reporting import share
+from countertalk.reporting import buckets, share
 from countertalk.transcription import add_transcript
 from scripts._paid import Paid, Stopped, estimate, model_llm, paid_run, run_extract_job
 from scripts.compare_extraction import (
@@ -97,6 +101,7 @@ EVAL_DATABASE = "countertalk_eval"
 CASES = BACKEND_DIR / "evals" / "fmcg-kirana-visit" / "v1"
 EVALS_DIR = BACKEND_DIR / "data" / "evals"
 WAYS = ("table", "ai", "rule")
+ORDER_WAYS = ("linked", "to_review", "other")
 
 Packs = dict[tuple[str, int], OrgPack]
 
@@ -532,20 +537,67 @@ def report(
         visit_id = visits[case.name]
         scored.add(case, visit_id, pack_of(case, packs), paid.usd(visit_id))
     found: dict[str, Any] = {}
+    ordered = Counter[str]()
     for name, case in scored.cases.items():
         # compare_extraction's own table (R1): each pair, and each insight missed or invented.
         compared(f"{name}, job {states[name]}", case.result, case.extracted, case.reviews)
-        print("\n".join(f"  {line}" for line in [*case.totals.headline(), *case.score.lines()]))
+        order, ways = order_of(visits[name])
+        lines = [*case.totals.headline(), *case.score.lines(), *order_lines(order, ways)]
+        print("\n".join(f"  {line}" for line in lines))
+        counts = {"items": len(order), **{way: ways[way] for way in ORDER_WAYS}}
+        ordered.update(counts)
         found[name] = {
             "job": states[name],
             **totals_json(case.totals),
             **case.score.as_json(),
             **misses(case.result),
+            "order_items": counts,
         }
     lines = [*scored.totals.lines(), *scored.score.lines()]
     print(f"\nTotals, {len(cases)} cases:")
     print("\n".join(f"  {line}" for line in lines))
-    return {"cases": found, "totals": {**totals_json(scored.totals), **scored.score.as_json()}}
+    totals = {**totals_json(scored.totals), **scored.score.as_json(), "order_items": dict(ordered)}
+    return {"cases": found, "totals": totals}
+
+
+def order_of(visit_id: str) -> tuple[list[Any], Counter[str]]:
+    """The visit's order items as said, each with its catalog item's key if it links to one,
+    and how many went each of ORDER_WAYS: linked; to review, a name the catalog hasn't got (or
+    has twice); or other, a competitor's name, say."""
+    with session_scope(read_only=True) as session:
+        query = (
+            select(OrderItem.name, OrderItem.quantity, OrderItem.unit, CatalogItem.key)
+            .outerjoin(CatalogItem, CatalogItem.id == OrderItem.sku_id)
+            .where(OrderItem.visit_id == visit_id)
+            .order_by(OrderItem.seq)
+        )
+        order = list(session.execute(query))
+        reviewed = set(
+            session.scalars(
+                select(AliasReview.normalised).where(
+                    AliasReview.visit_id == visit_id, AliasReview.kind == CatalogKind.OWN
+                )
+            )
+        )
+    ways = Counter(
+        "linked"
+        if row.key is not None
+        else "to_review"
+        if entities.link_key(row.name) in reviewed
+        else "other"
+        for row in order
+    )
+    return order, ways
+
+
+def order_lines(order: Sequence[Any], ways: Counter[str]) -> list[str]:
+    """The count, then each item: rp05's case is an order and nothing else (batch 14)."""
+    lines = [f"order items: {len(order)} ({buckets(ways, ORDER_WAYS)})"]
+    for row in order:
+        quantity = "no quantity said" if row.quantity is None else f"{row.quantity.normalize():f}"
+        amount = f"{quantity} {row.unit}" if row.unit else quantity
+        lines.append(f"  {row.name}: {amount} -> {row.key or 'not in the catalog'}")
+    return lines
 
 
 def write_results(results: dict[str, Any], packs: Packs, model: str) -> Path:

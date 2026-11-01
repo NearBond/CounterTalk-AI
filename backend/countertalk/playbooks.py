@@ -561,12 +561,20 @@ def build_extraction_schema(playbook: Playbook, pack: OrgPack) -> dict[str, Any]
             "owner": _enum(playbook.task_owners),
         }
     )
+    order_item = _object(
+        {
+            "name": _text("The product as said, in its own script."),
+            "quantity": _nullable({"type": "number", "description": "How many, if it was said."}),
+            "unit": _nullable(_text("As said (dabba, peti, packet), if one was.")),
+        }
+    )
     schema = _object(
         {
             "summary_en": _text("The visit in two or three sentences, in English."),
             "next_visit_date": _nullable(_text("YYYY-MM-DD, if a date was said.")),
             "insights": _list(insight),
             "tasks": _list(task),
+            "order_items": _list(order_item),
         }
     )
     return {**schema, "$defs": {"evidence": evidence}}

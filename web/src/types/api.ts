@@ -253,6 +253,18 @@ export interface Task {
   status: "open" | "done";
 }
 
+/** OrderItemOut: what the shop ordered, as said. Read-only: the rep can't edit them yet. */
+export interface OrderItem {
+  seq: number;
+  /** As said, in its own script. */
+  name: string;
+  quantity: number | null;
+  /** As said ("dabbe", "peti"), if one was. */
+  unit: string | null;
+  /** The catalog item the name links to, if it does. */
+  sku: string | null;
+}
+
 /** ChoiceOut: one of the playbook's keys, with its label. */
 export interface Choice {
   key: string;
@@ -267,6 +279,7 @@ export interface Review {
   visit: Visit;
   report: Report | null;
   tasks: Task[];
+  order_items: OrderItem[];
   insights: Insight[];
   notes: Note[];
   /** Each speaker label's saved role ("c0:A": "rep"): the add-a-finding picker shows it. */

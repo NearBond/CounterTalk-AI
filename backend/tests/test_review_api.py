@@ -86,6 +86,26 @@ def test_the_review_is_everything_the_page_shows(client: TestClient, demo: Org_)
     assert {"key": "payments", "label": "Credit and payments"} in found["categories"]
     assert [c["key"] for c in found["severities"]] == ["high", "medium", "low"]
     assert {"key": "product_request", "label": "Product request"} in found["kinds"]
+    assert found["order_items"] == []
+
+
+def test_the_review_shows_the_order_as_said_with_its_products(
+    client: TestClient, demo: Org_
+) -> None:
+    visit_id = transcribed(demo)
+    order = [
+        {"name": "कुरकुरे मंच", "quantity": 2, "unit": "dabbe"},
+        {"name": "Zingo", "quantity": 1.5, "unit": None},
+    ]
+    extraction.extract(visit_id, FakeLlm(ALL_PLACED, answer(PAYMENT, order_items=order)))
+
+    found = the_review(client, visit_id)
+
+    munch = "Kurkure Masala Munch"
+    assert found["order_items"] == [
+        {"seq": 0, "name": "कुरकुरे मंच", "quantity": 2, "unit": "dabbe", "sku": munch},
+        {"seq": 1, "name": "Zingo", "quantity": 1.5, "unit": None, "sku": None},
+    ]
 
 
 def test_a_category_or_severity_change_re_routes_and_comes_back(

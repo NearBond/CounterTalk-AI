@@ -3,6 +3,7 @@
 import uuid
 from collections.abc import Iterable
 from datetime import UTC, date, datetime, timedelta, timezone
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
@@ -16,6 +17,7 @@ from sqlalchemy import (
     Identity,
     Index,
     MetaData,
+    Numeric,
     String,
     TypeDecorator,
     UniqueConstraint,
@@ -602,6 +604,51 @@ class Task(Base):
     due: Mapped[date | None]
     owner: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default=TaskStatus.OPEN.value)
+
+
+class OrderItem(Base):
+    """What the shop ordered on the visit, as said (batch 14): from its newest extraction, and
+    replaced with it. Never an insight, so never routed. The rep can't edit one yet."""
+
+    __tablename__ = "order_items"
+    __table_args__ = (
+        UniqueConstraint("visit_id", "seq"),
+        # A quantity said that isn't a count is left out, never stored (extraction.py).
+        CheckConstraint("quantity > 0", name="quantity_positive"),
+        CheckConstraint("char_length(name) > 0", name="name_said"),
+        # Its extraction is one of its visit's own.
+        ForeignKeyConstraint(
+            ["visit_id", "extraction_id"],
+            ["extractions.visit_id", "extractions.id"],
+            ondelete="CASCADE",
+            name="fk_order_items_extraction_id_extractions",
+        ),
+        # Its visit and SKU are its own org's.
+        ForeignKeyConstraint(
+            ["org_id", "visit_id"], ["visits.org_id", "visits.id"], ondelete="CASCADE"
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "sku_id"],
+            ["catalog_items.org_id", "catalog_items.id"],
+            name="fk_order_items_sku_id_catalog_items",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    visit_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    # 0, 1, 2, … in the answer's order.
+    seq: Mapped[int]
+    extraction_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    # As said, in its own script: "कुरकुरे मंच", "Lay's ka bada packet".
+    name: Mapped[str] = mapped_column(String)
+    quantity: Mapped[Decimal | None] = mapped_column(Numeric)
+    # As said ("dabbe", "peti", "kg"), if one was.
+    unit: Mapped[str | None] = mapped_column(String)
+    # The org's catalog item the name links to (entities.py); None if it links to none of its own.
+    # A catalog item is deactivated, never deleted, so nothing happens on delete (as for an
+    # insight's link).
+    sku_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
 
 
 class Insight(Base):

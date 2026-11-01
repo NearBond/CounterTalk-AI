@@ -58,6 +58,11 @@ function reviewOf(status: "review" | "confirmed", insights: Insight[] = [PAYMENT
     },
     report: { summary_en: "A routine order.", next_visit_date: "2026-11-22" },
     tasks: [{ seq: 0, type: "callback", description_en: "Call back.", due: "2026-11-17", owner: "rep", status: "open" }],
+    order_items: [
+      { seq: 0, name: "कुरकुरे मंच", quantity: 2, unit: "dabbe", sku: "Kurkure Masala Munch" },
+      { seq: 1, name: "Zingo", quantity: null, unit: "peti", sku: null },
+      { seq: 2, name: "Bingo", quantity: null, unit: null, sku: "Bingo" },
+    ],
     insights,
     notes: [],
     speaker_roles: { "c0:A": "rep", "c0:B": "shopkeeper" },
@@ -129,19 +134,35 @@ afterEach(() => {
 });
 
 describe("ReviewPanel", () => {
-  it("shows the report, the tasks and each finding with the shopkeeper's words", async () => {
+  it("shows the report, the order, the tasks and each finding with the shopkeeper's words", async () => {
     fakeApi({ "GET /api/visits/v1/review": () => json(200, reviewOf("review")) });
 
     show();
 
     expect(await screen.findByText("A routine order.")).toBeInTheDocument();
     expect(screen.getByText("Next visit: 2026-11-22")).toBeInTheDocument();
+    const order = within(screen.getByRole("list", { name: "Order" })).getAllByRole("listitem");
+    expect(order.map((item) => item.textContent)).toEqual([
+      "कुरकुरे मंच · 2 dabbe · Product: Kurkure Masala Munch",
+      "Zingo · peti",
+      "Bingo · Product: Bingo",
+    ]);
+    expect(within(order[0] as HTMLElement).getByText("कुरकुरे मंच")).toHaveAttribute("lang", "hi");
     expect(screen.getByText("Call back.")).toBeInTheDocument();
     const found = await cardOf("A payout is late.");
     expect(within(found).getByText("Problem · Credit and payments · Low")).toBeInTheDocument();
     expect(within(found).getByText("Payment abhi tak nahi aaya")).toHaveAttribute("lang", "hi");
     expect(within(found).getByText("Product: Kurkure")).toBeInTheDocument();
     expect(within(found).getByText("Sent to Money desk")).toBeInTheDocument();
+  });
+
+  it("shows no order section without order items: an older extraction never looked for one", async () => {
+    fakeApi({ "GET /api/visits/v1/review": () => json(200, { ...reviewOf("review"), order_items: [] }) });
+
+    show();
+
+    expect(await screen.findByText("A routine order.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Order" })).not.toBeInTheDocument();
   });
 
   it("greys out a finding it couldn't find in the recording: delete only, never sent", async () => {

@@ -25,6 +25,7 @@ const REVIEW: Review = {
   visit: VISIT,
   report: { summary_en: "A routine order.", next_visit_date: null },
   tasks: [],
+  order_items: [],
   insights: [],
   notes: [],
   speaker_roles: {},

@@ -100,6 +100,25 @@ export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed
           {review.report.next_visit_date !== null && (
             <p className="text-sm text-gray-600">Next visit: {review.report.next_visit_date}</p>
           )}
+          {/* None for a visit extracted before order items were (batch 14), so an empty list
+              isn't shown as "no order". */}
+          {review.order_items.length > 0 && (
+            <>
+              <h3 className="mt-2 font-medium">Order</h3>
+              <ul aria-label="Order" className="flex flex-col gap-1">
+                {review.order_items.map((item) => {
+                  const amount = [item.quantity, item.unit].filter((part) => part !== null).join(" ");
+                  return (
+                    <li key={item.seq} className="text-sm">
+                      <span lang={lang}>{item.name}</span>
+                      {amount !== "" && ` · ${amount}`}
+                      {item.sku !== null && <span className="text-gray-600"> · Product: {item.sku}</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
         </section>
       )}
 

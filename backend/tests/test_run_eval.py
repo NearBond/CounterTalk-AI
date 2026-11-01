@@ -101,7 +101,12 @@ def test_each_case_runs_the_real_extract_job_and_is_scored(
     a_case(tmp_path / "cases", "rp99")
     # One that matches K2's, and one it hasn't got: the shopkeeper's "Haan, yeh lo." at 70 s.
     thanks = insight(kind="praise", category="praise", evidence=[{"turn_id": 3, "quote": "Haan"}])
-    llm = FakeLlm(answer(insight(sku_mentions=["Crunchy"]), thanks))  # roles saved: extraction
+    order = [
+        {"name": "Crunchy", "quantity": 2, "unit": "dabbe"},
+        {"name": "Zingo", "quantity": None, "unit": None},
+    ]
+    found = answer(insight(sku_mentions=["Crunchy"]), thanks, order_items=order)
+    llm = FakeLlm(found)  # roles saved: extraction
 
     assert eval_(tmp_path, "--yes", llm=llm) == 0
 
@@ -115,6 +120,16 @@ def test_each_case_runs_the_real_extract_job_and_is_scored(
     assert "  product_request: recall 1/1 (100%) of K2 product_request (optional aside)," in out
     for way in ("table", "ai", "rule"):
         assert f"  routing, {way}: " in out
+    # The order, as said and as linked: rp05's is all order, and no insight.
+    lines = out.splitlines()
+    at = lines.index("  order items: 2 (linked 1, to_review 1, other 0)")
+    assert lines[at : at + 5] == [
+        "  order items: 2 (linked 1, to_review 1, other 0)",
+        "    Crunchy: 2 dabbe -> crunchy",
+        "    Zingo: no quantity said -> not in the catalog",
+        "",
+        "Totals, 1 cases:",
+    ]
     [results] = (tmp_path / "evals" / "results").iterdir()
     found = json.loads(results.read_text(encoding="utf-8"))
     assert results.name == f"{found['date']}-{found['prompt_hash']}.json"
@@ -144,6 +159,7 @@ def test_each_case_runs_the_real_extract_job_and_is_scored(
         "rule": 1,
     }
     assert case["links"]["sku"] == {"agree": 1}
+    assert case["order_items"] == {"items": 2, "linked": 1, "to_review": 1, "other": 0}
 
 
 def test_a_case_left_to_retry_stops_the_run_and_what_was_paid_is_shown(

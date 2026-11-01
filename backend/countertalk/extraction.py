@@ -23,6 +23,7 @@ from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +54,7 @@ from countertalk.models import (
     Job,
     JobKind,
     LlmPurpose,
+    OrderItem,
     Org,
     Report,
     Task,
@@ -73,11 +75,24 @@ from countertalk.playbooks import (
     load_org_pack,
     playbook_text,
 )
+from countertalk.reporting import log_buckets
 from countertalk.verify import Transcript, TurnText
 
 log = logging.getLogger(__name__)
 
 NAME = "extraction"
+# The log's buckets, in order: reporting.log_buckets adds any other a count holds (R10).
+LINK_BUCKETS = (
+    "exact",
+    "fuzzy",
+    "unknown",
+    "ambiguous",
+    "wrong_kind",
+    "new_reviews",
+    "scheme_by_alias",
+    "scheme_dropped",
+)
+ORDER_BUCKETS = ("linked", "unknown", "ambiguous", "not_own", "dropped")
 
 
 @dataclass(frozen=True)
@@ -249,12 +264,26 @@ def extract(
 
 
 @dataclass(frozen=True)
+class Ordered:
+    """An order item as kept: its name and unit trimmed, its quantity a count or None."""
+
+    name: str
+    quantity: Decimal | None
+    unit: str | None
+    links: entities.Links
+
+
+@dataclass(frozen=True)
 class Linked:
-    """Each insight's links and kept scheme, in the answer's order, and what linking found."""
+    """Each insight's links and kept scheme, and each order item, in the answer's order, and
+    what linking found for each."""
 
     links: tuple[entities.Links, ...]
     schemes: tuple[str | None, ...]
     tally: Counter[str]
+    order: tuple[Ordered, ...]
+    # Each item said in one of ORDER_BUCKETS.
+    order_counts: Counter[str]
 
 
 def _link(request: Request, pack: OrgPack, answer: dict[str, Any]) -> Linked:
@@ -273,7 +302,38 @@ def _link(request: Request, pack: OrgPack, answer: dict[str, Any]) -> Linked:
         if given is not None and kept[-1] is None:
             shown = given if KEY.fullmatch(given) else "(not a key)"
             log.info("scheme dropped visit=%s insight=%d key=%s", request.visit_id, number, shown)
-    return Linked(tuple(links), tuple(kept), tally)
+    # An order item's name is linked as an SKU of the org's (BRIEF §7): one the catalog hasn't
+    # got goes to review, like an insight's.
+    order_counts: Counter[str] = Counter()
+    order = []
+    for said in answer["order_items"]:
+        name = said["name"].strip()
+        if not name:
+            order_counts["dropped"] += 1
+            continue
+        how: Counter[str] = Counter()
+        found = entities.link_mentions(catalog, [name], [], how)
+        order_counts[_outcome(found, how)] += 1
+        unit = (said["unit"] or "").strip() or None
+        order.append(Ordered(name, _quantity(said["quantity"]), unit, found))
+    return Linked(tuple(links), tuple(kept), tally, tuple(order), order_counts)
+
+
+def _outcome(found: entities.Links, how: Counter[str]) -> str:
+    """An order item's one bucket: linked, not_own (a competitor's), or unknown or ambiguous."""
+    if found.sku_id is not None:
+        return "linked"
+    if found.competitor_id is not None:
+        return "not_own"
+    return "ambiguous" if how["ambiguous"] else "unknown"
+
+
+def _quantity(value: object) -> Decimal | None:
+    """A quantity as said, or None: zero or a negative is left out, not guessed. (The answer's
+    schema check has refused a non-finite number already.)"""
+    if isinstance(value, bool) or not isinstance(value, int | float) or value <= 0:
+        return None
+    return Decimal(str(value))
 
 
 def _transcript(request: Request, speaker_roles: dict[str, tuple[str, float]]) -> Transcript:
@@ -340,14 +400,15 @@ def _save(
         )
         session.add(extraction)
         session.flush()  # first: the report and insights refer to it
-        for table in (Report, Task):
+        for table in (Report, Task, OrderItem):
             session.execute(delete(table).where(table.visit_id == visit_id))
         # Only extracted insights are replaced: one the rep added stays (batch 14). An insight's
         # evidence goes with it.
         extracted = Insight.extraction_id.is_not(None)
         session.execute(delete(Insight).where(Insight.visit_id == visit_id, extracted))
         first_seq = review.next_seq(session, visit_id)  # after a rep's insights, kept
-        report_fields = {k: v for k, v in answer.items() if k not in ("insights", "tasks")}
+        listed = ("insights", "tasks", "order_items")  # each has its own table
+        report_fields = {k: v for k, v in answer.items() if k not in listed}
         session.add(
             Report(
                 visit_id=visit_id,
@@ -367,6 +428,19 @@ def _save(
                 owner=task["owner"],
             )
             for seq, task in enumerate(answer["tasks"])
+        )
+        session.add_all(
+            OrderItem(
+                org_id=visit.org_id,
+                visit_id=visit_id,
+                seq=seq,
+                extraction_id=extraction.id,
+                name=ordered.name,
+                quantity=ordered.quantity,
+                unit=ordered.unit,
+                sku_id=ordered.links.sku_id,
+            )
+            for seq, ordered in enumerate(linked.order)
         )
         unknown = {"turns": 0, "teams": 0}
         evidence: list[Evidence] = []
@@ -427,7 +501,8 @@ def _save(
         # orders inserts along relationships, which these tables don't declare.
         session.flush()
         session.add_all(evidence)
-        reviews = [review for links in linked.links for review in links.reviews]
+        everything = [*linked.links, *(ordered.links for ordered in linked.order)]
+        reviews = [review for links in everything for review in links.reviews]
         new_reviews = entities.add_reviews(session, visit.org_id, visit_id, reviews)
         routed = Counter(
             routing.route_new(session, insight, decision, teams) for insight, decision in to_route
@@ -442,14 +517,13 @@ def _save(
         unknown["teams"],
     )
     log.info(
-        "linked visit=%s exact=%d fuzzy=%d unknown=%d ambiguous=%d wrong_kind=%d new_reviews=%d"
-        " scheme_by_alias=%d scheme_dropped=%d",
+        "order visit=%s items=%d %s",
         visit_id,
-        *(linked.tally[k] for k in ("exact", "fuzzy", "unknown", "ambiguous", "wrong_kind")),
-        new_reviews,
-        linked.tally["scheme_by_alias"],
-        linked.tally["scheme_dropped"],
+        len(answer["order_items"]),
+        log_buckets(linked.order_counts, ORDER_BUCKETS),
     )
+    links = {**linked.tally, "new_reviews": new_reviews}
+    log.info("linked visit=%s %s", visit_id, log_buckets(links, LINK_BUCKETS))
     log.info(
         "routed visit=%s routed=%d triage=%d unverified=%d",
         visit_id,

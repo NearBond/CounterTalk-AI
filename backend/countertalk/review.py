@@ -29,6 +29,7 @@ from countertalk.models import (
     EvidenceMatch,
     Insight,
     InsightRoute,
+    OrderItem,
     Report,
     Task,
     Team,
@@ -331,6 +332,16 @@ class InsightView:
 
 
 @dataclass(frozen=True)
+class OrderItemView:
+    seq: int
+    name: str
+    quantity: float | None
+    unit: str | None
+    # The catalog item's name the name links to, if it does.
+    sku: str | None
+
+
+@dataclass(frozen=True)
 class Choice:
     key: str
     label: str
@@ -341,6 +352,7 @@ class ReviewView:
     visit: Visit
     report: Report | None
     tasks: list[Task]
+    order_items: list[OrderItemView]
     insights: list[InsightView]
     notes: list[VisitNote]
     # Each speaker label's saved role: the add-a-finding picker shows it.
@@ -357,20 +369,37 @@ def _label(key: str) -> str:
 def review_of(
     session: Session, pack_for: Callable[[], OrgPack], org_id: str, visit_id: str
 ) -> ReviewView:
-    """What the review page shows: the report, tasks, insights with their quotes and teams,
-    notes, and the playbook's keys for its pickers. Another org's visit is 404, before the pack
-    is loaded. Read in one snapshot (a read-only session's)."""
+    """What the review page shows: the report, tasks, order, insights with their quotes and
+    teams, notes, and the playbook's keys for its pickers. Another org's visit is 404, before
+    the pack is loaded. Read in one snapshot (a read-only session's)."""
     visit = visits.get_visit(session, org_id, visit_id)
     pack = pack_for()
     report = session.get(Report, visit.id)
     tasks = session.scalars(select(Task).where(Task.visit_id == visit.id).order_by(Task.seq))
     query = select(Insight).where(Insight.visit_id == visit.id).order_by(Insight.seq)
     notes = select(VisitNote).where(VisitNote.visit_id == visit.id)
+    # Each item with its product's name, in the same query.
+    order = (
+        select(OrderItem, CatalogItem.brand, CatalogItem.product)
+        .outerjoin(CatalogItem, CatalogItem.id == OrderItem.sku_id)
+        .where(OrderItem.visit_id == visit.id)
+        .order_by(OrderItem.seq)
+    )
     book = pack.playbook
     return ReviewView(
         visit=visit,
         report=report,
         tasks=list(tasks),
+        order_items=[
+            OrderItemView(
+                seq=item.seq,
+                name=item.name,
+                quantity=None if item.quantity is None else float(item.quantity),
+                unit=item.unit,
+                sku=None if brand is None else item_name(brand, product),
+            )
+            for item, brand, product in session.execute(order)
+        ],
         insights=insight_views(session, list(session.scalars(query))),
         notes=list(session.scalars(notes.order_by(VisitNote.created_at, VisitNote.id))),
         speaker_roles={
@@ -409,15 +438,7 @@ def insight_views(session: Session, insights: list[Insight]) -> list[InsightView
         .order_by(InsightRoute.slot)
     ):
         routes.setdefault(insight_id, []).append(RouteView(slot, key, name, routed_by))
-    linked = {i.sku_id for i in insights} | {i.competitor_id for i in insights}
-    names = {
-        item_id: f"{brand} {product}" if product else brand
-        for item_id, brand, product in session.execute(
-            select(CatalogItem.id, CatalogItem.brand, CatalogItem.product).where(
-                CatalogItem.id.in_(linked - {None})
-            )
-        )
-    }
+    names = _item_names(session, {i.sku_id for i in insights} | {i.competitor_id for i in insights})
     teams = {
         team_id: key
         for team_id, key in session.execute(
@@ -435,3 +456,20 @@ def insight_views(session: Session, insights: list[Insight]) -> list[InsightView
         )
         for insight in insights
     ]
+
+
+def item_name(brand: str, product: str | None) -> str:
+    """A catalog item's name as the review shows it: "Kurkure", "Kurkure Masala Munch"."""
+    return f"{brand} {product}" if product else brand
+
+
+def _item_names(session: Session, ids: set[str | None]) -> dict[str | None, str]:
+    """Each of these catalog items' item_name, in one query."""
+    return {
+        item_id: item_name(brand, product)
+        for item_id, brand, product in session.execute(
+            select(CatalogItem.id, CatalogItem.brand, CatalogItem.product).where(
+                CatalogItem.id.in_(ids - {None})
+            )
+        )
+    }

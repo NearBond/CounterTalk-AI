@@ -16,7 +16,18 @@ def percent(part: float, whole: float, of: str) -> str:
     return f"{part / whole if whole else 0:.1%} of {of}"
 
 
-def buckets(counts: Mapping[str, int], names: Sequence[str]) -> str:
+def _named(counts: Mapping[str, int], names: Sequence[str]) -> list[tuple[str, int]]:
     """Each named bucket in order, a zero too, then any other found: none is ever dropped."""
     extra = sorted(name for name, count in counts.items() if name not in names and count)
-    return ", ".join(f"{name} {counts.get(name, 0)}" for name in [*names, *extra])
+    return [(name, counts.get(name, 0)) for name in [*names, *extra]]
+
+
+def buckets(counts: Mapping[str, int], names: Sequence[str]) -> str:
+    """'exact 3, fuzzy 0, none 1' for people (_named's buckets)."""
+    return ", ".join(f"{name} {count}" for name, count in _named(counts, names))
+
+
+def log_buckets(counts: Mapping[str, int], names: Sequence[str]) -> str:
+    """'exact=3 fuzzy=0 none=1' for a log line: the same buckets, none dropped (added in batch
+    14, when a log line that picked its counts by hand left one out)."""
+    return " ".join(f"{name}={count}" for name, count in _named(counts, names))
