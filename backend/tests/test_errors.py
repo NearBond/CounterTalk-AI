@@ -68,18 +68,20 @@ def test_describe_hides_the_text_of_unexpected_errors() -> None:
     assert describe(error) == "unexpected_error: ValueError"
 
 
-def test_unknown_route_uses_the_error_shape(client: TestClient) -> None:
-    response = client.get("/api/no-such-thing")
+@pytest.mark.parametrize(
+    ("method", "path", "status", "code"),
+    [
+        ("GET", "/api/no-such-thing", 404, "not_found"),
+        ("DELETE", "/api/health", 405, "method_not_allowed"),
+    ],
+)
+def test_the_frameworks_own_errors_use_the_error_shape(
+    client: TestClient, method: str, path: str, status: int, code: str
+) -> None:
+    response = client.request(method, path)
 
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "not_found"
-
-
-def test_wrong_method_uses_the_error_shape(client: TestClient) -> None:
-    response = client.delete("/api/health")
-
-    assert response.status_code == 405
-    assert response.json()["error"]["code"] == "method_not_allowed"
+    assert response.status_code == status
+    assert response.json()["error"]["code"] == code
 
 
 def test_request_of_the_wrong_shape_uses_the_error_shape(app: FastAPI, client: TestClient) -> None:

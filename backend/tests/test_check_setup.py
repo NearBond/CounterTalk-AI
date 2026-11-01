@@ -9,6 +9,7 @@ from scripts.check_setup import (
     REQUIRED_PYTHON,
     Check,
     check_database,
+    check_dev_tool_keys,
     check_keys,
     check_python,
     check_tool,
@@ -219,3 +220,15 @@ def test_database_only_reports_bad_settings_as_one_line(
     lines = capsys.readouterr().out.splitlines()
     assert exit_code == 1
     assert lines == ["fail  settings: invalid in backend/.env or the environment: DATABASE_URL"]
+
+
+def test_the_dev_tool_key_is_optional_and_never_shown(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SARVAM_API_KEY", "")
+    [absent] = check_dev_tool_keys()
+    monkeypatch.setenv("SARVAM_API_KEY", "not-a-real-key")
+    [present] = check_dev_tool_keys()
+
+    assert (absent.status, absent.name) == ("skip", "SARVAM_API_KEY")
+    assert "optional" in absent.detail
+    assert present.status == "ok"
+    assert "not-a-real-key" not in present.detail

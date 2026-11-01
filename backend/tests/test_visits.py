@@ -132,19 +132,33 @@ def test_failing_needs_a_reason() -> None:
         visits.set_status(Visit(status=VisitStatus.RECORDING), VisitStatus.FAILED)
 
 
+def visit_in(status: str, **values: object) -> Visit:
+    return Visit(
+        **{"status": status, "client": VisitClient.WEB, "completed_at": utc_now(), **values}
+    )
+
+
 @pytest.mark.parametrize(
-    ("start", "end"),
+    ("visit", "end"),
     [
-        (VisitStatus.RECORDING, VisitStatus.REVIEW),
-        (VisitStatus.UPLOADED, VisitStatus.RECORDING),
-        (VisitStatus.CONFIRMED, VisitStatus.REVIEW),
-        (VisitStatus.REVIEW, VisitStatus.RECORDING),
-        (VisitStatus.RECORDING, VisitStatus.RECORDING),
-        (VisitStatus.CONFIRMED, VisitStatus.UPLOADED),
+        (visit_in(VisitStatus.RECORDING), VisitStatus.REVIEW),
+        (visit_in(VisitStatus.UPLOADED), VisitStatus.RECORDING),
+        (visit_in(VisitStatus.CONFIRMED), VisitStatus.REVIEW),
+        (visit_in(VisitStatus.REVIEW), VisitStatus.RECORDING),
+        (visit_in(VisitStatus.RECORDING), VisitStatus.RECORDING),
+        (visit_in(VisitStatus.CONFIRMED), VisitStatus.UPLOADED),
+        # Only an abandoned web or upload visit comes back.
+        (
+            visit_in(VisitStatus.FAILED, client=VisitClient.PHONE, abandoned_at=utc_now()),
+            VisitStatus.RECORDING,
+        ),
+        (visit_in(VisitStatus.FAILED, abandoned_at=None), VisitStatus.RECORDING),
+        # Reprocessing from transcription needs a completed upload.
+        (visit_in(VisitStatus.FAILED, completed_at=None), VisitStatus.UPLOADED),
     ],
 )
-def test_a_step_not_in_the_table_is_refused(start: str, end: str) -> None:
-    visit = Visit(status=start, client=VisitClient.WEB, completed_at=utc_now())
+def test_a_step_not_allowed_is_refused(visit: Visit, end: str) -> None:
+    start = visit.status
 
     with pytest.raises(Conflict) as error:
         visits.set_status(visit, end)
@@ -167,19 +181,6 @@ def test_an_abandoned_web_or_upload_visit_can_come_back(client: str) -> None:
     )
 
 
-@pytest.mark.parametrize(
-    "visit",
-    [
-        Visit(status=VisitStatus.FAILED, client=VisitClient.PHONE, abandoned_at=utc_now()),
-        Visit(status=VisitStatus.FAILED, client=VisitClient.WEB, abandoned_at=None),
-    ],
-    ids=["phone", "not-abandoned"],
-)
-def test_only_an_abandoned_web_or_upload_visit_comes_back(visit: Visit) -> None:
-    with pytest.raises(Conflict):
-        visits.set_status(visit, VisitStatus.RECORDING)
-
-
 @pytest.mark.parametrize("start", [VisitStatus.REVIEW, VisitStatus.FAILED])
 @pytest.mark.parametrize("end", [VisitStatus.UPLOADED, VisitStatus.TRANSCRIBED])
 def test_reprocess_steps_back_before_confirm(start: str, end: str) -> None:
@@ -189,13 +190,6 @@ def test_reprocess_steps_back_before_confirm(start: str, end: str) -> None:
     visits.set_status(visit, end)
 
     assert (visit.status, visit.failure_reason) == (end, None)
-
-
-def test_reprocess_from_transcription_needs_a_completed_upload() -> None:
-    visit = Visit(status=VisitStatus.FAILED, client=VisitClient.WEB, completed_at=None)
-
-    with pytest.raises(Conflict):
-        visits.set_status(visit, VisitStatus.UPLOADED)
 
 
 # --- lock_visit and get_visit -----------------------------------------------------------------
@@ -280,30 +274,29 @@ def test_a_conversation_waits_for_a_do_not_record_being_set_at_the_same_time(org
 # --- segments ---------------------------------------------------------------------------------
 
 
-def test_staging_checks_the_size_before_anything_is_written(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("limit", "body", "checksum_of", "error", "code"),
+    [
+        (4, b"12345", b"12345", TooLarge, "segment_too_large"),
+        (100, b"", b"", Invalid, "empty_segment"),
+        (100, b"the bytes", b"other bytes", Invalid, "segment_checksum_mismatch"),
+    ],
+)
+def test_staging_refuses_a_bad_segment_before_anything_is_written(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    limit: int,
+    body: bytes,
+    checksum_of: bytes,
+    error: type[Exception],
+    code: str,
 ) -> None:
-    monkeypatch.setattr(visits, "MAX_SEGMENT_BYTES", 4)
+    monkeypatch.setattr(visits, "MAX_SEGMENT_BYTES", limit)
 
-    with pytest.raises(TooLarge) as error:
-        visits.stage_segment(0, b"12345", sha(b"12345"))
+    with pytest.raises(error) as raised:
+        visits.stage_segment(0, body, sha(checksum_of))
 
-    assert error.value.code == "segment_too_large"
-    assert staged_files(tmp_path) == []
-
-
-def test_an_empty_segment_is_refused(tmp_path: Path) -> None:
-    with pytest.raises(Invalid) as error:
-        visits.stage_segment(0, b"", sha(b""))
-
-    assert error.value.code == "empty_segment"
-
-
-def test_a_checksum_that_doesnt_match_is_refused_and_nothing_is_left(tmp_path: Path) -> None:
-    with pytest.raises(Invalid) as error:
-        visits.stage_segment(0, b"the bytes", sha(b"other bytes"))
-
-    assert error.value.code == "segment_checksum_mismatch"
+    assert raised.value.code == code  # type: ignore[attr-defined]
     assert staged_files(tmp_path) == []
 
 
@@ -336,27 +329,33 @@ def test_the_same_segment_twice_changes_nothing(org: Org_, tmp_path: Path) -> No
     assert staged_files(tmp_path) == []
 
 
-def test_different_bytes_for_a_stored_segment_are_a_conflict(org: Org_, tmp_path: Path) -> None:
-    visit_id = new_visit(org)
-    upload(org, visit_id, 0, b"original")
+@pytest.mark.parametrize(
+    ("setup", "seq", "error", "code"),
+    [
+        ("stored_already", 0, Conflict, "segment_conflict"),
+        ("failed", 0, Conflict, "visit_not_recording"),
+        ("another_org", 0, NotFound, "visit_not_found"),
+        ("no_visit", -1, Invalid, "invalid_seq"),
+        ("no_visit", MAX_SEGMENTS_PER_VISIT, Invalid, "invalid_seq"),
+    ],
+)
+def test_a_segment_that_cant_be_stored_is_refused_and_leaves_nothing(
+    org: Org_, tmp_path: Path, setup: str, seq: int, error: type[Exception], code: str
+) -> None:
+    owner = make_org("Other Org") if setup == "another_org" else org
+    visit_id = new_id() if setup == "no_visit" else new_visit(owner)
+    if setup == "stored_already":
+        upload(org, visit_id, 0, b"original")
+    if setup == "failed":
+        move_to(org, visit_id, VisitStatus.FAILED, reason="Stopped.")
 
-    with pytest.raises(Conflict) as error:
-        upload(org, visit_id, 0, b"something else")
+    with pytest.raises(error) as raised:
+        upload(org, visit_id, seq, b"something else")
 
-    assert error.value.code == "segment_conflict"
-    assert storage.segment_path(visit_id, 0).read_bytes() == b"original"
+    assert raised.value.code == code  # type: ignore[attr-defined]
     assert staged_files(tmp_path) == []
-
-
-def test_a_segment_for_a_visit_that_isnt_recording_is_refused(org: Org_, tmp_path: Path) -> None:
-    visit_id = new_visit(org)
-    move_to(org, visit_id, VisitStatus.FAILED, reason="Stopped.")
-
-    with pytest.raises(Conflict) as error:
-        upload(org, visit_id, 0)
-
-    assert error.value.code == "visit_not_recording"
-    assert staged_files(tmp_path) == []
+    if setup == "stored_already":
+        assert storage.segment_path(visit_id, 0).read_bytes() == b"original"
 
 
 def test_a_segment_brings_an_abandoned_web_visit_back(org: Org_) -> None:
@@ -367,26 +366,6 @@ def test_a_segment_brings_an_abandoned_web_visit_back(org: Org_) -> None:
 
     visit = load(visit_id)
     assert (visit.status, visit.abandoned_at, visit.failure_reason) == ("recording", None, None)
-
-
-def test_a_segment_for_another_orgs_visit_is_not_found(org: Org_, tmp_path: Path) -> None:
-    visit_id = new_visit(make_org("Other Org"))
-
-    with pytest.raises(NotFound):
-        upload(org, visit_id, 0)
-
-    assert staged_files(tmp_path) == []
-
-
-@pytest.mark.parametrize("seq", [-1, MAX_SEGMENTS_PER_VISIT])
-def test_a_seq_out_of_range_is_refused_before_anything_is_written(
-    org: Org_, seq: int, tmp_path: Path
-) -> None:
-    with pytest.raises(Invalid) as error:
-        upload(org, new_id(), seq)
-
-    assert error.value.code == "invalid_seq"
-    assert staged_files(tmp_path) == []
 
 
 def test_a_segment_upload_waits_for_a_change_to_the_same_visit(org: Org_) -> None:
@@ -443,38 +422,25 @@ def test_complete_with_every_segment_marks_the_visit_uploaded(org: Org_) -> None
     assert visit.completed_at is not None
 
 
-def test_complete_with_a_missing_segment_lists_what_is_missing(org: Org_) -> None:
+@pytest.mark.parametrize(
+    ("uploaded", "last_seq", "code", "details"),
+    [
+        ([0, 2], 3, "segments_missing", {"missing_seqs": [1, 3]}),
+        ([], 0, "segments_missing", {"missing_seqs": [0]}),
+        ([0, 1, 2], 1, "unexpected_segments", {"unexpected_seqs": [2]}),
+    ],
+)
+def test_complete_needs_exactly_segments_0_to_last_seq(
+    org: Org_, uploaded: list[int], last_seq: int, code: str, details: dict
+) -> None:
     visit_id = new_visit(org)
-    upload(org, visit_id, 0)
-    upload(org, visit_id, 2, b"third")
-
-    with pytest.raises(Conflict) as error:
-        complete(org, visit_id, last_seq=3)
-
-    assert error.value.code == "segments_missing"
-    assert error.value.details == {"missing_seqs": [1, 3]}
-    assert load(visit_id).status == "recording"
-
-
-def test_complete_with_nothing_uploaded_is_missing_segment_zero(org: Org_) -> None:
-    visit_id = new_visit(org)
-
-    with pytest.raises(Conflict) as error:
-        complete(org, visit_id, last_seq=0)
-
-    assert error.value.details == {"missing_seqs": [0]}
-
-
-def test_complete_refuses_segments_past_last_seq(org: Org_) -> None:
-    visit_id = new_visit(org)
-    for seq in range(3):
+    for seq in uploaded:
         upload(org, visit_id, seq, f"part {seq}".encode())
 
     with pytest.raises(Conflict) as error:
-        complete(org, visit_id, last_seq=1)
+        complete(org, visit_id, last_seq=last_seq)
 
-    assert error.value.code == "unexpected_segments"
-    assert error.value.details == {"unexpected_seqs": [2]}
+    assert (error.value.code, error.value.details) == (code, details)
     assert load(visit_id).status == "recording"
 
 
@@ -507,22 +473,24 @@ def test_complete_brings_an_abandoned_web_visit_back(org: Org_) -> None:
     assert complete(org, visit_id, last_seq=0).status == "uploaded"
 
 
-def test_complete_checks_the_extension_before_anything_else(org: Org_) -> None:
-    # Another org's visit would be 404: the extension is refused first, before any query.
+@pytest.mark.parametrize(
+    ("last_seq", "ext", "code"),
+    [
+        (0, "exe", "unsupported_extension"),
+        (-1, "webm", "invalid_seq"),
+        (MAX_SEGMENTS_PER_VISIT, "webm", "invalid_seq"),
+    ],
+)
+def test_complete_checks_its_values_before_any_query(
+    org: Org_, last_seq: int, ext: str, code: str
+) -> None:
+    # Another org's visit would be 404: the values are refused first, before any query.
     visit_id = new_visit(make_org("Other Org"))
 
     with pytest.raises(Invalid) as error:
-        complete(org, visit_id, last_seq=0, ext="exe")
+        complete(org, visit_id, last_seq=last_seq, ext=ext)
 
-    assert error.value.code == "unsupported_extension"
-
-
-@pytest.mark.parametrize("last_seq", [-1, MAX_SEGMENTS_PER_VISIT])
-def test_complete_refuses_a_last_seq_out_of_range(org: Org_, last_seq: int) -> None:
-    with pytest.raises(Invalid) as error:
-        complete(org, new_visit(org), last_seq=last_seq)
-
-    assert error.value.code == "invalid_seq"
+    assert error.value.code == code
 
 
 # --- listing ----------------------------------------------------------------------------------

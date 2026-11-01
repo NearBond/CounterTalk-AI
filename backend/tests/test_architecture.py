@@ -443,3 +443,18 @@ def test_rule_allows_what_the_guidelines_allow(rule: str, path: str, code: str) 
 
 def test_every_rule_has_a_bad_example() -> None:
     assert {rule for rule, _, _ in BAD_EXAMPLES} == set(RULES)
+
+
+def test_sarvam_stays_out_of_the_app() -> None:
+    """BRIEF D15: Sarvam makes test audio only (scripts/make_test_audio.py); the app never calls it.
+
+    The source text, not the syntax tree, so a comment or docstring counts too.
+    """
+    mentions = [
+        f"{path.relative_to(APP_DIR).as_posix()}:{number}"
+        for path in sorted(APP_DIR.rglob("*.py"))
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1)
+        if "sarvam" in line.lower()
+    ]
+
+    assert mentions == []

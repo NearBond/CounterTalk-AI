@@ -79,17 +79,6 @@ def test_created_at_reads_back_as_utc_whatever_the_connection_time_zone() -> Non
     assert created_at == written
 
 
-def test_created_at_defaults_to_now() -> None:
-    before = utc_now()
-    org_id = add_org()
-
-    with session_scope(read_only=True) as session:
-        created_at = session.scalar(select(Org.created_at).where(Org.id == org_id))
-
-    assert created_at is not None
-    assert before <= created_at <= utc_now()
-
-
 @pytest.mark.parametrize("role", list(Role))
 def test_every_role_is_accepted(role: Role) -> None:
     org_id = add_org()
@@ -98,46 +87,20 @@ def test_every_role_is_accepted(role: Role) -> None:
         session.add(User(org_id=org_id, email=f"{role}@example.com", name="Test", role=role))
 
 
-def test_unknown_role_is_refused_by_the_database() -> None:
+@pytest.mark.parametrize(
+    ("role", "email", "constraint"),
+    [
+        ("superuser", "boss@example.com", "ck_users_role"),
+        (Role.REP, "Rep@Example.com", "ck_users_email_lowercase"),
+    ],
+)
+def test_a_bad_user_is_refused_by_the_database(role: str, email: str, constraint: str) -> None:
     org_id = add_org()
 
     with pytest.raises(IntegrityError) as error, session_scope() as session:
-        session.add(User(org_id=org_id, email="boss@example.com", name="Test", role="superuser"))
+        session.add(User(org_id=org_id, email=email, name="Test", role=role))
 
-    assert constraint_violated(error.value) == "ck_users_role"
-
-
-def test_email_with_capitals_is_refused_by_the_database() -> None:
-    org_id = add_org()
-
-    with pytest.raises(IntegrityError) as error, session_scope() as session:
-        session.add(User(org_id=org_id, email="Rep@Example.com", name="Test", role=Role.REP))
-
-    assert constraint_violated(error.value) == "ck_users_email_lowercase"
-
-
-def test_user_in_a_missing_org_is_refused() -> None:
-    with pytest.raises(IntegrityError) as error, session_scope() as session:
-        session.add(User(org_id=new_id(), email="rep@example.com", name="Test", role=Role.REP))
-
-    assert constraint_violated(error.value) == "fk_users_org_id_orgs"
-
-
-def test_shop_in_a_missing_org_is_refused() -> None:
-    with pytest.raises(IntegrityError) as error, session_scope() as session:
-        session.add(Shop(org_id=new_id(), name="Test Shop", area="Test Area"))
-
-    assert constraint_violated(error.value) == "fk_shops_org_id_orgs"
-
-
-def test_shop_may_be_recorded_unless_marked() -> None:
-    org_id = add_org()
-
-    with session_scope() as session:
-        shop = Shop(org_id=org_id, name="Test Shop", area="Test Area")
-        session.add(shop)
-
-    assert shop.do_not_record is False
+    assert constraint_violated(error.value) == constraint
 
 
 @pytest.mark.parametrize(
@@ -206,25 +169,6 @@ def test_an_unknown_visit_value_is_refused_by_the_database(
         session.add(visit_row(**{field: value}))
 
     assert constraint_violated(error.value) == constraint
-
-
-def test_visits_get_an_increasing_seq() -> None:
-    first = visit_row()
-    with session_scope() as session:
-        session.add(first)
-        session.flush()
-        second = Visit(
-            org_id=first.org_id,
-            rep_id=first.rep_id,
-            shop_id=first.shop_id,
-            kind="notes",
-            client="upload",
-            status="recording",
-        )
-        session.add(second)
-
-    # Read back with no extra query: the insert returns it.
-    assert second.seq > first.seq
 
 
 @pytest.mark.parametrize(

@@ -23,14 +23,15 @@ def setting_ms(name: str) -> int:
     return int(value)
 
 
-def test_new_connection_sets_lock_timeout() -> None:
-    assert setting_ms("lock_timeout") == LOCK_TIMEOUT_MS
-
-
-def test_new_connection_sets_idle_in_transaction_timeout() -> None:
-    assert (
-        setting_ms("idle_in_transaction_session_timeout") == IDLE_IN_TRANSACTION_SESSION_TIMEOUT_MS
-    )
+@pytest.mark.parametrize(
+    ("name", "expected_ms"),
+    [
+        ("lock_timeout", LOCK_TIMEOUT_MS),
+        ("idle_in_transaction_session_timeout", IDLE_IN_TRANSACTION_SESSION_TIMEOUT_MS),
+    ],
+)
+def test_a_new_connection_sets_the_safety_timeouts(name: str, expected_ms: int) -> None:
+    assert setting_ms(name) == expected_ms
 
 
 def test_safety_timeouts_survive_a_rollback() -> None:

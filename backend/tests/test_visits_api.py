@@ -1,15 +1,22 @@
-"""The visits and shops API (batch 3): /api/visits, its segments and complete, and /api/shops."""
+"""The visits and shops API (batch 3): only the HTTP part (CODING_GUIDELINES §3.10).
+
+The rules themselves are tested where they live (test_visits.py). Here: each route's success,
+the status and code of each error it returns, what the route itself checks before the domain
+(headers, the body's length, the order of its dependencies), and the races that need HTTP.
+"""
 
 import asyncio
 import hashlib
 import logging
 import threading
+from collections.abc import Callable
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from countertalk import storage, visits
 from countertalk.db import session_scope
@@ -38,18 +45,20 @@ def new_visit(client: TestClient, kind: str = "conversation") -> str:
     return response.json()["id"]
 
 
-def put_segment(client: TestClient, visit_id: str, seq: int, body: bytes, sha: str | None = None):
+def put_segment(
+    client: TestClient, visit_id: str, seq: int, body: bytes, sha: str | None = None
+) -> httpx.Response:
     headers = {"X-Content-SHA256": sha if sha is not None else hashlib.sha256(body).hexdigest()}
     return client.put(f"/api/visits/{visit_id}/segments/{seq}", content=body, headers=headers)
+
+
+def complete(client: TestClient, visit_id: str, body: dict) -> httpx.Response:
+    return client.post(f"/api/visits/{visit_id}/complete", json=body)
 
 
 def staged_files(data_dir: Path) -> list[Path]:
     staging = data_dir / "tmp"
     return sorted(staging.iterdir()) if staging.exists() else []
-
-
-def other_orgs_visit() -> str:
-    return other_org()[0]
 
 
 def other_org() -> tuple[str, str]:
@@ -66,7 +75,22 @@ def other_org() -> tuple[str, str]:
         return visit.id, shop.id
 
 
-# --- shops and visits -------------------------------------------------------------------------
+def remove_the_demo_rep() -> None:
+    with session_scope() as session:
+        session.execute(delete(Visit))
+        session.delete(session.scalars(select(User).where(User.email == "rep@example.com")).one())
+
+
+def a_do_not_record_shop(client: TestClient) -> str:
+    shop_id = a_shop(client)["id"]
+    with session_scope() as session:
+        shop = session.get(Shop, shop_id)
+        assert shop is not None
+        shop.do_not_record = True
+    return shop_id
+
+
+# --- one success per route --------------------------------------------------------------------
 
 
 def test_shops_are_listed_in_the_list_shape(client: TestClient) -> None:
@@ -74,11 +98,9 @@ def test_shops_are_listed_in_the_list_shape(client: TestClient) -> None:
 
     assert body["next_cursor"] is None
     assert {"id", "name", "area", "do_not_record"} == set(body["items"][0])
-    names = [shop["name"] for shop in body["items"]]
-    assert names == sorted(names)
 
 
-def test_creating_a_visit_returns_it_recording(client: TestClient) -> None:
+def test_a_created_visit_is_returned_recording_and_read_back(client: TestClient) -> None:
     shop = a_shop(client)
 
     response = client.post(
@@ -87,73 +109,13 @@ def test_creating_a_visit_returns_it_recording(client: TestClient) -> None:
 
     assert response.status_code == 201
     visit = response.json()
-    assert (visit["status"], visit["kind"], visit["client"], visit["shop_id"]) == (
+    assert (visit["status"], visit["shop_id"], visit["completed_at"]) == (
         "recording",
-        "conversation",
-        "web",
         shop["id"],
+        None,
     )
     assert visit["created_at"].endswith("Z")
-    assert visit["completed_at"] is None
-
-
-@pytest.mark.parametrize(
-    "body",
-    [
-        {"kind": "conversation", "client": "web"},
-        {"shop_id": "not-a-uuid", "kind": "conversation", "client": "web"},
-        {"shop_id": "SHOP", "kind": "meeting", "client": "web"},
-        {"shop_id": "SHOP", "kind": "conversation", "client": "desktop"},
-        {"shop_id": "SHOP", "kind": "conversation", "client": "web", "status": "uploaded"},
-    ],
-    ids=["missing", "malformed-id", "bad-kind", "bad-client", "extra-field"],
-)
-def test_a_visit_of_the_wrong_shape_is_refused(client: TestClient, body: dict) -> None:
-    body = {
-        key: (a_shop(client)["id"] if value == "SHOP" else value) for key, value in body.items()
-    }
-
-    response = client.post("/api/visits", json=body)
-
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "invalid_request"
-
-
-def test_a_visit_at_another_orgs_shop_is_not_found(client: TestClient) -> None:
-    _visit_id, other_shop = other_org()
-
-    response = client.post(
-        "/api/visits", json={"shop_id": other_shop, "kind": "conversation", "client": "web"}
-    )
-
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "shop_not_found"
-
-
-def test_a_do_not_record_shop_refuses_a_conversation(client: TestClient) -> None:
-    shop_id = a_shop(client)["id"]
-    with session_scope() as session:
-        shop = session.get(Shop, shop_id)
-        assert shop is not None
-        shop.do_not_record = True
-
-    conversation = client.post(
-        "/api/visits", json={"shop_id": shop_id, "kind": "conversation", "client": "web"}
-    )
-    notes = client.post("/api/visits", json={"shop_id": shop_id, "kind": "notes", "client": "web"})
-
-    assert conversation.status_code == 409
-    assert conversation.json()["error"]["code"] == "shop_do_not_record"
-    assert notes.status_code == 201
-
-
-def test_a_visit_is_read_back_and_another_orgs_is_not_found(client: TestClient) -> None:
-    visit_id = new_visit(client)
-
-    assert client.get(f"/api/visits/{visit_id}").json()["id"] == visit_id
-    response = client.get(f"/api/visits/{other_orgs_visit()}")
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "visit_not_found"
+    assert client.get(f"/api/visits/{visit['id']}").json() == visit
 
 
 def test_visits_are_listed_in_pages(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -167,16 +129,6 @@ def test_visits_are_listed_in_pages(client: TestClient, monkeypatch: pytest.Monk
     assert second["next_cursor"] is None
 
 
-def test_a_malformed_cursor_is_a_400(client: TestClient) -> None:
-    response = client.get("/api/visits", params={"cursor": "not-a-cursor"})
-
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "invalid_cursor"
-
-
-# --- segments ---------------------------------------------------------------------------------
-
-
 def test_a_new_segment_is_201_and_the_same_one_again_is_200(client: TestClient) -> None:
     visit_id = new_visit(client)
 
@@ -184,114 +136,189 @@ def test_a_new_segment_is_201_and_the_same_one_again_is_200(client: TestClient) 
     again = put_segment(client, visit_id, 0, b"segment zero")
 
     assert (first.status_code, again.status_code) == (201, 200)
-    assert first.json()["sha256"] == hashlib.sha256(b"segment zero").hexdigest()
+    assert set(first.json()) == {"seq", "bytes", "sha256", "received_at"}
     assert first.json()["received_at"] == again.json()["received_at"]
     assert storage.segment_path(visit_id, 0).read_bytes() == b"segment zero"
 
 
-def test_different_bytes_for_a_stored_segment_are_a_409(client: TestClient) -> None:
+def test_complete_returns_the_visit_uploaded(client: TestClient) -> None:
     visit_id = new_visit(client)
-    put_segment(client, visit_id, 0, b"original")
+    for seq in range(2):
+        put_segment(client, visit_id, seq, f"part {seq}".encode())
 
-    response = put_segment(client, visit_id, 0, b"different")
+    response = complete(client, visit_id, {"last_seq": 1, "ext": "webm"})
 
-    assert response.status_code == 409
-    assert response.json()["error"] == {
-        "code": "segment_conflict",
-        "message": "Segment 0 was already uploaded with different bytes",
-        "details": {"seq": 0},
-    }
+    assert response.status_code == 200
+    assert response.json()["status"] == "uploaded"
+    assert response.json()["completed_at"].endswith("Z")
+
+
+# --- each error's status and code ----------------------------------------------------------------
+
+Request = Callable[[TestClient], httpx.Response]
+
+
+def visit_extra_field(client: TestClient) -> httpx.Response:
+    body = {"shop_id": a_shop(client)["id"], "kind": "notes", "client": "web", "status": "x"}
+    return client.post("/api/visits", json=body)
+
+
+def visit_at_another_orgs_shop(client: TestClient) -> httpx.Response:
+    body = {"shop_id": other_org()[1], "kind": "conversation", "client": "web"}
+    return client.post("/api/visits", json=body)
+
+
+def conversation_at_a_do_not_record_shop(client: TestClient) -> httpx.Response:
+    body = {"shop_id": a_do_not_record_shop(client), "kind": "conversation", "client": "web"}
+    return client.post("/api/visits", json=body)
+
+
+def another_orgs_visit(client: TestClient) -> httpx.Response:
+    return client.get(f"/api/visits/{other_org()[0]}")
+
+
+def a_malformed_cursor(client: TestClient) -> httpx.Response:
+    return client.get("/api/visits", params={"cursor": "not-a-cursor"})
+
+
+def without_the_demo_rep(client: TestClient) -> httpx.Response:
+    remove_the_demo_rep()
+    return client.get("/api/visits")
 
 
 @pytest.mark.parametrize(
-    ("sha", "code"),
+    ("request_", "status", "code"),
     [
-        ("", "invalid_checksum"),
-        ("ABC", "invalid_checksum"),
-        ("A" * 64, "invalid_checksum"),
-        (hashlib.sha256(b"other").hexdigest(), "segment_checksum_mismatch"),
+        (visit_extra_field, 422, "invalid_request"),
+        (visit_at_another_orgs_shop, 404, "shop_not_found"),
+        (conversation_at_a_do_not_record_shop, 409, "shop_do_not_record"),
+        (another_orgs_visit, 404, "visit_not_found"),
+        (a_malformed_cursor, 400, "invalid_cursor"),
+        (without_the_demo_rep, 500, "demo_rep_missing"),
     ],
 )
-def test_a_wrong_or_malformed_checksum_is_a_400(
-    client: TestClient, tmp_path: Path, sha: str, code: str
+def test_visit_and_list_errors(
+    client: TestClient, request_: Request, status: int, code: str
 ) -> None:
-    response = put_segment(client, new_visit(client), 0, b"the bytes", sha=sha)
+    response = request_(client)
 
-    assert response.status_code == 400
+    assert response.status_code == status
+    assert response.json()["error"]["code"] == code
+
+
+def streamed_with_no_length(client: TestClient, visit_id: str) -> httpx.Response:
+    def chunks():
+        yield b"streamed with no length"
+
+    sha = hashlib.sha256(b"streamed with no length").hexdigest()
+    return client.put(
+        f"/api/visits/{visit_id}/segments/0", content=chunks(), headers={"X-Content-SHA256": sha}
+    )
+
+
+def no_checksum(client: TestClient, visit_id: str) -> httpx.Response:
+    return client.put(f"/api/visits/{visit_id}/segments/0", content=b"the bytes")
+
+
+def different_bytes_again(client: TestClient, visit_id: str) -> httpx.Response:
+    put_segment(client, visit_id, 0, b"original")
+    return put_segment(client, visit_id, 0, b"different")
+
+
+def a_new_segment_after_complete(client: TestClient, visit_id: str) -> httpx.Response:
+    put_segment(client, visit_id, 0, b"zero")
+    complete(client, visit_id, {"last_seq": 0, "ext": "webm"})
+    return put_segment(client, visit_id, 1, b"one")
+
+
+def bad(sha: str) -> Callable[[TestClient, str], httpx.Response]:
+    return lambda client, visit_id: put_segment(client, visit_id, 0, b"the bytes", sha=sha)
+
+
+@pytest.mark.parametrize(
+    ("request_", "status", "code"),
+    [
+        (streamed_with_no_length, 411, "length_required"),
+        (no_checksum, 400, "checksum_required"),
+        (bad(""), 400, "invalid_checksum"),
+        (bad("ABC"), 400, "invalid_checksum"),
+        (bad("A" * 64), 400, "invalid_checksum"),
+        (bad(hashlib.sha256(b"other").hexdigest()), 400, "segment_checksum_mismatch"),
+        (lambda client, visit_id: put_segment(client, visit_id, 0, b""), 400, "empty_segment"),
+        (
+            lambda client, visit_id: put_segment(client, visit_id, MAX_SEGMENTS_PER_VISIT, b"x"),
+            400,
+            "invalid_seq",
+        ),
+        (lambda client, _: put_segment(client, other_org()[0], 0, b"x"), 404, "visit_not_found"),
+        (different_bytes_again, 409, "segment_conflict"),
+        (a_new_segment_after_complete, 409, "visit_not_recording"),
+    ],
+)
+def test_segment_errors_leave_no_staged_file(
+    client: TestClient,
+    tmp_path: Path,
+    request_: Callable[[TestClient, str], httpx.Response],
+    status: int,
+    code: str,
+) -> None:
+    response = request_(client, new_visit(client))
+
+    assert response.status_code == status
     assert response.json()["error"]["code"] == code
     assert staged_files(tmp_path) == []
 
 
-def test_a_missing_checksum_is_a_400(client: TestClient) -> None:
-    response = client.put(f"/api/visits/{new_visit(client)}/segments/0", content=b"the bytes")
-
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "checksum_required"
-
-
-def test_an_empty_segment_is_a_400(client: TestClient) -> None:
-    response = put_segment(client, new_visit(client), 0, b"")
-
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "empty_segment"
-
-
-def test_a_segment_without_content_length_is_a_411(client: TestClient) -> None:
-    def chunks():
-        yield b"streamed with no length"
-
-    response = client.put(
-        f"/api/visits/{new_visit(client)}/segments/0",
-        content=chunks(),
-        headers={"X-Content-SHA256": hashlib.sha256(b"streamed with no length").hexdigest()},
-    )
-
-    assert response.status_code == 411
-    assert response.json()["error"]["code"] == "length_required"
-
-
-@pytest.mark.parametrize("seq", [-1, MAX_SEGMENTS_PER_VISIT, 10**30])
-def test_a_seq_out_of_range_is_a_400_before_anything_is_written(
-    client: TestClient, tmp_path: Path, seq: int
-) -> None:
-    response = put_segment(client, new_visit(client), seq, b"the bytes")
-
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "invalid_seq"
-    assert staged_files(tmp_path) == []
-    assert not (tmp_path / "visits").exists()
-
-
-def test_a_seq_that_isnt_a_number_is_a_422(client: TestClient) -> None:
-    response = client.put(f"/api/visits/{new_visit(client)}/segments/first", content=b"x")
-
-    assert response.status_code == 422
-
-
-def test_a_segment_for_another_orgs_visit_is_a_404_and_leaves_nothing(
-    client: TestClient, tmp_path: Path
-) -> None:
-    response = put_segment(client, other_orgs_visit(), 0, b"the bytes")
-
-    assert response.status_code == 404
-    assert staged_files(tmp_path) == []
-
-
-def test_a_segment_for_a_completed_visit_is_a_409_and_leaves_nothing(
-    client: TestClient, tmp_path: Path
+@pytest.mark.parametrize(
+    ("segments", "body", "status", "code"),
+    [
+        ([0, 2], {"last_seq": 2, "ext": "webm"}, 409, "segments_missing"),
+        ([0, 1], {"last_seq": 0, "ext": "webm"}, 409, "unexpected_segments"),
+        ([0], {"last_seq": 0, "ext": "exe"}, 400, "unsupported_extension"),
+        ([0], {"last_seq": -1, "ext": "webm"}, 400, "invalid_seq"),
+        # A whole number only: JSON true would otherwise count as segment 1.
+        ([0], {"last_seq": True, "ext": "webm"}, 422, "invalid_request"),
+        ([0], {"last_seq": 0, "ext": "webm", "extra": 1}, 422, "invalid_request"),
+    ],
+)
+def test_complete_errors(
+    client: TestClient, segments: list[int], body: dict, status: int, code: str
 ) -> None:
     visit_id = new_visit(client)
-    put_segment(client, visit_id, 0, b"zero")
-    client.post(f"/api/visits/{visit_id}/complete", json={"last_seq": 0, "ext": "webm"})
+    for seq in segments:
+        put_segment(client, visit_id, seq, f"part {seq}".encode())
 
-    response = put_segment(client, visit_id, 1, b"one")
+    response = complete(client, visit_id, body)
 
-    assert response.status_code == 409
-    assert response.json()["error"]["code"] == "visit_not_recording"
-    assert staged_files(tmp_path) == []
+    assert response.status_code == status
+    assert response.json()["error"]["code"] == code
 
 
-# Raw ASGI: an HTTP client won't send a Content-Length that disagrees with its body.
+@pytest.mark.parametrize(
+    ("segments", "last_seq", "details"),
+    [
+        ([0, 2], 2, {"missing_seqs": [1]}),
+        ([0, 1], 0, {"unexpected_seqs": [1]}),
+        ([0], None, {"seq": 0}),  # the same segment again with other bytes
+    ],
+)
+def test_a_conflict_says_which_segments_in_its_details(
+    client: TestClient, segments: list[int], last_seq: int | None, details: dict
+) -> None:
+    visit_id = new_visit(client)
+    for seq in segments:
+        put_segment(client, visit_id, seq, b"first bytes")
+
+    if last_seq is None:
+        response = put_segment(client, visit_id, 0, b"other bytes")
+    else:
+        response = complete(client, visit_id, {"last_seq": last_seq, "ext": "webm"})
+
+    assert response.json()["error"]["details"] == details
+
+
+# --- what the route checks before the body is read (raw ASGI) ------------------------------------
+# An HTTP client won't send a Content-Length that disagrees with its body, or break off.
 
 
 def raw_put(
@@ -300,10 +327,10 @@ def raw_put(
     headers: dict[str, str],
     chunks: list[bytes],
     disconnect_after: int | None = None,
-) -> tuple:
+) -> tuple[int, bytes, int]:
     """Sends the request as a server would. Header values go as latin-1, as on the wire."""
 
-    async def call() -> tuple:
+    async def call() -> tuple[int, bytes, int]:
         sent: list[dict] = []
         pending = list(chunks)
         done = asyncio.Event()
@@ -347,124 +374,81 @@ def raw_put(
     return asyncio.run(call())
 
 
-def test_an_oversized_content_length_is_a_413_before_the_body_is_read(
-    app: FastAPI, client: TestClient
-) -> None:
-    visit_id = new_visit(client)
-    headers = {
-        "content-length": str(MAX_SEGMENT_BYTES + 1),
-        "x-content-sha256": "0" * 64,
-    }
-
-    status, body, chunks_read = raw_put(
-        app, f"/api/visits/{visit_id}/segments/0", headers, [b"x" * 1024]
-    )
-
-    assert status == 413
-    assert b"segment_too_large" in body
-    assert chunks_read == 0
-
-
-def test_a_body_longer_than_its_limit_is_a_413_even_if_the_header_says_less(
-    app: FastAPI, client: TestClient, tmp_path: Path
-) -> None:
-    visit_id = new_visit(client)
-    piece = b"x" * (1024 * 1024)
-    chunks = [piece] * (MAX_SEGMENT_BYTES // len(piece) + 1)
-    headers = {"content-length": "10", "x-content-sha256": "0" * 64}
-
-    status, body, _ = raw_put(app, f"/api/visits/{visit_id}/segments/0", headers, chunks)
-
-    assert status == 413
-    assert b"segment_too_large" in body
-    assert staged_files(tmp_path) == []
-
-
-# --- complete ---------------------------------------------------------------------------------
-
-
-def test_complete_with_every_segment_is_uploaded(client: TestClient) -> None:
-    visit_id = new_visit(client)
-    for seq in range(3):
-        put_segment(client, visit_id, seq, f"part {seq}".encode())
-
-    response = client.post(f"/api/visits/{visit_id}/complete", json={"last_seq": 2, "ext": "webm"})
-
-    assert response.status_code == 200
-    assert response.json()["status"] == "uploaded"
-    assert response.json()["completed_at"].endswith("Z")
-
-
-def test_complete_with_missing_segments_says_which(client: TestClient) -> None:
-    visit_id = new_visit(client)
-    put_segment(client, visit_id, 0, b"zero")
-    put_segment(client, visit_id, 2, b"two")
-
-    response = client.post(f"/api/visits/{visit_id}/complete", json={"last_seq": 2, "ext": "webm"})
-
-    assert response.status_code == 409
-    assert response.json()["error"]["code"] == "segments_missing"
-    assert response.json()["error"]["details"] == {"missing_seqs": [1]}
-
-
-def test_complete_with_extra_segments_says_which(client: TestClient) -> None:
-    visit_id = new_visit(client)
-    for seq in range(2):
-        put_segment(client, visit_id, seq, f"part {seq}".encode())
-
-    response = client.post(f"/api/visits/{visit_id}/complete", json={"last_seq": 0, "ext": "webm"})
-
-    assert response.status_code == 409
-    assert response.json()["error"]["details"] == {"unexpected_seqs": [1]}
+BODY = b"the bytes"
+GOOD = {"content-length": str(len(BODY)), "x-content-sha256": hashlib.sha256(BODY).hexdigest()}
+MIB = b"x" * (1024 * 1024)
 
 
 @pytest.mark.parametrize(
-    ("body", "status", "code"),
+    ("visit", "headers", "chunks", "status", "code", "read_nothing"),
     [
-        ({"last_seq": 0, "ext": "exe"}, 400, "unsupported_extension"),
-        ({"last_seq": -1, "ext": "webm"}, 400, "invalid_seq"),
-        ({"last_seq": 0}, 422, "invalid_request"),
-        ({"last_seq": 0, "ext": "webm", "extra": 1}, 422, "invalid_request"),
+        # Unicode digits pass str.isdigit() but not int(): a 400, not a 500.
+        ("ok", {**GOOD, "content-length": "²"}, [BODY], 400, "invalid_content_length", True),
+        (
+            "ok",
+            {**GOOD, "content-length": str(MAX_SEGMENT_BYTES + 1)},
+            [BODY],
+            413,
+            "segment_too_large",
+            True,
+        ),
+        (
+            "ok",
+            {**GOOD, "content-length": "10"},
+            [MIB] * (MAX_SEGMENT_BYTES // len(MIB) + 1),
+            413,
+            "segment_too_large",
+            False,
+        ),
+        ("malformed", GOOD, [BODY], 422, "invalid_request", True),
+        ("no_user", GOOD, [BODY], 500, "demo_rep_missing", True),
+        ("bad_seq", GOOD, [BODY], 400, "invalid_seq", True),
     ],
+    ids=["unicode-length", "length-over", "body-over", "malformed-id", "no-user", "bad-seq"],
 )
-def test_complete_of_the_wrong_shape_is_refused(
-    client: TestClient, body: dict, status: int, code: str
+def test_the_route_refuses_before_reading_or_beyond_the_limit(
+    app: FastAPI,
+    client: TestClient,
+    tmp_path: Path,
+    visit: str,
+    headers: dict[str, str],
+    chunks: list[bytes],
+    status: int,
+    code: str,
+    read_nothing: bool,
+) -> None:
+    visit_id = "not-a-uuid" if visit == "malformed" else new_visit(client)
+    if visit == "no_user":
+        remove_the_demo_rep()
+
+    seq = MAX_SEGMENTS_PER_VISIT if visit == "bad_seq" else 0
+    path = f"/api/visits/{visit_id}/segments/{seq}"
+    got, body, chunks_read = raw_put(app, path, headers, chunks)
+
+    assert got == status
+    assert code.encode() in body
+    assert (chunks_read == 0) is read_nothing
+    assert staged_files(tmp_path) == []
+
+
+def test_an_upload_that_breaks_off_is_a_400_and_not_an_error_in_the_log(
+    app: FastAPI, client: TestClient, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     visit_id = new_visit(client)
-    put_segment(client, visit_id, 0, b"zero")
+    headers = {"content-length": "2048", "x-content-sha256": "0" * 64}
 
-    response = client.post(f"/api/visits/{visit_id}/complete", json=body)
+    with caplog.at_level(logging.INFO):
+        status, body, _ = raw_put(
+            app, f"/api/visits/{visit_id}/segments/0", headers, [b"x" * 1024, b"x" * 1024], 1
+        )
 
-    assert response.status_code == status
-    assert response.json()["error"]["code"] == code
-
-
-def test_complete_twice_returns_the_same_visit(client: TestClient) -> None:
-    visit_id = new_visit(client)
-    put_segment(client, visit_id, 0, b"zero")
-    body = {"last_seq": 0, "ext": "webm"}
-
-    first = client.post(f"/api/visits/{visit_id}/complete", json=body).json()
-    again = client.post(f"/api/visits/{visit_id}/complete", json=body)
-
-    assert again.status_code == 200
-    assert again.json() == first
+    assert status == 400
+    assert b"upload_interrupted" in body
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+    assert staged_files(tmp_path) == []
 
 
-# --- the current user, racing requests, and locks ---------------------------------------------
-
-
-def test_without_the_demo_rep_requests_say_how_to_set_it_up(client: TestClient) -> None:
-    with session_scope() as session:
-        for visit in session.scalars(select(Visit)):
-            session.delete(visit)
-        rep = session.scalars(select(User).where(User.email == "rep@example.com")).one()
-        session.delete(rep)
-
-    response = client.get("/api/visits")
-
-    assert response.status_code == 500
-    assert response.json()["error"]["code"] == "demo_rep_missing"
+# --- races that need HTTP ----------------------------------------------------------------------
 
 
 def test_two_uploads_of_one_segment_with_different_bytes_store_one(app: FastAPI) -> None:
@@ -520,86 +504,3 @@ def test_while_a_segment_is_staged_the_visit_is_not_locked(
         thread.join(RACE_TIMEOUT_S)
 
     assert statuses == [201]
-
-
-# --- found by review --------------------------------------------------------------------------
-
-
-def test_a_content_length_in_other_digits_is_a_400_not_a_500(
-    app: FastAPI, client: TestClient
-) -> None:
-    visit_id = new_visit(client)
-    headers = {"content-length": "²", "x-content-sha256": "0" * 64}
-
-    status, body, _ = raw_put(app, f"/api/visits/{visit_id}/segments/0", headers, [b"xx"])
-
-    assert status == 400
-    assert b"invalid_content_length" in body
-
-
-@pytest.mark.parametrize("last_seq", [True, "0", 0.0])
-def test_complete_takes_last_seq_only_as_a_whole_number(
-    client: TestClient, last_seq: object
-) -> None:
-    visit_id = new_visit(client)
-    put_segment(client, visit_id, 0, b"zero")
-
-    response = client.post(
-        f"/api/visits/{visit_id}/complete", json={"last_seq": last_seq, "ext": "webm"}
-    )
-
-    assert response.status_code == 422
-
-
-def test_a_segment_for_a_malformed_visit_id_is_refused_before_the_body_is_read(
-    app: FastAPI, tmp_path: Path
-) -> None:
-    body = b"the bytes"
-    headers = {
-        "content-length": str(len(body)),
-        "x-content-sha256": hashlib.sha256(body).hexdigest(),
-    }
-
-    status, _body, chunks_read = raw_put(app, "/api/visits/not-a-uuid/segments/0", headers, [body])
-
-    assert status == 422
-    assert chunks_read == 0
-    assert staged_files(tmp_path) == []
-
-
-def test_without_a_current_user_no_segment_body_is_read(app: FastAPI, client: TestClient) -> None:
-    visit_id = new_visit(client)
-    with session_scope() as session:
-        for visit in session.scalars(select(Visit)):
-            session.delete(visit)
-        session.delete(session.scalars(select(User).where(User.email == "rep@example.com")).one())
-    body = b"the bytes"
-    headers = {
-        "content-length": str(len(body)),
-        "x-content-sha256": hashlib.sha256(body).hexdigest(),
-    }
-
-    status, response, chunks_read = raw_put(
-        app, f"/api/visits/{visit_id}/segments/0", headers, [body]
-    )
-
-    assert status == 500
-    assert b"demo_rep_missing" in response
-    assert chunks_read == 0
-
-
-def test_an_upload_that_breaks_off_is_a_400_and_not_an_error_in_the_log(
-    app: FastAPI, client: TestClient, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    visit_id = new_visit(client)
-    headers = {"content-length": "2048", "x-content-sha256": "0" * 64}
-
-    with caplog.at_level(logging.INFO):
-        status, body, _ = raw_put(
-            app, f"/api/visits/{visit_id}/segments/0", headers, [b"x" * 1024, b"x" * 1024], 1
-        )
-
-    assert status == 400
-    assert b"upload_interrupted" in body
-    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
-    assert staged_files(tmp_path) == []

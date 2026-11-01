@@ -15,13 +15,14 @@ import sys
 from dataclasses import dataclass
 from typing import Literal
 
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 
-from countertalk.config import get_settings
+from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import get_engine
 from countertalk.limits import SETUP_CHECK_TIMEOUT_MS
 
@@ -112,6 +113,21 @@ def check_keys() -> list[Check]:
     ]
 
 
+class DevToolKeys(BaseSettings):
+    """Keys only the dev tools read, never the app: scripts/make_test_audio.py's text-to-speech."""
+
+    model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", extra="ignore")
+
+    SARVAM_API_KEY: SecretStr = SecretStr("")
+
+
+def check_dev_tool_keys() -> list[Check]:
+    key = DevToolKeys().SARVAM_API_KEY.get_secret_value()
+    if key:
+        return [Check("ok", "SARVAM_API_KEY", "set (only scripts/make_test_audio.py reads it)")]
+    return [Check("skip", "SARVAM_API_KEY", "not set; optional, for scripts/make_test_audio.py")]
+
+
 def report(checks: list[Check]) -> int:
     for check in checks:
         print(f"{check.status:<5} {check.name}: {check.detail}")
@@ -136,7 +152,7 @@ def main(argv: list[str]) -> int:
         check_settings(),
     ]
     if checks[-1].status == "ok":
-        checks += [check_database(), *check_keys()]
+        checks += [check_database(), *check_keys(), *check_dev_tool_keys()]
     return report(checks)
 
 
