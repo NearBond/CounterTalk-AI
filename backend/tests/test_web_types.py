@@ -9,6 +9,7 @@ import re
 import pytest
 from pydantic import BaseModel
 
+from countertalk import limits, storage
 from countertalk.api.health import HealthOut
 from countertalk.api.shops import ShopOut
 from countertalk.api.visits import (
@@ -46,3 +47,15 @@ def test_the_web_type_has_exactly_the_schemas_fields(name: str) -> None:
     source = TYPES.read_text(encoding="utf-8")
 
     assert interface_fields(source, name) == set(MIRRORS[name].model_fields)
+
+
+def test_the_web_app_mirrors_the_servers_upload_limits() -> None:
+    # The Upload panel cuts files at the server's segment limit, and offers only the types it
+    # takes; the server refuses anything else.
+    source = TYPES.read_text(encoding="utf-8")
+    exts = re.search(r"export const ALLOWED_EXTS = \[(.*?)\] as const;", source)
+    limit = re.search(r"export const MAX_SEGMENT_BYTES = ([\d_]+);", source)
+
+    assert exts is not None and limit is not None
+    assert tuple(re.findall(r'"(\w+)"', exts.group(1))) == storage.ALLOWED_EXTS
+    assert int(limit.group(1)) == limits.MAX_SEGMENT_BYTES

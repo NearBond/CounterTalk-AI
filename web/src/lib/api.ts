@@ -2,7 +2,18 @@
  * The only place that calls fetch (CODING_GUIDELINES §4.3). Every failure becomes an ApiError,
  * so a caller has one thing to catch and always gets a status, a code and a readable message.
  */
-import type { ErrorBody, FrameworkErrorCode, Health } from "../types/api";
+import type {
+  CompleteVisit,
+  ErrorBody,
+  FrameworkErrorCode,
+  Health,
+  NewVisit,
+  Page,
+  Segment,
+  Shop,
+  Transcript,
+  Visit,
+} from "../types/api";
 
 const BASE_URL = "/api";
 
@@ -44,16 +55,26 @@ export class ApiError extends Error {
   }
 }
 
+/** The error for work the caller cancelled: one shape wherever it's made. */
+export function abortedError(message = "The request was cancelled."): ApiError {
+  return new ApiError(0, ABORTED, message);
+}
+
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  /** Sent as JSON. */
   body?: unknown;
+  /** Sent as they are, instead of a JSON body: a segment's audio. */
+  bytes?: Blob;
+  headers?: Record<string, string>;
   /** Aborting it cancels the request; the caller gets an ApiError with code `aborted`. */
   signal?: AbortSignal;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers = new Headers({ Accept: "application/json" });
+  const headers = new Headers({ Accept: "application/json", ...options.headers });
   if (options.body !== undefined) headers.set("Content-Type", "application/json");
+  if (options.bytes !== undefined) headers.set("Content-Type", "application/octet-stream");
 
   let response: Response;
   let text: string;
@@ -61,13 +82,13 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     response = await fetch(`${BASE_URL}${path}`, {
       method: options.method ?? "GET",
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.bytes ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
       signal: options.signal,
     });
     // Inside the same try: a body that breaks off part-way is a network failure too.
     text = await response.text();
   } catch {
-    if (options.signal?.aborted) throw new ApiError(0, ABORTED, "The request was cancelled.");
+    if (options.signal?.aborted) throw abortedError();
     throw new ApiError(0, NETWORK_ERROR, "Can't reach the server. Check the connection and try again.");
   }
 
@@ -93,6 +114,53 @@ export async function getHealth(signal?: AbortSignal): Promise<Health> {
     if (error instanceof ApiError && error.status === 503 && isHealth(error.body)) return error.body;
     throw error;
   }
+}
+
+export function listShops(signal?: AbortSignal): Promise<Page<Shop>> {
+  return apiRequest("/shops", { signal });
+}
+
+export function listVisits(signal?: AbortSignal): Promise<Page<Visit>> {
+  return apiRequest("/visits", { signal });
+}
+
+export function getVisit(visitId: string, signal?: AbortSignal): Promise<Visit> {
+  return apiRequest(`/visits/${encodeURIComponent(visitId)}`, { signal });
+}
+
+export function createVisit(body: NewVisit, signal?: AbortSignal): Promise<Visit> {
+  return apiRequest("/visits", { method: "POST", body, signal });
+}
+
+/** 201 for a new segment, 200 for the same bytes again: safe to repeat. */
+export function putSegment(
+  visitId: string,
+  seq: number,
+  bytes: Blob,
+  sha256: string,
+  signal?: AbortSignal,
+): Promise<Segment> {
+  return apiRequest(`/visits/${encodeURIComponent(visitId)}/segments/${seq}`, {
+    method: "PUT",
+    bytes,
+    headers: { "X-Content-SHA256": sha256 },
+    signal,
+  });
+}
+
+/** Use visits.completeVisit, which retries it. */
+export function postComplete(visitId: string, body: CompleteVisit, signal?: AbortSignal): Promise<Visit> {
+  return apiRequest(`/visits/${encodeURIComponent(visitId)}/complete`, { method: "POST", body, signal });
+}
+
+/** 404 `transcript_not_found` until the visit is transcribed. */
+export function getTranscript(visitId: string, signal?: AbortSignal): Promise<Transcript> {
+  return apiRequest(`/visits/${encodeURIComponent(visitId)}/transcript`, { signal });
+}
+
+/** The visit's audio, for an <audio> element: the browser fetches it, seeking with Range. */
+export function audioUrl(visitId: string): string {
+  return `${BASE_URL}/visits/${encodeURIComponent(visitId)}/audio`;
 }
 
 const NOT_JSON = Symbol("not JSON");

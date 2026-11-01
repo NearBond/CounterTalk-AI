@@ -7,6 +7,7 @@ import {
   UNEXPECTED_RESPONSE,
   apiRequest,
   getHealth,
+  putSegment,
 } from "./api";
 
 type FetchArgs = [input: string | URL | Request, init?: RequestInit];
@@ -169,6 +170,24 @@ describe("apiRequest", () => {
 
     expect(fake.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
     expect(await call).toMatchObject({ status: 0, code: ABORTED });
+  });
+});
+
+describe("putSegment", () => {
+  it("sends the segment's raw bytes with their SHA-256", async () => {
+    const segment = { seq: 3, bytes: 5, sha256: "a".repeat(64), received_at: "2026-11-01T06:00:00Z" };
+    const fake = stubFetch(async () => json(201, segment));
+    const body = new Blob([new TextEncoder().encode("bytes")]);
+
+    await expect(putSegment("v-1", 3, body, "a".repeat(64))).resolves.toEqual(segment);
+
+    const [url, init] = fake.mock.calls[0] ?? [];
+    expect(url).toBe("/api/visits/v-1/segments/3");
+    expect(init?.method).toBe("PUT");
+    expect(init?.body).toBe(body);
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Content-Type")).toBe("application/octet-stream");
+    expect(headers.get("X-Content-SHA256")).toBe("a".repeat(64));
   });
 });
 

@@ -106,7 +106,11 @@ export interface NewVisit {
 }
 
 /** The types an uploaded recording may have: countertalk/storage.py, ALLOWED_EXTS. */
-export type RecordingExt = "webm" | "m4a" | "mp4" | "aac" | "ogg" | "wav";
+export const ALLOWED_EXTS = ["webm", "m4a", "mp4", "aac", "ogg", "wav"] as const;
+export type RecordingExt = (typeof ALLOWED_EXTS)[number];
+
+/** The largest segment the server takes: countertalk/limits.py, MAX_SEGMENT_BYTES (8 MiB). */
+export const MAX_SEGMENT_BYTES = 8_388_608;
 
 /** POST /api/visits/{id}/complete: CompleteIn. */
 export interface CompleteVisit {
