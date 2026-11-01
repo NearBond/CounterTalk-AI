@@ -169,10 +169,21 @@ export interface Quote {
 /** One team an insight is sent to: RouteOut. */
 export interface Route {
   slot: number;
+  team_id: string;
   team_key: string;
   team_name: string;
   routed_by: "table" | "ai" | "override" | "person";
+  /** What a team member's accept, Move or Also send names: 409 `route_changed` if it moved on. */
+  version: number;
+  /** Its team's issue once the visit is confirmed (batch 15); null for a route confirmed before
+   * issues existed: the rep's page shows the team with no status then. */
+  issue_id: string | null;
+  issue_status: IssueStatus | null;
+  /** The answer the rep takes back to the shop, once resolved. */
+  resolution_note: string | null;
 }
+
+export type IssueStatus = "open" | "in_progress" | "resolved" | "merged";
 
 /** InsightOut. An unverified insight was never found in the recording: never routed or shown. */
 export interface Insight {
@@ -294,3 +305,110 @@ export const NOTE_MAX_CHARS = 2_000;
 
 /** The longest summary a rep may write: countertalk/limits.py, SUMMARY_MAX_CHARS. */
 export const SUMMARY_MAX_CHARS = 500;
+
+// --- the inbox (batch 15) ----------------------------------------------------------------------
+
+/** GET /api/issues/teams: TeamOut. */
+export interface Team {
+  id: string;
+  key: string;
+  name: string;
+}
+
+/**
+ * GET /api/issues?team=<key>: IssueOut, a card. Counts are of the issue's insights' shops,
+ * insights and reps, never mentions; raised_again: a shop with insights from two or more visits
+ * in it. Unknown team: 404 `team_not_found`.
+ */
+export interface Issue {
+  id: string;
+  team_key: string;
+  category: string;
+  title_en: string;
+  severity: string;
+  status: IssueStatus;
+  owner_id: string | null;
+  owner_name: string | null;
+  due_at: string;
+  overdue: boolean;
+  first_seen_at: string;
+  last_seen_at: string;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  reopened_count: number;
+  shops: number;
+  insights: number;
+  reps: number;
+  raised_again: boolean;
+  /** What a change names: 409 `issue_changed` if it moved on. */
+  version: number;
+}
+
+/** One insight of an issue: MemberOut. `route` is its route in this issue's team. */
+export interface Member {
+  insight: Insight;
+  shop_name: string;
+  area: string;
+  rep_name: string;
+  visit_id: string;
+  visited_at: string;
+  route: Route;
+}
+
+/** GET and PATCH /api/issues/{id}: IssueDetailOut. 404 `issue_not_found`. */
+export interface IssueDetail {
+  issue: Issue;
+  members: Member[];
+}
+
+/**
+ * PATCH /api/issues/{id}: IssueChange. 409 `issue_changed` (an old version), `issue_closed`,
+ * `issue_merged`; 400 `note_required`, `note_too_long`, `note_only_when_resolving`,
+ * `due_in_past`; 403 `not_owner` (only the owner changes the due date).
+ */
+export interface IssueChange {
+  version: number;
+  status?: "open" | "in_progress" | "resolved" | null;
+  note?: string | null;
+  assign_to_me?: boolean;
+  /** ISO 8601 with its time zone. */
+  due_at?: string | null;
+}
+
+/** GET /api/issues/triage: UntriagedOut, a confirmed insight with no team. */
+export interface Untriaged {
+  insight: Insight;
+  shop_name: string;
+  area: string;
+  rep_name: string;
+  visit_id: string;
+  visited_at: string;
+}
+
+/**
+ * POST /api/insights/{id}/accept: RouteSeen, the route acted on as read. 409 `route_changed`,
+ * `nothing_to_accept` (not the AI's suggestion), `insight_not_confirmed`.
+ */
+export interface RouteSeen {
+  slot: number;
+  version: number;
+}
+
+/**
+ * POST /api/insights/{id}/move and /also-send: RouteTo. 409 `route_changed`, `already_routed`,
+ * `team_limit` (Also send at two teams), `not_routed`; 404 `team_not_found`.
+ */
+export interface RouteTo {
+  slot: number;
+  version: number;
+  team_id: string;
+}
+
+/** POST /api/insights/{id}/team, from triage: TeamFor. 409 `already_routed` if someone gave it
+ * one meanwhile. */
+export interface TeamFor {
+  team_id: string;
+}
+
+/** The longest resolution note: countertalk/limits.py, RESOLUTION_NOTE_MAX_CHARS. */
+export const RESOLUTION_NOTE_MAX_CHARS = 2_000;

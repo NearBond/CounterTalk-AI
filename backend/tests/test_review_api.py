@@ -23,13 +23,18 @@ from tests.test_visits import Org_, make_org
 PAYMENT = insight(category="payments", severity="low", suggested_team="finance")
 
 
-@pytest.fixture(autouse=True)
-def demo() -> Org_:
+def seeded_demo() -> Org_:
+    """The demo org, rep and shops, seeded: the API's current user is its rep."""
     with session_scope() as session:
         seed(session, load_org_pack(*DEMO_PACK))
         rep = demo_rep(session)
         shops = select(Shop.id).where(Shop.org_id == rep.org_id).order_by(Shop.name)
         return Org_(rep.org_id, rep.id, session.scalars(shops).first())
+
+
+@pytest.fixture(autouse=True)
+def demo() -> Org_:
+    return seeded_demo()
 
 
 def in_review(org: Org_, *found: dict[str, Any], busy: bool = False) -> str:

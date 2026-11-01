@@ -17,7 +17,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from countertalk import entities, issues, limits, roles, routing, verify, visits
+from countertalk import entities, issues, limits, roles, routing, rows, verify, visits
 from countertalk.errors import Conflict, Invalid, NotFound
 from countertalk.models import (
     CREATED,
@@ -29,6 +29,7 @@ from countertalk.models import (
     EvidenceMatch,
     Insight,
     InsightRoute,
+    Issue,
     OrderItem,
     Report,
     Task,
@@ -320,9 +321,17 @@ class QuoteView:
 @dataclass(frozen=True)
 class RouteView:
     slot: int
+    team_id: str
     team_key: str
     team_name: str
     routed_by: str
+    # What a team member's change names (compare-and-set, batch 15).
+    version: int
+    # Its team's issue, once confirmed: its status and resolution note are the answer the rep
+    # takes back to the shop. None for a route confirmed before issues existed.
+    issue_id: str | None
+    issue_status: str | None
+    resolution_note: str | None
 
 
 @dataclass(frozen=True)
@@ -418,6 +427,13 @@ def review_of(
     )
 
 
+def view_of(session: Session, org_id: str, insight_id: str) -> InsightView:
+    """One of the org's insights as the cards show it, read fresh."""
+    missing = NotFound("insight_not_found", "There's no such insight")
+    [view] = insight_views(session, [rows.find_one(session, Insight, org_id, insight_id, missing)])
+    return view
+
+
 def insight_views(session: Session, insights: list[Insight]) -> list[InsightView]:
     """Each insight with its quotes, its teams and its links' names: one query each, for all."""
     ids = [insight.id for insight in insights]
@@ -429,19 +445,28 @@ def insight_views(session: Session, insights: list[Insight]) -> list[InsightView
         found = QuoteView(row.seq, row.turn_id, row.speaker_role, text, row.match, row.start_ms)
         quotes.setdefault(row.insight_id, []).append(found)
     routes: dict[str, list[RouteView]] = {}
-    for insight_id, slot, key, name, routed_by in session.execute(
-        select(
-            InsightRoute.insight_id,
-            InsightRoute.slot,
-            Team.key,
-            Team.name,
-            InsightRoute.routed_by,
-        )
+    for row in session.execute(
+        select(InsightRoute.insight_id, InsightRoute.slot, InsightRoute.team_id)
+        .add_columns(Team.key, Team.name, InsightRoute.routed_by, InsightRoute.version)
+        .add_columns(InsightRoute.issue_id, Issue.status, Issue.resolution_note)
         .join(Team, Team.id == InsightRoute.team_id)
+        .outerjoin(Issue, Issue.id == InsightRoute.issue_id)
         .where(InsightRoute.insight_id.in_(ids))
         .order_by(InsightRoute.slot)
     ):
-        routes.setdefault(insight_id, []).append(RouteView(slot, key, name, routed_by))
+        routes.setdefault(row.insight_id, []).append(
+            RouteView(
+                slot=row.slot,
+                team_id=row.team_id,
+                team_key=row.key,
+                team_name=row.name,
+                routed_by=row.routed_by,
+                version=row.version,
+                issue_id=row.issue_id,
+                issue_status=row.status,
+                resolution_note=row.resolution_note,
+            )
+        )
     linked = [i.sku_id for i in insights] + [i.competitor_id for i in insights]
     names = entities.item_names(session, insights[0].org_id, linked) if insights else {}
     teams = {

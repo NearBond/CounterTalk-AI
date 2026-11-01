@@ -341,7 +341,10 @@ def attach_route(
     visit = session.get_one(Visit, insight.visit_id)
     shop = session.get_one(Shop, visit.shop_id)
     member = Member(route, insight, shop, visit.created_at)
-    old = session.get(Issue, leaving) if leaving is not None else None
+    missing = NotFound("issue_not_found", "There's no such issue")
+    old = (
+        None if leaving is None else rows.find_one(session, Issue, insight.org_id, leaving, missing)
+    )
     [(team_id, key, _, _)] = plan(pack, [member])
     old_first = old is not None and (old.team_id, old.issue_key) < (team_id, key)
     if old is not None and old_first:

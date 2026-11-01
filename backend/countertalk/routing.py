@@ -20,7 +20,7 @@ RoutingDecision rows in the same transaction.
 """
 
 import logging
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from dataclasses import dataclass
 from itertools import count
 from typing import Literal
@@ -262,7 +262,7 @@ def accept(session: Session, org_id: str, insight_id: str, actor: str, seen: See
 
 def move(
     session: Session,
-    pack: OrgPack,
+    pack_for: Callable[[], OrgPack],
     org_id: str,
     insight_id: str,
     team_id: str,
@@ -281,13 +281,13 @@ def move(
     route.routed_by = RoutedBy.PERSON
     route.version += 1
     _person(session, insight, route.slot, team, RoutingAction.MOVE, actor)
-    issues.attach_route(session, pack, actor, route, insight, leaving=left)
+    issues.attach_route(session, pack_for(), actor, route, insight, leaving=left)
     return route
 
 
 def also_send(
     session: Session,
-    pack: OrgPack,
+    pack_for: Callable[[], OrgPack],
     org_id: str,
     insight_id: str,
     team_id: str,
@@ -318,12 +318,17 @@ def also_send(
             raise
         raise Conflict("team_limit", "It already has as many teams as it can have") from None
     _person(session, insight, slot, team, RoutingAction.ALSO_SEND, actor)
-    issues.attach_route(session, pack, actor, route, insight)
+    issues.attach_route(session, pack_for(), actor, route, insight)
     return route
 
 
 def assign_from_triage(
-    session: Session, pack: OrgPack, org_id: str, insight_id: str, team_id: str, actor: str
+    session: Session,
+    pack_for: Callable[[], OrgPack],
+    org_id: str,
+    insight_id: str,
+    team_id: str,
+    actor: str,
 ) -> InsightRoute:
     """A team for an insight the rule left in triage: slot 1, filed in that team's issue. The
     request read it with no routes; one that has any now is 409 already_routed, so two people
@@ -337,7 +342,7 @@ def assign_from_triage(
     )
     session.add(route)
     _person(session, insight, 1, team, RoutingAction.TRIAGE_ASSIGN, actor)
-    issues.attach_route(session, pack, actor, route, insight)
+    issues.attach_route(session, pack_for(), actor, route, insight)
     return route
 
 

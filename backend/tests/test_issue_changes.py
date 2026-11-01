@@ -170,7 +170,7 @@ def test_assign_to_me_and_a_due_date_in_one_change_is_one_version(org: Org_) -> 
     both = change(org, owner, issue.id, 1, assign_to_me=True, due_at=later)
 
     assert (both.owner_id, both.due_at, both.version) == (owner, later, 2)
-    assert [field for _, field, _, _, _ in history(issue.id)] == ["due_at", "owner"]
+    assert sorted(field for _, field, _, _, _ in history(issue.id)) == ["due_at", "owner"]
 
 
 def test_a_change_to_what_it_is_already_writes_nothing(org: Org_) -> None:

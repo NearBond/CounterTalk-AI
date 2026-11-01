@@ -46,11 +46,11 @@ def act(org: Org_, how: str, insight_id: str, *args: Any) -> InsightRoute:
             return routing.accept(session, org.org_id, insight_id, org.rep_id, *args)
         if how == "triage":
             return routing.assign_from_triage(
-                session, PACK, org.org_id, insight_id, *args, org.rep_id
+                session, lambda: PACK, org.org_id, insight_id, *args, org.rep_id
             )
         change = routing.move if how == "move" else routing.also_send
         team, seen = args
-        return change(session, PACK, org.org_id, insight_id, team, org.rep_id, seen)
+        return change(session, lambda: PACK, org.org_id, insight_id, team, org.rep_id, seen)
 
 
 def code_of(org: Org_, how: str, insight_id: str, *args: Any) -> str:
@@ -154,7 +154,7 @@ def test_two_moves_at_once_one_wins_and_the_insight_ends_in_one_team(org: Org_) 
     money, third = team_ids(org.org_id)["money"], a_third_team(org)
 
     with ThreadPoolExecutor(max_workers=1) as pool, session_scope() as session:
-        routing.move(session, PACK, org.org_id, insight_id, money, org.rep_id, FIRST)
+        routing.move(session, lambda: PACK, org.org_id, insight_id, money, org.rep_id, FIRST)
         second = pool.submit(code_of, org, "move", insight_id, third, FIRST)
         wait_for(lambda: lock_waiters() == 1, "the second move never waited for the first")
         session.commit()
@@ -226,7 +226,7 @@ def test_two_triage_assignments_at_once_one_wins(org: Org_) -> None:
 
     with ThreadPoolExecutor(max_workers=1) as pool, session_scope() as session:
         routing.assign_from_triage(
-            session, PACK, org.org_id, insight_id, teams["money"], org.rep_id
+            session, lambda: PACK, org.org_id, insight_id, teams["money"], org.rep_id
         )
         second = pool.submit(code_of, org, "triage", insight_id, teams["field"])
         wait_for(lambda: lock_waiters() == 1, "the second never waited for the first")

@@ -294,9 +294,7 @@ FIRST_SEEN = Seen(1, 1)
 
 def send(org: Org_, insight_id: str, team_id: str, seen: Seen = FIRST_SEEN) -> int:
     with session_scope() as session:
-        route = routing.also_send(
-            session, tiny(), org.org_id, insight_id, team_id, org.rep_id, seen
-        )
+        route = routing.also_send(session, tiny, org.org_id, insight_id, team_id, org.rep_id, seen)
         return route.slot
 
 
@@ -367,7 +365,7 @@ def test_two_also_sends_at_once_one_wins_and_the_other_gets_team_limit(org: Org_
     with ThreadPoolExecutor(max_workers=1) as pool, session_scope() as session:
         # The first holds the insight's lock, with slot 2 written but not committed.
         sent = routing.also_send(
-            session, tiny(), org.org_id, insight_id, field, org.rep_id, Seen(1, 1)
+            session, tiny, org.org_id, insight_id, field, org.rep_id, Seen(1, 1)
         )
         assert sent.slot == 2
         second = pool.submit(send, org, insight_id, third)

@@ -195,7 +195,7 @@ def test_a_person_s_later_change_isnt_the_rule_s_routing(
         )
         session.execute(update(Insight).where(Insight.id == insight_id).values(visible=True))
         seen = routing.Seen(1, 1)
-        routing.also_send(session, tiny(), org.org_id, insight_id, money, org.rep_id, seen)
+        routing.also_send(session, tiny, org.org_id, insight_id, money, org.rep_id, seen)
     expected = k2_file(tmp_path, "teams: [field]")
 
     main([visit_id, expected])

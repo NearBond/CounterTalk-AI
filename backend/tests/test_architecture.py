@@ -253,6 +253,60 @@ ROUTE_STATEMENTS = {"insert", "update", "delete", "merge"}
 ROUTE_SQL = re.compile(r"\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+insight_routes\b", re.IGNORECASE)
 
 
+# Each is checked just after against a row already found by org (or is a job's own visit).
+ORG_ROW_BY_ID_ALLOWED = {
+    ("extraction.py", "request_for"),  # the extract job's own visit
+    ("extraction.py", "wait_for_key"),  # the extract job's own visit
+    ("review.py", "add_insight"),  # a client's ID, matched to the visit locked just before
+    ("review.py", "add_note"),  # a client's ID, matched to the visit locked just before
+}
+
+
+def org_scoped_models() -> set[str]:
+    from countertalk.models import Base
+
+    return {
+        mapper.class_.__name__
+        for mapper in Base.registry.mappers
+        if "org_id" in mapper.local_table.c
+    }
+
+
+def org_rows_by_id_only_through_find_one(sources: list[Source]) -> list[str]:
+    """R1, added in batch 15 when it came up in two parts in a row: a function given an ID loads
+    an org's row by it only through rows.find_one, so another org's is 404 (§2.10). A
+    session.get or get_one of an org-scoped model by one of the function's own parameters is
+    found; an ID read from another row (insight.visit_id) isn't."""
+    models = org_scoped_models()
+    found = []
+    for path, tree in sources:
+        if path == "rows.py":
+            continue
+        for function in ast.walk(tree):
+            if not isinstance(function, ast.FunctionDef | ast.AsyncFunctionDef):
+                continue
+            if (path, function.name) in ORG_ROW_BY_ID_ALLOWED:
+                continue
+            params = {arg.arg for arg in function.args.args + function.args.kwonlyargs}
+            for call in ast.walk(function):
+                if not (
+                    isinstance(call, ast.Call)
+                    and isinstance(call.func, ast.Attribute)
+                    and call.func.attr in {"get", "get_one"}
+                    and len(call.args) >= 2
+                ):
+                    continue
+                model, row_id = call.args[0], call.args[1]
+                if (
+                    isinstance(model, ast.Name)
+                    and model.id in models
+                    and isinstance(row_id, ast.Name)
+                    and row_id.id in params
+                ):
+                    found.append(f"{path}:{call.lineno} {function.name}")
+    return found
+
+
 def issue_membership_only_in_issues(sources: list[Source]) -> list[str]:
     """Batch 15: only issues.py sets a route's issue_id, so a route joins its issue the one way,
     in §2.3's lock order. Reading it is fine anywhere."""
@@ -512,6 +566,7 @@ RULES: dict[str, Callable[[list[Source]], list[str]]] = {
         visit_status_only_through_set_status,
         insight_routes_only_through_routing,
         issue_membership_only_in_issues,
+        org_rows_by_id_only_through_find_one,
         routers_carry_their_own_prefix,
         job_times_come_from_postgres,
         clients_import_only_the_allowlist,
@@ -618,6 +673,11 @@ BAD_EXAMPLES = [
     ("insight_routes_only_through_routing", "inbox.py", "session.add(InsightRoute(slot=2))\n"),
     ("issue_membership_only_in_issues", "routing.py", "route.issue_id = issue.id\n"),
     (
+        "org_rows_by_id_only_through_find_one",
+        "review.py",
+        "def view_of(session, insight_id):\n    return session.get_one(Insight, insight_id)\n",
+    ),
+    (
         "insight_routes_only_through_routing",
         "inbox.py",
         "from countertalk import models as m\nsession.add(m.InsightRoute())\n",
@@ -657,6 +717,16 @@ ALLOWED_EXAMPLES = [
     ("insight_routes_only_through_routing", "inbox.py", "session.delete(visit)\n"),
     ("issue_membership_only_in_issues", "issues.py", "member.route.issue_id = issue.id\n"),
     ("issue_membership_only_in_issues", "inbox.py", "shown = route.issue_id\n"),
+    (
+        "org_rows_by_id_only_through_find_one",
+        "issues.py",
+        "def f(session, insight):\n    return session.get_one(Visit, insight.visit_id)\n",
+    ),
+    (
+        "org_rows_by_id_only_through_find_one",
+        "review.py",
+        "def add_note(session, note_id):\n    return session.get(VisitNote, note_id)\n",
+    ),
     (
         "insight_routes_only_through_routing",
         "inbox.py",

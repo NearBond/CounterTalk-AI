@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel, ConfigDict, StrictInt
 
-from countertalk import extraction, review
+from countertalk import extraction, review, routing
 from countertalk.api.deps import CurrentUser
 from countertalk.db import DbSession
 
@@ -28,9 +28,17 @@ class QuoteOut(BaseModel):
 
 class RouteOut(BaseModel):
     slot: int
+    team_id: str
     team_key: str
     team_name: str
     routed_by: str
+    # What a team member's accept, Move or Also send names (compare-and-set).
+    version: int
+    # Its team's issue, once its visit is confirmed (batch 15): its status and resolution note
+    # are what the rep tells the shop. Null for a route confirmed before issues existed.
+    issue_id: str | None
+    issue_status: str | None
+    resolution_note: str | None
 
 
 class InsightOut(BaseModel):
@@ -158,3 +166,69 @@ def edit_insight(
 def delete_insight(insight_id: UUID, user: CurrentUser, session: DbSession) -> Response:
     review.delete_insight(session, user.org_id, user.id, str(insight_id))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --- a team member's routing, after confirm (batch 15) ---------------------------------------
+
+
+class RouteSeen(BaseModel):
+    """The route acted on, as read: 409 route_changed if it has moved on."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    slot: StrictInt
+    version: StrictInt
+
+
+class RouteTo(RouteSeen):
+    team_id: UUID
+
+
+class TeamFor(BaseModel):
+    """From triage: read with no routes, so 409 already_routed if someone gave it one."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    team_id: UUID
+
+
+@router.post("/{insight_id}/accept")
+def accept(insight_id: UUID, body: RouteSeen, user: CurrentUser, session: DbSession) -> InsightOut:
+    """The AI's suggested team, accepted: no longer "suggested by AI"."""
+    seen = routing.Seen(body.slot, body.version)
+    route = routing.accept(session, user.org_id, str(insight_id), user.id, seen)
+    return insight_out(review.view_of(session, user.org_id, route.insight_id))
+
+
+@router.post("/{insight_id}/move")
+def move(insight_id: UUID, body: RouteTo, user: CurrentUser, session: DbSession) -> InsightOut:
+    """The route goes to another team's issue."""
+    pack = partial(extraction.pack_for, user.org_id, session=session)
+    seen = routing.Seen(body.slot, body.version)
+    route = routing.move(
+        session, pack, user.org_id, str(insight_id), str(body.team_id), user.id, seen
+    )
+    return insight_out(review.view_of(session, user.org_id, route.insight_id))
+
+
+@router.post("/{insight_id}/also-send")
+def also_send(insight_id: UUID, body: RouteTo, user: CurrentUser, session: DbSession) -> InsightOut:
+    """It also goes to another team: 409 team_limit at two."""
+    pack = partial(extraction.pack_for, user.org_id, session=session)
+    seen = routing.Seen(body.slot, body.version)
+    route = routing.also_send(
+        session, pack, user.org_id, str(insight_id), str(body.team_id), user.id, seen
+    )
+    return insight_out(review.view_of(session, user.org_id, route.insight_id))
+
+
+@router.post("/{insight_id}/team")
+def assign_from_triage(
+    insight_id: UUID, body: TeamFor, user: CurrentUser, session: DbSession
+) -> InsightOut:
+    """A team for an insight in triage."""
+    pack = partial(extraction.pack_for, user.org_id, session=session)
+    route = routing.assign_from_triage(
+        session, pack, user.org_id, str(insight_id), str(body.team_id), user.id
+    )
+    return insight_out(review.view_of(session, user.org_id, route.insight_id))

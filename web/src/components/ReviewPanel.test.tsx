@@ -2,13 +2,27 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { jsonResponse as json, rejectOnAbort } from "../testUtils";
-import type { Insight, Review, Turn } from "../types/api";
+import type { Insight, Review, Route, Turn } from "../types/api";
 import { ReviewPanel } from "./ReviewPanel";
 
 const TURNS: Turn[] = [
   { turn_id: 0, speaker_label: "c0:A", start_ms: 1_000, end_ms: 3_000, text: "Namaste" },
   { turn_id: 1, speaker_label: "c0:B", start_ms: 4_000, end_ms: 6_000, text: "Payment abhi tak nahi aaya" },
 ];
+
+function route(key: string, name: string): Route {
+  return {
+    slot: 1,
+    team_id: `team-${key}`,
+    team_key: key,
+    team_name: name,
+    routed_by: "table",
+    version: 1,
+    issue_id: null,
+    issue_status: null,
+    resolution_note: null,
+  };
+}
 
 const PAYMENT: Insight = {
   id: "i1",
@@ -26,7 +40,7 @@ const PAYMENT: Insight = {
   ai_team: "money",
   ai_team_reason: "Money owed.",
   quotes: [{ seq: 0, turn_id: 1, speaker_role: "shopkeeper", text: "Payment abhi tak nahi aaya", match: "exact", start_ms: 2_500 }],
-  routes: [{ slot: 1, team_key: "money", team_name: "Money desk", routed_by: "table" }],
+  routes: [route("money", "Money desk")],
 };
 
 const UNFOUND: Insight = {
@@ -197,7 +211,7 @@ describe("ReviewPanel", () => {
         json(200, {
           ...PAYMENT,
           category: "supply",
-          routes: [{ slot: 1, team_key: "field", team_name: "Field team", routed_by: "table" }],
+          routes: [route("field", "Field team")],
         }),
     });
     show();

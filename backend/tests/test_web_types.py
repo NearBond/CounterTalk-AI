@@ -22,7 +22,18 @@ from countertalk.api.insights import (
     QuoteOut,
     ReportOut,
     RouteOut,
+    RouteSeen,
+    RouteTo,
     TaskOut,
+    TeamFor,
+)
+from countertalk.api.issues import (
+    IssueChange,
+    IssueDetailOut,
+    IssueOut,
+    MemberOut,
+    TeamOut,
+    UntriagedOut,
 )
 from countertalk.api.shops import ShopOut
 from countertalk.api.visits import (
@@ -59,6 +70,15 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "OrderItem": OrderItemOut,
     "Choice": ChoiceOut,
     "Review": ReviewOut,
+    "Team": TeamOut,
+    "Issue": IssueOut,
+    "Member": MemberOut,
+    "IssueDetail": IssueDetailOut,
+    "IssueChange": IssueChange,
+    "Untriaged": UntriagedOut,
+    "RouteSeen": RouteSeen,
+    "RouteTo": RouteTo,
+    "TeamFor": TeamFor,
 }
 
 
@@ -87,15 +107,16 @@ def test_the_web_app_mirrors_the_servers_upload_limits() -> None:
     assert int(limit.group(1)) == limits.MAX_SEGMENT_BYTES
 
 
-def test_the_web_app_mirrors_the_note_limit() -> None:
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("NOTE_MAX_CHARS", limits.NOTE_MAX_CHARS),
+        ("SUMMARY_MAX_CHARS", limits.SUMMARY_MAX_CHARS),
+        ("RESOLUTION_NOTE_MAX_CHARS", limits.RESOLUTION_NOTE_MAX_CHARS),
+    ],
+)
+def test_the_web_app_mirrors_the_server_s_limit(name: str, value: int) -> None:
     source = TYPES.read_text(encoding="utf-8")
-    limit = re.search(r"export const NOTE_MAX_CHARS = ([\d_]+);", source)
+    limit = re.search(rf"export const {name} = ([0-9_]+);", source)
 
-    assert limit is not None and int(limit.group(1)) == limits.NOTE_MAX_CHARS
-
-
-def test_the_web_app_mirrors_the_summary_limit() -> None:
-    source = TYPES.read_text(encoding="utf-8")
-    limit = re.search(r"export const SUMMARY_MAX_CHARS = ([0-9_]+);", source)
-
-    assert limit is not None and int(limit.group(1)) == limits.SUMMARY_MAX_CHARS
+    assert limit is not None and int(limit.group(1)) == value
