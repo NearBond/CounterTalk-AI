@@ -103,7 +103,10 @@ function fakeApi(routes: Record<string, Handler | Handler[]>) {
       }),
   );
   vi.stubGlobal("fetch", fake);
-  return { sent: () => sent.filter((request) => !request.route.startsWith("GET")) };
+  return {
+    sent: () => sent.filter((request) => !request.route.startsWith("GET")),
+    gets: () => sent.filter((request) => request.route.startsWith("GET")).length,
+  };
 }
 
 function show(props: Partial<React.ComponentProps<typeof ReviewPanel>> = {}) {
@@ -342,11 +345,9 @@ describe("ReviewPanel", () => {
   });
 
   it("confirms, then shows the visit read-only", async () => {
+    // One GET only: a reload's failure could hide a confirm that worked.
     const api = fakeApi({
-      "GET /api/visits/v1/review": [
-        () => json(200, reviewOf("review")),
-        () => json(200, reviewOf("confirmed", [{ ...PAYMENT, visible: true }, UNFOUND])),
-      ],
+      "GET /api/visits/v1/review": [() => json(200, reviewOf("review"))],
       "POST /api/visits/v1/confirm": () => json(200, reviewOf("confirmed").visit),
     });
     const { onConfirmed } = show();
@@ -354,9 +355,16 @@ describe("ReviewPanel", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Confirm visit" }));
 
-    expect(await screen.findByText(/Confirmed: the findings went to their teams \(1 of 2/)).toBeInTheDocument();
+    // As confirm did on the server: the one verified finding is shown, the other isn't.
+    expect(
+      await screen.findByText(
+        "Confirmed: 1 of 2 findings, the ones found in the recording, went on to their teams, or to triage where" +
+          " no team fits. It can't be changed now.",
+      ),
+    ).toBeInTheDocument();
     expect(onConfirmed).toHaveBeenCalledWith(expect.objectContaining({ status: "confirmed" }));
     expect(api.sent()).toEqual([{ route: "POST /api/visits/v1/confirm", body: undefined }]);
+    expect(api.gets()).toBe(1);
     expect(screen.queryByRole("button", { name: /Edit|Delete|Add finding|Add note|Confirm visit/ })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Add a note")).not.toBeInTheDocument();
   });

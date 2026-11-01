@@ -83,9 +83,10 @@ export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed
     confirm.run(
       (signal) => confirmReview(visitId, signal),
       (visit) => {
-        update((r) => ({ ...r, visit })); // read-only at once
+        // Read-only at once, with what confirm did on the server: the verified ones are shown.
+        // No reload, so a dropped request can't hide a confirm that worked.
+        update((r) => ({ ...r, visit, insights: r.insights.map((i) => ({ ...i, visible: i.verified })) }));
         onConfirmed(visit);
-        loaded.reload(); // the insights now visible, from the server
       },
     );
 
@@ -194,8 +195,9 @@ export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed
         </section>
       ) : (
         <p className="rounded-md bg-green-50 p-3 text-green-900">
-          Confirmed: the findings went to their teams ({review.insights.filter((i) => i.visible).length} of{" "}
-          {review.insights.length}, the ones found in the recording). It can't be changed now.
+          Confirmed: {review.insights.filter((i) => i.visible).length} of {review.insights.length} findings, the
+          ones found in the recording, went on to their teams, or to triage where no team fits. It can't be changed
+          now.
         </p>
       )}
       {review.insights.some((insight) => !insight.verified) && editable && (
