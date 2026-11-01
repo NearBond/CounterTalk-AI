@@ -60,6 +60,11 @@ export function abortedError(message = "The request was cancelled."): ApiError {
   return new ApiError(0, ABORTED, message);
 }
 
+/** What to show for a failure: our own message, or a fallback for anything else. */
+export function messageOf(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback;
+}
+
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** Sent as JSON. */

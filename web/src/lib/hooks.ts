@@ -14,6 +14,8 @@ export interface PollingOptions<T> {
   key: unknown;
   shouldPoll: (value: T) => boolean;
   intervalMs?: number;
+  /** Nothing to load yet (a transcript before transcription): no request, no data. */
+  skip?: boolean;
 }
 
 export interface Polling<T> {
@@ -29,7 +31,7 @@ export function usePolling<T>(
   load: (signal: AbortSignal) => Promise<T>,
   options: PollingOptions<T>,
 ): Polling<T> {
-  const { key } = options;
+  const { key, skip = false } = options;
   const [loaded, setLoaded] = useState<Loaded<T>>({ key, error: null });
   const [attempt, setAttempt] = useState(0);
   // The latest functions, so a new closure each render doesn't restart the polling.
@@ -39,6 +41,7 @@ export function usePolling<T>(
   });
 
   useEffect(() => {
+    if (skip) return;
     let alive = true;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -67,7 +70,7 @@ export function usePolling<T>(
       controller.abort();
       clearTimeout(timer);
     };
-  }, [key, attempt]);
+  }, [key, attempt, skip]);
 
   const reload = useCallback(() => {
     setLoaded((previous) => ({ ...previous, error: null }));
@@ -76,4 +79,15 @@ export function usePolling<T>(
 
   const current = loaded.key === key;
   return { data: current ? loaded.data : undefined, error: current ? loaded.error : null, reload };
+}
+
+/** Milliseconds since `since` (a Date.now() value), ticking every second; 0 while it's null. */
+export function useElapsed(since: number | null): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (since === null) return;
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, [since]);
+  return since === null ? 0 : Math.max(0, now - since);
 }
