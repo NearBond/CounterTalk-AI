@@ -49,7 +49,9 @@ def reviewed(org: Org_, *found: dict[str, Any], busy: bool = False) -> tuple[str
 
 def edit(org: Org_, insight_id: str, **changes: str) -> Insight:
     with session_scope() as session:
-        return review.edit_insight(session, PACK, org.org_id, org.rep_id, insight_id, **changes)
+        return review.edit_insight(
+            session, lambda: PACK, org.org_id, org.rep_id, insight_id, **changes
+        )
 
 
 def edits(visit_id: str) -> list[tuple[str, str, Any, Any]]:
@@ -121,6 +123,7 @@ def test_an_unchanged_value_writes_nothing(org: Org_) -> None:
         ({"category": "nonsense"}, "invalid_category"),
         ({"severity": "urgent"}, "invalid_severity"),
         ({"summary_en": "   "}, "summary_empty"),
+        ({"summary_en": "x" * (limits.SUMMARY_MAX_CHARS + 1)}, "summary_too_long"),
     ],
 )
 def test_a_value_the_playbook_hasnt_got_is_refused(
@@ -451,3 +454,17 @@ def test_the_database_checks_each_edit_row(
         session.add(Edit(**row))
 
     assert constraint_name(refused.value) == constraint
+
+
+def test_a_summary_edit_never_loads_the_org_s_pack(org: Org_) -> None:
+    _, [insight_id] = reviewed(org)
+
+    def unreadable() -> Any:
+        raise AssertionError("the pack was loaded for a summary edit")
+
+    with session_scope() as session:
+        found = review.edit_insight(
+            session, unreadable, org.org_id, org.rep_id, insight_id, summary_en="Two boxes."
+        )
+
+    assert found.summary_en == "Two boxes."

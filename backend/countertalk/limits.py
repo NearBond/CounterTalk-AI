@@ -115,6 +115,8 @@ QUOTE_LEAD_IN_MS = 1_500
 
 # A rep's note on a visit (batch 14): free text for the record, never sent to teams.
 NOTE_MAX_CHARS = 2_000
+# A rep's summary of an insight, edited or added (batch 14): a sentence or two.
+SUMMARY_MAX_CHARS = 500
 
 # Linking (batch 12): a fuzzy match needs this rapidfuzz ratio or more on the linking key. From
 # the tests and K1 (1 Nov): misspellings of the right item scored 87 and up, and "Crunchy", in

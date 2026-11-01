@@ -10,6 +10,8 @@ nothing (§2.5).
 """
 
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import func, select, update
@@ -20,11 +22,16 @@ from countertalk.errors import Conflict, Invalid, NotFound
 from countertalk.models import (
     CREATED,
     DELETED,
+    CatalogItem,
     Edit,
     EditObject,
     Evidence,
     EvidenceMatch,
     Insight,
+    InsightRoute,
+    Report,
+    Task,
+    Team,
     Turn,
     Visit,
     VisitNote,
@@ -82,6 +89,10 @@ def _text(value: str) -> str:
     text = value.strip()
     if not text:
         raise Invalid("summary_empty", "The summary can't be empty")
+    if len(text) > limits.SUMMARY_MAX_CHARS:
+        raise Invalid(
+            "summary_too_long", f"A summary is at most {limits.SUMMARY_MAX_CHARS} characters"
+        )
     return text
 
 
@@ -124,7 +135,7 @@ def _route(session: Session, pack: OrgPack, insight: Insight, actor: str | None)
 
 def edit_insight(
     session: Session,
-    pack: OrgPack,
+    pack_for: Callable[[], OrgPack],
     org_id: str,
     actor: str,
     insight_id: str,
@@ -133,7 +144,8 @@ def edit_insight(
     category: str | None = None,
     severity: str | None = None,
 ) -> Insight:
-    """A row per field changed; a category or severity change re-routes it."""
+    """A row per field changed; a category or severity change re-routes it. The org's pack is
+    loaded only for those (pack_for), after the visit is found."""
     visit, insight = _locked_insight(session, org_id, insight_id)
     if not insight.verified:
         raise Conflict(
@@ -144,16 +156,17 @@ def edit_insight(
     wanted: dict[str, str] = {}
     if summary_en is not None:
         wanted["summary_en"] = _text(summary_en)
-    if category is not None:
+    pack = pack_for() if category is not None or severity is not None else None
+    if pack is not None and category is not None:
         wanted["category"] = _one_of(category, pack.playbook.categories, "category")
-    if severity is not None:
+    if pack is not None and severity is not None:
         wanted["severity"] = _one_of(severity, pack.playbook.severities, "severity")
     changed = {field: value for field, value in wanted.items() if getattr(insight, field) != value}
     for field, value in changed.items():
         before = getattr(insight, field)
         _edit_row(session, visit, actor, (EditObject.INSIGHT, insight.id), field, before, value)
         setattr(insight, field, value)
-    if {"category", "severity"} & changed.keys():
+    if pack is not None and {"category", "severity"} & changed.keys():
         _route(session, pack, insight, actor)
     log.info("insight edited visit=%s insight=%s fields=%d", visit.id, insight.id, len(changed))
     return insight
@@ -269,3 +282,134 @@ def confirm(session: Session, org_id: str, actor: str, visit_id: str) -> Visit:
     _edit_row(session, visit, actor, (EditObject.VISIT, visit.id), "status", was, now)
     log.info("visit confirmed visit=%s", visit.id)
     return visit
+
+
+# --- reading ---------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class QuoteView:
+    seq: int
+    turn_id: int | None
+    speaker_role: str | None
+    # The transcript's own words where it was found; the model's where it wasn't.
+    text: str
+    match: str | None
+    start_ms: int | None
+
+
+@dataclass(frozen=True)
+class RouteView:
+    slot: int
+    team_key: str
+    team_name: str
+    routed_by: str
+
+
+@dataclass(frozen=True)
+class InsightView:
+    insight: Insight
+    sku: str | None
+    competitor: str | None
+    ai_team: str | None
+    quotes: list[QuoteView]
+    routes: list[RouteView]
+
+
+@dataclass(frozen=True)
+class Choice:
+    key: str
+    label: str
+
+
+@dataclass(frozen=True)
+class ReviewView:
+    visit: Visit
+    report: Report | None
+    tasks: list[Task]
+    insights: list[InsightView]
+    notes: list[VisitNote]
+    kinds: list[Choice]
+    categories: list[Choice]
+    severities: list[Choice]
+
+
+def _label(key: str) -> str:
+    return key.replace("_", " ").capitalize()
+
+
+def review_of(
+    session: Session, pack_for: Callable[[], OrgPack], org_id: str, visit_id: str
+) -> ReviewView:
+    """What the review page shows: the report, tasks, insights with their quotes and teams,
+    notes, and the playbook's keys for its pickers. Another org's visit is 404, before the pack
+    is loaded. Read in one snapshot (a read-only session's)."""
+    visit = visits.get_visit(session, org_id, visit_id)
+    pack = pack_for()
+    report = session.get(Report, visit.id)
+    tasks = session.scalars(select(Task).where(Task.visit_id == visit.id).order_by(Task.seq))
+    query = select(Insight).where(Insight.visit_id == visit.id).order_by(Insight.seq)
+    notes = select(VisitNote).where(VisitNote.visit_id == visit.id)
+    book = pack.playbook
+    return ReviewView(
+        visit=visit,
+        report=report,
+        tasks=list(tasks),
+        insights=insight_views(session, list(session.scalars(query))),
+        notes=list(session.scalars(notes.order_by(VisitNote.created_at, VisitNote.id))),
+        kinds=[Choice(key, _label(key)) for key in book.kinds],
+        categories=[Choice(key, category.name) for key, category in book.categories.items()],
+        severities=[Choice(key, _label(key)) for key in book.severities],
+    )
+
+
+def insight_views(session: Session, insights: list[Insight]) -> list[InsightView]:
+    """Each insight with its quotes, its teams and its links' names: one query each, for all."""
+    ids = [insight.id for insight in insights]
+    quotes: dict[str, list[QuoteView]] = {}
+    for row in session.scalars(
+        select(Evidence).where(Evidence.insight_id.in_(ids)).order_by(Evidence.seq)
+    ):
+        text = row.quote_final if row.quote_final is not None else row.quote_llm
+        found = QuoteView(row.seq, row.turn_id, row.speaker_role, text, row.match, row.start_ms)
+        quotes.setdefault(row.insight_id, []).append(found)
+    routes: dict[str, list[RouteView]] = {}
+    for insight_id, slot, key, name, routed_by in session.execute(
+        select(
+            InsightRoute.insight_id,
+            InsightRoute.slot,
+            Team.key,
+            Team.name,
+            InsightRoute.routed_by,
+        )
+        .join(Team, Team.id == InsightRoute.team_id)
+        .where(InsightRoute.insight_id.in_(ids))
+        .order_by(InsightRoute.slot)
+    ):
+        routes.setdefault(insight_id, []).append(RouteView(slot, key, name, routed_by))
+    linked = {i.sku_id for i in insights} | {i.competitor_id for i in insights}
+    names = {
+        item_id: f"{brand} {product}" if product else brand
+        for item_id, brand, product in session.execute(
+            select(CatalogItem.id, CatalogItem.brand, CatalogItem.product).where(
+                CatalogItem.id.in_(linked - {None})
+            )
+        )
+    }
+    teams = {
+        team_id: key
+        for team_id, key in session.execute(
+            select(Team.id, Team.key).where(Team.id.in_({i.ai_team_id for i in insights} - {None}))
+        )
+    }
+    return [
+        InsightView(
+            insight=insight,
+            sku=names.get(insight.sku_id),
+            competitor=names.get(insight.competitor_id),
+            ai_team=teams.get(insight.ai_team_id),
+            quotes=quotes.get(insight.id, []),
+            routes=routes.get(insight.id, []),
+        )
+        for insight in insights
+    ]

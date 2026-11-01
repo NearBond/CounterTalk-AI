@@ -48,7 +48,10 @@ def get_engine() -> Engine:
 
 
 def _set_read_only(session: Session, transaction: SessionTransaction, conn: Connection) -> None:
-    conn.exec_driver_sql("SET TRANSACTION READ ONLY")
+    # One snapshot for the whole transaction (batch 14): a page read in several statements,
+    # like the review's, never mixes rows from before and after another's commit. A read-only
+    # transaction never fails to serialise.
+    conn.exec_driver_sql("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
 
 
 @contextmanager

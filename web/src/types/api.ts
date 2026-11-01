@@ -153,3 +153,125 @@ export interface Transcript {
   created_at: string;
   turns: Turn[];
 }
+
+/** One quote behind an insight: countertalk/api/insights.py, QuoteOut. */
+export interface Quote {
+  seq: number;
+  turn_id: number | null;
+  speaker_role: string | null;
+  /** The transcript's own words where it was found; the model's where it wasn't. */
+  text: string;
+  match: "exact" | "fuzzy" | "none" | null;
+  /** Where ▶ starts playing, in visit time; null for a quote that wasn't found. */
+  start_ms: number | null;
+}
+
+/** One team an insight is sent to: RouteOut. */
+export interface Route {
+  slot: number;
+  team_key: string;
+  team_name: string;
+  routed_by: "table" | "ai" | "override" | "person";
+}
+
+/** InsightOut. An unverified insight was never found in the recording: never routed or shown. */
+export interface Insight {
+  id: string;
+  seq: number;
+  kind: string;
+  category: string;
+  severity: string;
+  summary_en: string;
+  verified: boolean;
+  visible: boolean;
+  added_by_rep: boolean;
+  /** The linked catalog items' names. */
+  sku: string | null;
+  competitor: string | null;
+  scheme_key: string | null;
+  /** The AI's suggested team's key, and why. */
+  ai_team: string | null;
+  ai_team_reason: string | null;
+  quotes: Quote[];
+  routes: Route[];
+}
+
+/**
+ * PATCH /api/insights/{id}: InsightChange. 400 `invalid_category`, `invalid_severity`,
+ * `summary_empty`, `summary_too_long`; 404 `insight_not_found`; 409 `insight_unverified`,
+ * `visit_confirmed`, `visit_not_in_review`, `routed_by_hand`.
+ */
+export interface InsightChange {
+  summary_en?: string;
+  category?: string;
+  severity?: string;
+}
+
+/**
+ * POST /api/visits/{id}/insights: NewInsight. 400 `invalid_kind`, `invalid_category`,
+ * `invalid_severity`, `summary_empty`, `summary_too_long`; 404 `turn_not_found`; 409 as PATCH.
+ */
+export interface NewInsight {
+  turn_id: number;
+  kind: string;
+  category: string;
+  severity: string;
+  summary_en: string;
+}
+
+/** POST /api/visits/{id}/notes: NewNote. 400 `note_empty`, `note_too_long`; 409 as PATCH. */
+export interface NewNote {
+  text: string;
+}
+
+/** NoteOut: for the visit's record only, never sent to teams. */
+export interface Note {
+  id: string;
+  text: string;
+  created_at: string;
+}
+
+/** ReportOut. */
+export interface Report {
+  summary_en: string;
+  /** YYYY-MM-DD. */
+  next_visit_date: string | null;
+}
+
+/** TaskOut. */
+export interface Task {
+  seq: number;
+  type: string;
+  description_en: string;
+  /** YYYY-MM-DD. */
+  due: string | null;
+  owner: string;
+  status: "open" | "done";
+}
+
+/** ChoiceOut: one of the playbook's keys, with its label. */
+export interface Choice {
+  key: string;
+  label: string;
+}
+
+/**
+ * GET /api/visits/{id}/review: ReviewOut, everything the review page shows. Edits, adds and
+ * notes give 409 `visit_confirmed` after confirm, and `visit_not_in_review` before review.
+ */
+export interface Review {
+  visit: Visit;
+  report: Report | null;
+  tasks: Task[];
+  insights: Insight[];
+  notes: Note[];
+  kinds: Choice[];
+  categories: Choice[];
+  severities: Choice[];
+}
+
+/** The longest note the server takes: countertalk/limits.py, NOTE_MAX_CHARS. */
+export const NOTE_MAX_CHARS = 2_000;
+
+/** The longest summary a rep may write: countertalk/limits.py, SUMMARY_MAX_CHARS. */
+export const SUMMARY_MAX_CHARS = 500;

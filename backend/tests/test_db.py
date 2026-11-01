@@ -111,3 +111,12 @@ def test_database_errors_do_not_show_the_sql_parameters() -> None:
 
     assert "[parameters:" not in str(error.value)
     assert "SQL parameters hidden" in str(error.value)
+
+
+def test_a_read_only_transaction_reads_one_snapshot() -> None:
+    # Batch 14's review page reads in several statements: none may see another's commit.
+    with session_scope(read_only=True) as session:
+        found = session.execute(text("SHOW transaction_isolation")).scalar_one()
+        read_only = session.execute(text("SHOW transaction_read_only")).scalar_one()
+
+    assert (found, read_only) == ("repeatable read", "on")

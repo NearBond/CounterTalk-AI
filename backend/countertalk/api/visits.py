@@ -1,10 +1,12 @@
 """/api/visits: create, list and read visits, upload their segments, complete them, read
-their transcript and audio, and reprocess them (batch 13)."""
+their transcript and audio, reprocess them (batch 13), and review them: read the review, add a
+finding or a note, and confirm (batch 14; /api/insights edits one insight)."""
 
 import logging
 import re
 from collections.abc import AsyncIterator
 from datetime import datetime
+from functools import partial
 from typing import Annotated
 from uuid import UUID
 
@@ -15,8 +17,18 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
 
-from countertalk import reprocess, storage, transcription, visits
+from countertalk import extraction, reprocess, review, storage, transcription, visits
 from countertalk.api.deps import CurrentUser
+from countertalk.api.insights import (
+    ChoiceOut,
+    InsightOut,
+    NewInsight,
+    NewNote,
+    NoteOut,
+    ReportOut,
+    TaskOut,
+    insight_out,
+)
 from countertalk.db import DbSession
 from countertalk.errors import Invalid, LengthRequired
 from countertalk.limits import MAX_SEGMENT_BYTES
@@ -73,6 +85,20 @@ class ReprocessIn(BaseModel):
 
     # "from" in JSON: a Python keyword, so the field has another name.
     start: reprocess.From = Field(alias="from")
+
+
+class ReviewOut(BaseModel):
+    """Everything the review page shows, in one call (batch 14)."""
+
+    visit: VisitOut
+    report: ReportOut | None
+    tasks: list[TaskOut]
+    insights: list[InsightOut]
+    notes: list[NoteOut]
+    # The playbook's keys and labels, for the page's pickers.
+    kinds: list[ChoiceOut]
+    categories: list[ChoiceOut]
+    severities: list[ChoiceOut]
 
 
 class TurnOut(BaseModel):
@@ -237,6 +263,56 @@ def reprocess_visit(
     visit_id: UUID, body: ReprocessIn, user: CurrentUser, session: DbSession
 ) -> VisitOut:
     visit = reprocess.reprocess(session, user.org_id, str(visit_id), body.start)
+    return _one_visit_out(session, visit)
+
+
+@router.get("/{visit_id}/review")
+def get_review(visit_id: UUID, user: CurrentUser, session: DbSession) -> ReviewOut:
+    pack = partial(extraction.pack_for, user.org_id)
+    found = review.review_of(session, pack, user.org_id, str(visit_id))
+
+    def choices(items: list[review.Choice]) -> list[ChoiceOut]:
+        return [ChoiceOut(key=item.key, label=item.label) for item in items]
+
+    return ReviewOut(
+        visit=_one_visit_out(session, found.visit),
+        report=ReportOut.model_validate(found.report, from_attributes=True)
+        if found.report is not None
+        else None,
+        tasks=[TaskOut.model_validate(task, from_attributes=True) for task in found.tasks],
+        insights=[insight_out(view) for view in found.insights],
+        notes=[NoteOut.model_validate(note, from_attributes=True) for note in found.notes],
+        kinds=choices(found.kinds),
+        categories=choices(found.categories),
+        severities=choices(found.severities),
+    )
+
+
+@router.post("/{visit_id}/insights", status_code=status.HTTP_201_CREATED)
+def add_insight(
+    visit_id: UUID, body: NewInsight, user: CurrentUser, session: DbSession
+) -> InsightOut:
+    """A finding the AI missed: the turn becomes its quote, exact and playable. 404 for a turn
+    that isn't in the visit's transcript."""
+    pack = extraction.pack_for(user.org_id)
+    found = review.add_insight(
+        session, pack, user.org_id, user.id, str(visit_id), **body.model_dump()
+    )
+    [view] = review.insight_views(session, [found])
+    return insight_out(view)
+
+
+@router.post("/{visit_id}/notes", status_code=status.HTTP_201_CREATED)
+def add_note(visit_id: UUID, body: NewNote, user: CurrentUser, session: DbSession) -> NoteOut:
+    """For the visit's record only: never routed, never shown to teams."""
+    note = review.add_note(session, user.org_id, user.id, str(visit_id), body.text)
+    return NoteOut.model_validate(note, from_attributes=True)
+
+
+@router.post("/{visit_id}/confirm")
+def confirm_visit(visit_id: UUID, user: CurrentUser, session: DbSession) -> VisitOut:
+    """Review to confirmed, and locked against edits; confirming again returns it as it is."""
+    visit = review.confirm(session, user.org_id, user.id, str(visit_id))
     return _one_visit_out(session, visit)
 
 

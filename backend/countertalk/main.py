@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from countertalk.api import debug, health, shops, visits
+from countertalk.api import debug, health, insights, shops, visits
 from countertalk.config import get_settings
 from countertalk.db import constraint_name
 from countertalk.errors import DomainError
@@ -125,6 +125,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(shops.router)
     app.include_router(visits.router)
+    app.include_router(insights.router)
     if get_settings().DEBUG:
         # Test hooks (queueing test jobs): never on a deployed service, where DEBUG=0.
         app.include_router(debug.router)

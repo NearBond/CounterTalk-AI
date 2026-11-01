@@ -338,7 +338,7 @@ def test_a_visit_the_rep_has_edited_isnt_compared(
     run(visit_id, ALL_PLACED, answer())
     with session_scope() as session:
         [insight_id] = session.scalars(select(Insight.id).where(Insight.visit_id == visit_id))
-        review.edit_insight(session, tiny(), org.org_id, org.rep_id, insight_id, category="supply")
+        review.edit_insight(session, tiny, org.org_id, org.rep_id, insight_id, category="supply")
 
     assert main([visit_id, k2_file(tmp_path, "teams: [field]")]) == 1
 

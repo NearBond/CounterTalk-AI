@@ -11,9 +11,22 @@ from pydantic import BaseModel
 
 from countertalk import limits, storage
 from countertalk.api.health import HealthOut
+from countertalk.api.insights import (
+    ChoiceOut,
+    InsightChange,
+    InsightOut,
+    NewInsight,
+    NewNote,
+    NoteOut,
+    QuoteOut,
+    ReportOut,
+    RouteOut,
+    TaskOut,
+)
 from countertalk.api.shops import ShopOut
 from countertalk.api.visits import (
     CompleteIn,
+    ReviewOut,
     SegmentOut,
     TranscriptOut,
     TurnOut,
@@ -33,6 +46,17 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "Segment": SegmentOut,
     "Transcript": TranscriptOut,
     "Turn": TurnOut,
+    "Quote": QuoteOut,
+    "Route": RouteOut,
+    "Insight": InsightOut,
+    "InsightChange": InsightChange,
+    "NewInsight": NewInsight,
+    "NewNote": NewNote,
+    "Note": NoteOut,
+    "Report": ReportOut,
+    "Task": TaskOut,
+    "Choice": ChoiceOut,
+    "Review": ReviewOut,
 }
 
 
@@ -59,3 +83,17 @@ def test_the_web_app_mirrors_the_servers_upload_limits() -> None:
     assert exts is not None and limit is not None
     assert tuple(re.findall(r'"(\w+)"', exts.group(1))) == storage.ALLOWED_EXTS
     assert int(limit.group(1)) == limits.MAX_SEGMENT_BYTES
+
+
+def test_the_web_app_mirrors_the_note_limit() -> None:
+    source = TYPES.read_text(encoding="utf-8")
+    limit = re.search(r"export const NOTE_MAX_CHARS = ([\d_]+);", source)
+
+    assert limit is not None and int(limit.group(1)) == limits.NOTE_MAX_CHARS
+
+
+def test_the_web_app_mirrors_the_summary_limit() -> None:
+    source = TYPES.read_text(encoding="utf-8")
+    limit = re.search(r"export const SUMMARY_MAX_CHARS = ([0-9_]+);", source)
+
+    assert limit is not None and int(limit.group(1)) == limits.SUMMARY_MAX_CHARS
