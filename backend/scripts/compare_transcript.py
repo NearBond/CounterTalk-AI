@@ -1,6 +1,7 @@
 """Compares a visit's transcript with a role-play's reference turns: a dev tool (batch 6).
 
     uv run python scripts/compare_transcript.py <visit_id> <rpNN.turns.json> [--offset-ms N]
+        [--roles]
 
 It prints:
 - speaker separation: each chunk's labels (c0:A, …) mapped to the role they overlap most in
@@ -11,6 +12,9 @@ It prints:
 
 --offset-ms shifts the reference, for a recording that starts later than the mix (a browser
 capture, say). It prints the words, so use it on test recordings only, never on a real visit.
+
+--roles prints only each label's saved speaker role (batch 9) next to the role it overlaps most,
+and the share that agree, by labels and by speech time: no words.
 """
 
 import argparse
@@ -23,7 +27,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from countertalk import storage
+from countertalk import roles, storage
 from countertalk.db import session_scope
 from countertalk.models import Turn, Visit, parse_id
 
@@ -82,6 +86,36 @@ def speaker_share(
     return right, total
 
 
+def role_agreement(turns: list[Span], reference: list[Span], saved: dict[str, str]) -> list[str]:
+    """Each label's saved role next to the role it overlaps most, in the order labels are first
+    heard, and the share that agree: of the labels, and of their speech time."""
+    mapping = map_labels(turns, reference)
+    speech: Counter[str] = Counter()
+    for turn in turns:
+        speech[turn.label] += turn.end_ms - turn.start_ms
+    agree = {label for label in speech if label in saved and saved[label] == mapping.get(label)}
+    lines = ["Roles, saved and by overlap:"]
+    for label in speech:
+        by_overlap = mapping.get(label, "(overlaps nothing)")
+        lines.append(
+            f"  {label:<7} saved {saved.get(label, '(none)'):<11} overlap {by_overlap:<19}"
+            f" {'agree' if label in agree else 'differ'}"
+        )
+    total = sum(speech.values())
+    share = sum(speech[label] for label in agree) / total if total else 0
+    lines.append(f"  agree: {len(agree)} of {len(speech)} labels, {share:.1%} of speech time")
+    return lines
+
+
+def load_roles(visit_id: str) -> dict[str, str]:
+    with session_scope(read_only=True) as session:
+        visit = session.get(Visit, visit_id)
+        if visit is None or visit.transcript_id is None:
+            return {}
+        saved = roles.saved_roles(session, visit.transcript_id)
+        return {label: role for label, (role, _) in saved.items()}
+
+
 def clock(ms: int) -> str:
     return f"{ms // 60_000:02d}:{ms // 1000 % 60:02d}"
 
@@ -90,12 +124,31 @@ def show(span: Span, prefix: str) -> str:
     return f"  {prefix} {clock(span.start_ms)} {span.label:<10} {span.text}"
 
 
+class BadReference(ValueError):
+    """A reference file that can't be used: why, in words."""
+
+
 def load_reference(path: Path, offset_ms: int) -> list[Span]:
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return [
-        Span(t["role"], t["start_ms"] + offset_ms, t["end_ms"] + offset_ms, t["text"])
-        for t in data["turns"]
-    ]
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except OSError:
+        raise BadReference("it can't be read") from None
+    except ValueError:
+        raise BadReference("it isn't JSON") from None
+    turns = data.get("turns") if isinstance(data, dict) else None
+    if not isinstance(turns, list):
+        raise BadReference("it has no turns list")
+    spans = []
+    for turn in turns:
+        try:
+            role = turn["role"]
+            start, end = turn["start_ms"] + offset_ms, turn["end_ms"] + offset_ms
+            spans.append(Span(role, start, end, turn["text"]))
+        except KeyError as missing:
+            raise BadReference(f"a turn lacks {missing.args[0]}") from None
+        except TypeError:
+            raise BadReference("a turn isn't a role, two times and a text") from None
+    return spans
 
 
 def load_transcript(visit_id: str) -> list[Span] | None:
@@ -157,6 +210,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("visit_id")
     parser.add_argument("reference", type=Path, help="a role-play's rpNN.turns.json")
     parser.add_argument("--offset-ms", type=int, default=0)
+    parser.add_argument("--roles", action="store_true", help="the saved roles only, no words")
     args = parser.parse_args(argv)
     visit_id = parse_id(args.visit_id)
     if visit_id is None:
@@ -165,7 +219,19 @@ def main(argv: list[str]) -> int:
     if turns is None:
         print(f"visit {visit_id} has no transcript", file=sys.stderr)
         return 1
-    report(visit_id, turns, load_reference(args.reference, args.offset_ms))
+    saved = load_roles(visit_id) if args.roles else {}
+    if args.roles and not saved:
+        print(f"visit {visit_id} has no saved roles", file=sys.stderr)
+        return 1
+    try:
+        reference = load_reference(args.reference, args.offset_ms)
+    except BadReference as why:
+        print(f"can't use {args.reference}: {why}", file=sys.stderr)
+        return 1
+    if args.roles:
+        print("\n".join(role_agreement(turns, reference, saved)))
+        return 0
+    report(visit_id, turns, reference)
     return 0
 
 

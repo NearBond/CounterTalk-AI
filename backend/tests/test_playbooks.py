@@ -356,7 +356,10 @@ def test_the_test_orgs_pack_fits_k6() -> None:
     assert all(d.name.endswith("(example)") for d in pack.distributors)
     diwali = next(s for s in pack.schemes if s.key == "kurkure_diwali_payout")
     assert {"Diwali scheme", "दिवाली स्कीम", "Kurkure scheme"} <= set(diwali.aliases)
-    assert min(s.starts for s in pack.schemes).isoformat() <= "2026-09-01"
+    # rp06's pending display payments are for August and September, and rp03's for "last
+    # quarter": the display scheme covers them.
+    rack = next(s for s in pack.schemes if s.key == "lays_display_rack")
+    assert (rack.starts.isoformat(), rack.ends.isoformat()) == ("2026-07-01", "2026-12-31")
     assert max(s.ends for s in pack.schemes).isoformat() >= "2026-12-31"
 
 

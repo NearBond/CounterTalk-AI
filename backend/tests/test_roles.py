@@ -29,12 +29,17 @@ def tiny() -> OrgPack:
     return load_org_pack("tiny-demo", 1, ORG_PACK_FIXTURES)
 
 
-@pytest.fixture
-def org() -> Org_:
+def tiny_org() -> Org_:
+    """An org on the tests' tiny-demo pack."""
     org = make_org()
     with session_scope() as session:
         catalog.import_org_pack(session, org.org_id, tiny())
     return org
+
+
+@pytest.fixture
+def org() -> Org_:
+    return tiny_org()
 
 
 def transcribed(org: Org_, lines: Sequence[Line]) -> str:

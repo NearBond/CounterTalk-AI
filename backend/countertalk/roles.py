@@ -72,15 +72,27 @@ class _Turn:
     text: str
 
 
-def assign_roles(
-    transcript_id: str,
-    llm: StructuredLlm,
-    pack: OrgPack,
-    *,
-    claim_lost: threading.Event | None = None,
-) -> Assigned:
-    """The transcript's roles: the saved ones, or asked for and saved. `pack` is its visit's
-    org's own (Conflict otherwise); a job's handler passes its `claim_lost` (§2.4)."""
+@dataclass(frozen=True)
+class Request:
+    """What assign_roles sends for a transcript: the same for a dry run (scripts/
+    assign_roles.py) as for a paid one."""
+
+    visit_id: str
+    org_id: str
+    transcript_id: str
+    # In first-heard order.
+    labels: list[str]
+    # The playbook's, which the schema allows and an answer is checked against.
+    role_keys: list[str]
+    turns: int
+    sent: int
+    messages: list[Message]
+    schema: dict[str, Any]
+
+
+def request_for(transcript_id: str, pack: OrgPack) -> Assigned | Request:
+    """The transcript's saved roles, or the request for them: read in one short transaction,
+    and built with none open. `pack` must be its visit's org's own: Conflict otherwise."""
     found = parse_id(transcript_id)
     with session_scope(read_only=True) as session:
         transcript = session.get(Transcript, found) if found is not None else None
@@ -92,7 +104,7 @@ def assign_roles(
         if (org.org_pack_id, org.org_pack_version) != (pack.id, pack.version):
             raise Conflict("wrong_org_pack", "That isn't the org pack of the visit's org")
         visit_id, org_id = visit.id, visit.org_id
-        saved = _saved(session, transcript_id)
+        saved = saved_roles(session, transcript_id)
         if saved:
             return Assigned(saved, ())
         query = select(Turn.turn_id, Turn.speaker_label, Turn.start_ms, Turn.text)
@@ -105,29 +117,49 @@ def assign_roles(
     if not turns:
         raise PermanentError("transcript_empty", "The transcript has no turns")
     labels = list(dict.fromkeys(turn.label for turn in turns))
-    role_keys = list(pack.playbook.roles)
     sent = sample(turns, labels)
     messages = [
         Message("system", INSTRUCTIONS + "\n\n" + playbook_text(pack, "roles_prompt")),
         Message("user", f"Labels: {', '.join(labels)}\n\n" + "\n".join(map(_line, sent))),
     ]
+    role_keys = list(pack.playbook.roles)
+    schema = _schema(labels, role_keys)
+    return Request(
+        visit_id, org_id, transcript_id, labels, role_keys, len(turns), len(sent), messages, schema
+    )
+
+
+def assign_roles(
+    transcript_id: str,
+    llm: StructuredLlm,
+    pack: OrgPack,
+    *,
+    claim_lost: threading.Event | None = None,
+) -> Assigned:
+    """The transcript's roles: the saved ones, or asked for and saved. `pack` is its visit's
+    org's own (Conflict otherwise); a job's handler passes its `claim_lost` (§2.4)."""
+    request = request_for(transcript_id, pack)
+    if isinstance(request, Assigned):
+        return request
+    visit_id, transcript_id, labels = request.visit_id, request.transcript_id, request.labels
+    messages = request.messages
     log.info(
         "roles asked visit=%s transcript=%s labels=%d turns_sent=%d of=%d",
         visit_id,
         transcript_id,
         len(labels),
-        len(sent),
-        len(turns),
+        request.sent,
+        request.turns,
     )
     calls: list[CallDetails] = []
     for attempt in (1, 2):  # a reply that places nobody is asked once more
-        outcome = llm.complete(messages, NAME, _schema(labels, role_keys), claim_lost=claim_lost)
+        outcome = llm.complete(messages, NAME, request.schema, claim_lost=claim_lost)
         calls.extend(outcome.calls)
         llm_calls.record(visit_id, LlmPurpose.ROLES, llm.provider, outcome)
         if outcome.error is not None:
             raise outcome.error
         answer = outcome.answer or {}
-        placed, ignored = _placed(answer, labels, role_keys)
+        placed, ignored = _placed(answer, labels, request.role_keys)
         if placed:
             break
         log.warning(
@@ -139,8 +171,8 @@ def assign_roles(
         raise PermanentError("roles_none_placed", "Muse Spark didn't say who any speaker was")
     roles = {label: placed.get(label, UNPLACED) for label in labels}
     with session_scope() as session:
-        visits.lock_visit(session, org_id, visit_id)
-        saved = _saved(session, transcript_id)
+        visits.lock_visit(session, request.org_id, visit_id)
+        saved = saved_roles(session, transcript_id)
         if saved:
             log.info("roles kept from another run visit=%s transcript=%s", visit_id, transcript_id)
             return Assigned(saved, tuple(calls))
@@ -229,8 +261,9 @@ def _placed(
     return placed, ignored
 
 
-def _saved(session: Session, transcript_id: str) -> dict[str, tuple[str, float]]:
-    """The saved roles, in the order their labels are first heard, as a first run gives them."""
+def saved_roles(session: Session, transcript_id: str) -> dict[str, tuple[str, float]]:
+    """A transcript's saved roles, label: (role, confidence), in the order their labels are
+    first heard, as a first run gives them. Empty if none are saved."""
     first_heard = (
         select(Turn.speaker_label, func.min(Turn.turn_id).label("turn_id"))
         .where(Turn.transcript_id == transcript_id)
