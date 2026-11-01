@@ -151,7 +151,7 @@ def main(argv: list[str], llm: StructuredLlm | None = None) -> int:
             )
         if visit.status == VisitStatus.CONFIRMED and args.again:
             print(
-                "failed: visit_confirmed: A confirmed visit can't be extracted again",
+                "failed: visit_confirmed: A confirmed visit can't be processed again",
                 file=sys.stderr,
             )
             return 1

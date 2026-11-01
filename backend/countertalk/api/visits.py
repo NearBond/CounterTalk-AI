@@ -1,5 +1,5 @@
-"""/api/visits: create, list and read visits, upload their segments, complete them, and read
-their transcript and audio."""
+"""/api/visits: create, list and read visits, upload their segments, complete them, read
+their transcript and audio, and reprocess them (batch 13)."""
 
 import logging
 import re
@@ -10,12 +10,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
 
-from countertalk import storage, transcription, visits
+from countertalk import reprocess, storage, transcription, visits
 from countertalk.api.deps import CurrentUser
 from countertalk.db import DbSession
 from countertalk.errors import Invalid, LengthRequired
@@ -66,6 +66,13 @@ class CompleteIn(BaseModel):
     # Strict: JSON true, "1" or 1.0 aren't a segment number.
     last_seq: StrictInt
     ext: str
+
+
+class ReprocessIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # "from" in JSON: a Python keyword, so the field has another name.
+    start: reprocess.From = Field(alias="from")
 
 
 class TurnOut(BaseModel):
@@ -213,6 +220,24 @@ def put_segment(
     return SegmentOut(
         seq=stored.seq, bytes=stored.bytes, sha256=stored.sha256, received_at=stored.received_at
     )
+
+
+@router.post(
+    "/{visit_id}/reprocess",
+    description=(
+        "Runs a visit in review or failed again, before it's confirmed: from extract (the"
+        " transcript and roles reused, only extraction paid for) or from transcribe (a new"
+        f" transcript). {reprocess.PAYS_AGAIN}; one that failed part-way through transcription"
+        " keeps the replies already paid for. 409 for a visit that's confirmed or still being"
+        " processed, from extract with no transcript, and from transcribe if its upload never"
+        " finished."
+    ),
+)
+def reprocess_visit(
+    visit_id: UUID, body: ReprocessIn, user: CurrentUser, session: DbSession
+) -> VisitOut:
+    visit = reprocess.reprocess(session, user.org_id, str(visit_id), body.start)
+    return _one_visit_out(session, visit)
 
 
 @router.post("/{visit_id}/complete")

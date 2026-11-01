@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 from sqlalchemy import select
 
-from countertalk import extraction
+from countertalk import extraction, reprocess
 from countertalk.db import session_scope
 from countertalk.errors import RetryableError
 from countertalk.llm.base import Outcome
@@ -154,7 +154,7 @@ def test_checking_again_gives_the_same_quotes(org: Org_) -> None:
     run(visit_id, ALL_PLACED, quoting((0, ASKED), (3, "Haan yeh lo")))
     first = quotes_of(visit_id)
     with session_scope() as session:
-        extraction.queue_again(session, org.org_id, visit_id)
+        reprocess.reprocess(session, org.org_id, visit_id, "extract")
 
     run(visit_id, quoting((0, ASKED), (3, "Haan yeh lo")))
 

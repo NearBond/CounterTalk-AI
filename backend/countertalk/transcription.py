@@ -11,7 +11,12 @@
 
 Safe to run twice: only a visit that's uploaded or transcribing is worked on, so one with a
 transcript is left alone. By status, not by transcript_id: batch 13's reprocess sends a visit
-back to uploaded with its old transcript still current, and expects a new one.
+back to uploaded with its old transcript still current, and expects a new one. So a visit
+that's uploaded with a transcript is being transcribed again: the replies that made that
+transcript are removed under its lock as it starts, and every chunk is paid for again. The
+transcript being replaced is noted beside the replies, so a re-run that fails part-way and is
+reprocessed again keeps what it paid for; so does one that failed part-way with no transcript
+yet: a retry never pays twice (R8).
 """
 
 import json
@@ -104,6 +109,8 @@ def _start(visit_id: str) -> _Work | None:
         if visit is None:
             return None  # a job's visit can't go without the job; nothing to do either way
         if visit.status == VisitStatus.UPLOADED:
+            if visit.transcript_id is not None:  # reprocessed from transcribe (batch 13)
+                _start_again(visit_id, visit.transcript_id)
             visits.set_status(visit, VisitStatus.TRANSCRIBING)
         elif visit.status != VisitStatus.TRANSCRIBING:  # a retry finds it transcribing
             log.info("transcription not needed visit=%s status=%s", visit_id, visit.status)
@@ -114,6 +121,23 @@ def _start(visit_id: str) -> _Work | None:
             select(Segment.seq).where(Segment.visit_id == visit_id).order_by(Segment.seq)
         )
         return _Work(visit.source_ext, list(seqs), visit.org_id)
+
+
+def _start_again(visit_id: str, replaced: str) -> None:
+    """The replies that made the transcript being replaced go, once: a note of it is left
+    beside them, so replies a later run of this same redo paid for are kept (R8). Harmless if
+    the transaction then rolls back: the note stops a second removal."""
+    note = storage.replacing_path(visit_id)
+    try:
+        noted = note.read_text(encoding="utf-8").strip()
+    except OSError:
+        noted = None
+    if noted == replaced:
+        log.info("transcribing again, replies kept visit=%s", visit_id)
+        return
+    removed = storage.remove_stt_replies(visit_id)
+    storage.write_file(note, replaced.encode())
+    log.info("transcribing again visit=%s replies_removed=%d", visit_id, removed)
 
 
 def _chunk_key(chunk: audio.Chunk) -> dict[str, int]:

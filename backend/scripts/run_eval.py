@@ -81,11 +81,15 @@ from scripts._paid import Paid, Stopped, estimate, model_llm, paid_run, run_extr
 from scripts.compare_extraction import (
     Expected,
     Extracted,
+    Result,
+    Review,
     Totals,
     load_expected,
     load_extracted,
     match_insights,
+    misses,
 )
+from scripts.compare_extraction import report as compared
 from scripts.compare_transcript import BadReference, load_reference
 from scripts.extract_visit import ANSWER_TOKENS
 
@@ -429,10 +433,21 @@ def totals_json(totals: Totals) -> dict[str, Any]:
 
 
 @dataclass
+class Scored:
+    """One case, as compared and counted."""
+
+    extracted: list[Extracted]
+    reviews: list[Review]
+    result: Result
+    totals: Totals
+    score: Score
+
+
+@dataclass
 class Run:
     """What's scored, per case and for the run."""
 
-    cases: dict[str, tuple[Totals, Score]] = field(default_factory=dict)
+    cases: dict[str, Scored] = field(default_factory=dict)
     totals: Totals = field(default_factory=Totals)
     score: Score = field(default_factory=Score)
 
@@ -442,11 +457,11 @@ class Run:
             raise Refused(f"{case.name}: its visit has no transcript")
         extracted, reviews = loaded
         result = match_insights(case.expected, extracted)
-        both = (Totals(), Score())
-        for totals, score in (both, (self.totals, self.score)):
+        scored = Scored(extracted, reviews, result, Totals(), Score())
+        for totals, score in ((scored.totals, scored.score), (self.totals, self.score)):
             totals.add(case.expected, extracted, result, reviews)
             score.add(case.expected, extracted, result.pairs, pack, usd)
-        self.cases[case.name] = both
+        self.cases[case.name] = scored
 
 
 # --- running ---------------------------------------------------------------------------------
@@ -517,11 +532,16 @@ def report(
         visit_id = visits[case.name]
         scored.add(case, visit_id, pack_of(case, packs), paid.usd(visit_id))
     found: dict[str, Any] = {}
-    for name, (totals, score) in scored.cases.items():
-        lines = [*totals.lines(), *score.lines()]
-        print(f"\n{name} ({states[name]}):")
-        print("\n".join(f"  {line}" for line in lines))
-        found[name] = {"job": states[name], **totals_json(totals), **score.as_json()}
+    for name, case in scored.cases.items():
+        # compare_extraction's own table (R1): each pair, and each insight missed or invented.
+        compared(f"{name}, job {states[name]}", case.result, case.extracted, case.reviews)
+        print("\n".join(f"  {line}" for line in [*case.totals.headline(), *case.score.lines()]))
+        found[name] = {
+            "job": states[name],
+            **totals_json(case.totals),
+            **case.score.as_json(),
+            **misses(case.result),
+        }
     lines = [*scored.totals.lines(), *scored.score.lines()]
     print(f"\nTotals, {len(cases)} cases:")
     print("\n".join(f"  {line}" for line in lines))

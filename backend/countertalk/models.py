@@ -509,6 +509,9 @@ class Job(Base):
     run_after: Mapped[datetime] = mapped_column(UtcDateTime, server_default=func.now())
     # Only words we wrote: a foreign exception's text can hold personal data (§1.9).
     last_error: Mapped[str | None] = mapped_column(String)
+    # Its code, stored to be matched on (batch 13's reprocess_failed.py; R4): a DomainError's,
+    # unexpected_error or stale_claim. None for a job that failed before batch 13.
+    last_error_code: Mapped[str | None] = mapped_column(String)
     locked_by: Mapped[str | None] = mapped_column(String)
     locked_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, server_default=func.now())

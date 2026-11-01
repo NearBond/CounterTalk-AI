@@ -42,6 +42,7 @@ TRICKY = [
     ("कुरकुरे", "kurkure", "exact"),
     ("लेज़", "lays", "exact"),
     ("Lay's", "lays", "exact"),
+    ("लेस", "lays", "exact"),  # how speech-to-text spells it; at 3 letters, exact only
     ("बिंगो", "bingo", "exact"),
     ("Bingo", "bingo", "exact"),
     ("बालाजी", "balaji", "exact"),

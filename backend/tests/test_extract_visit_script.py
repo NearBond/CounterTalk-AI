@@ -101,7 +101,7 @@ def test_again_on_a_confirmed_visit_is_one_line(
 
     assert (code, err) == (
         1,
-        "failed: visit_confirmed: A confirmed visit can't be extracted again\n",
+        "failed: visit_confirmed: A confirmed visit can't be processed again\n",
     )
 
 

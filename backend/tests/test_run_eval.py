@@ -99,7 +99,9 @@ def test_each_case_runs_the_real_extract_job_and_is_scored(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     a_case(tmp_path / "cases", "rp99")
-    llm = FakeLlm(answer(insight(sku_mentions=["Crunchy"])))  # roles are saved: extraction only
+    # One that matches K2's, and one it hasn't got: the shopkeeper's "Haan, yeh lo." at 70 s.
+    thanks = insight(kind="praise", category="praise", evidence=[{"turn_id": 3, "quote": "Haan"}])
+    llm = FakeLlm(answer(insight(sku_mentions=["Crunchy"]), thanks))  # roles saved: extraction
 
     assert eval_(tmp_path, "--yes", llm=llm) == 0
 
@@ -107,6 +109,9 @@ def test_each_case_runs_the_real_extract_job_and_is_scored(
     with session_scope(read_only=True) as session:
         assert session.scalars(select(Visit.status)).all() == [VisitStatus.REVIEW]
     out = capsys.readouterr().out
+    # compare_extraction's own table, missed and invented included.
+    assert "\nrp99, job done: 1 matched, 0 missed, 1 invented, of 2 extracted\n" in out
+    assert "\n  INVENTED praise/praise/low: The shop wants two boxes.\n" in out
     assert "  product_request: recall 1/1 (100%) of K2 product_request (optional aside)," in out
     for way in ("table", "ai", "rule"):
         assert f"  routing, {way}: " in out
@@ -115,7 +120,21 @@ def test_each_case_runs_the_real_extract_job_and_is_scored(
     assert results.name == f"{found['date']}-{found['prompt_hash']}.json"
     case = found["cases"]["rp99"]
     assert (case["job"], case["required"], case["matched_required"]) == ("done", 1, 1)
-    assert case["kinds"] == {"product_request": {"both": 1, "required": 1, "extracted": 1}}
+    assert case["kinds"] == {
+        "praise": {"both": 0, "required": 0, "extracted": 1},
+        "product_request": {"both": 1, "required": 1, "extracted": 1},
+    }
+    assert (case["missed"], case["invented"]) == (
+        [],
+        [
+            {
+                "kind": "praise",
+                "category": "praise",
+                "severity": "low",
+                "summary": "The shop wants two boxes.",
+            }
+        ],
+    )
     # demand has no table team: the AI's field is the rule's, and K2's.
     assert case["routing"] == {
         "matched_verified": 1,

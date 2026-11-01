@@ -62,7 +62,8 @@ def interrupted(tries: int) -> str:
 
 
 # last_error for a claim nobody refreshed: there's no exception, the worker just went quiet.
-STALE_ERROR = "stale_claim: the worker running it stopped refreshing its claim"
+STALE_CODE = "stale_claim"
+STALE_ERROR = f"{STALE_CODE}: the worker running it stopped refreshing its claim"
 
 
 @dataclass(frozen=True)
@@ -194,7 +195,11 @@ def mark_failed(
     """
     permanent = is_permanent(error)
     dead = permanent or job.attempts >= job.max_attempts
-    values = _released(JobState.DEAD if dead else JobState.QUEUED, last_error=error_text(error))
+    values = _released(
+        JobState.DEAD if dead else JobState.QUEUED,
+        last_error=error_text(error),
+        last_error_code=error_code(error),
+    )
     if not dead:
         values["run_after"] = func.now() + timedelta(milliseconds=backoff_ms(job.attempts))
     reason = None
@@ -229,7 +234,11 @@ def recover_stale(fail_visit: FailVisit) -> list[Recovered]:
     for job_id, kind, visit_id, attempts, max_attempts, locked_by in rows:
         job = ClaimedJob(job_id, kind, visit_id, attempts, max_attempts)
         dead = attempts >= max_attempts
-        values = _released(JobState.DEAD if dead else JobState.QUEUED, last_error=STALE_ERROR)
+        values = _released(
+            JobState.DEAD if dead else JobState.QUEUED,
+            last_error=STALE_ERROR,
+            last_error_code=STALE_CODE,
+        )
         if not dead:
             values["run_after"] = func.now()
         still_stale = (*_held_by(job, locked_by), Job.locked_at < stale_before)
@@ -260,6 +269,11 @@ def is_permanent(error: BaseException) -> bool:
     and a real bug just dies after its attempts.
     """
     return isinstance(error, DomainError) and not isinstance(error, RetryableError)
+
+
+def error_code(error: BaseException) -> str:
+    """The code a failure is matched on: our own, or unexpected_error for anyone else's."""
+    return error.code if isinstance(error, DomainError) else "unexpected_error"
 
 
 def error_text(error: BaseException) -> str:

@@ -356,6 +356,26 @@ def team_agrees(want: Expected, got: Extracted) -> bool:
     return got.team in want.teams if want.teams else got.team is None
 
 
+def misses(result: Result) -> dict[str, list[dict[str, object]]]:
+    """What report() prints as MISSED and INVENTED, as data: test recordings only."""
+    return {
+        "missed": [
+            {
+                "number": w.number,
+                "kind": w.kind,
+                "category": w.category,
+                "severity": w.severity,
+                "phrase": w.phrase,
+            }
+            for w in result.missed
+        ],
+        "invented": [
+            {"kind": g.kind, "category": g.category, "severity": g.severity, "summary": g.summary}
+            for g in result.invented
+        ],
+    }
+
+
 def report(
     name: str, result: Result, extracted: Sequence[Extracted], reviews: Sequence[Review]
 ) -> None:
@@ -434,8 +454,19 @@ class Totals:
         self.reviews.update(kind for kind, _ in reviews)
 
     def lines(self) -> list[str]:
-        scored = self.extracted - self.matched_optional  # an optional match is never invented
         decided = self.scores.routing["agree"] + self.scores.routing["differ"]
+        return [
+            *self.headline(),
+            *self.scores.lines(self.pairs),
+            "routed teams agree:"
+            f" {share(self.scores.routing['agree'], decided, 'those the rule routed or triaged')}",
+            f"alias reviews: {self.reviews.total()}"
+            f" ({buckets(self.reviews, ('own', 'competitor'))})",
+        ]
+
+    def headline(self) -> list[str]:
+        """Recall to invented: what report()'s table doesn't already show."""
+        scored = self.extracted - self.matched_optional  # an optional match is never invented
         return [
             f"recall: {share(self.matched_required, self.required, 'expected (optional aside)')}",
             f"precision: {share(self.matched_required, scored, 'extracted (optional aside)')}",
@@ -445,11 +476,6 @@ class Totals:
             f"quotes: {quotes_shown(self.matches.elements())}",
             f"insights verified: {share(self.verified, self.extracted, 'extracted')}",
             f"invented where nothing was expected: {self.invented_where_none_expected}",
-            *self.scores.lines(self.pairs),
-            "routed teams agree:"
-            f" {share(self.scores.routing['agree'], decided, 'those the rule routed or triaged')}",
-            f"alias reviews: {self.reviews.total()}"
-            f" ({buckets(self.reviews, ('own', 'competitor'))})",
         ]
 
 

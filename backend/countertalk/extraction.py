@@ -27,11 +27,10 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import delete, func, select, text
-from sqlalchemy.orm import Session
 
 from countertalk import entities, jobs, limits, llm_calls, quotes, roles, routing, visits
 from countertalk.db import session_scope
-from countertalk.errors import Conflict, NotFound, PermanentError, RetryableError
+from countertalk.errors import NotFound, PermanentError, RetryableError
 from countertalk.llm import pricing
 from countertalk.llm.base import Message, StructuredLlm
 from countertalk.models import (
@@ -514,18 +513,3 @@ def queue_waiting(limit: int) -> int:
             if visit is not None and visit.status == VisitStatus.TRANSCRIBED:
                 queued += jobs.enqueue(session, JobKind.EXTRACT, visit_id=visit_id) is not None
     return queued
-
-
-def queue_again(session: Session, org_id: str, visit_id: str) -> str | None:
-    """Re-extraction (batch 10's manual step; batch 13's reprocess): from review or failed, back
-    to `transcribed` with an extract job queued, under the visit's lock. Never after confirmed.
-    The transcript and any saved roles are reused: only what's missing is paid for."""
-    visit = visits.lock_visit(session, org_id, visit_id)
-    if visit.status == VisitStatus.CONFIRMED:
-        raise Conflict("visit_confirmed", "A confirmed visit can't be extracted again")
-    if visit.status not in (VisitStatus.REVIEW, VisitStatus.FAILED):
-        raise Conflict("visit_processing", "The visit is still being processed")
-    if visit.transcript_id is None:
-        raise Conflict("no_transcript", "The visit has no transcript to extract")
-    visits.set_status(visit, VisitStatus.TRANSCRIBED)
-    return jobs.enqueue(session, JobKind.EXTRACT, visit_id=visit_id)

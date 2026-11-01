@@ -12,7 +12,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from countertalk import extraction, jobs, llm_calls, visits, worker
+from countertalk import jobs, llm_calls, reprocess, visits, worker
 from countertalk.config import get_settings
 from countertalk.db import SETUP_ERRORS, session_scope
 from countertalk.errors import RetryableError
@@ -123,7 +123,7 @@ def run_extract_job(
     runner = worker.Worker(handlers={JobKind.EXTRACT: worker.extract_with(llm, **folders)})
     with session_scope() as session:
         if again:
-            extraction.queue_again(session, visit.org_id, visit.id)
+            reprocess.reprocess(session, visit.org_id, visit.id, "extract")
         elif visit.status == VisitStatus.TRANSCRIBED:
             jobs.enqueue(session, JobKind.EXTRACT, visit_id=visit.id)
         job = jobs.claim_for_visit(session, runner.id, visit.id, JobKind.EXTRACT)

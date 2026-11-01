@@ -104,6 +104,21 @@ def stt_reply_path(visit_id: str, index: int) -> Path:
     return stt_dir(visit_id) / f"chunk_{_check_chunk(index):03d}.json"
 
 
+def replacing_path(visit_id: str) -> Path:
+    """The ID of the transcript the saved replies are being made to replace (batch 13)."""
+    return stt_dir(visit_id) / "replacing.txt"
+
+
+def remove_stt_replies(visit_id: str) -> int:
+    """Removes the visit's saved speech-to-text replies, before it's transcribed again from
+    scratch (batch 13): how many there were."""
+    removed = 0
+    for path in sorted(stt_dir(visit_id).glob("chunk_*.json")):
+        path.unlink(missing_ok=True)
+        removed += 1
+    return removed
+
+
 def new_temp() -> Path:
     """A fresh path in the staging folder, for a file moved into place once it's whole. One a
     crash leaves behind is swept, like any staged file."""

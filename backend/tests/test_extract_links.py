@@ -6,7 +6,7 @@ import logging
 import pytest
 from sqlalchemy import select
 
-from countertalk import entities, extraction
+from countertalk import entities, extraction, reprocess
 from countertalk.db import session_scope
 from countertalk.models import AliasReview, CatalogItem, Insight, InsightRoute, RoutingDecision
 from tests.conftest import open_transactions
@@ -91,7 +91,7 @@ def test_extracting_again_routes_the_new_insights_and_reviews_a_name_once(org: O
     run(visit_id, ALL_PLACED, answer())  # demand: no table team, so the AI's field
     [(first, *_)] = linked(visit_id)
     with session_scope() as session:
-        extraction.queue_again(session, org.org_id, visit_id)
+        reprocess.reprocess(session, org.org_id, visit_id, "extract")
 
     run(visit_id, answer())
 

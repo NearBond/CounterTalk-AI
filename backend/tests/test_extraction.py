@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 from sqlalchemy import select, update
 
-from countertalk import extraction, jobs, limits, visits, worker
+from countertalk import extraction, jobs, limits, reprocess, visits, worker
 from countertalk.db import session_scope
 from countertalk.errors import Conflict, RetryableError
 from countertalk.llm.base import Outcome
@@ -295,7 +295,7 @@ def test_extracting_again_replaces_the_rows_and_keeps_every_run(org: Org_) -> No
     run(visit_id, ALL_PLACED, answer())
 
     with session_scope() as session:
-        assert extraction.queue_again(session, org.org_id, visit_id) is not None
+        assert reprocess.reprocess(session, org.org_id, visit_id, "extract").status == "transcribed"
     assert load(visit_id).status == VisitStatus.TRANSCRIBED
     again = answer(insight(category="supply", kind="problem"), insight(severity="high"))
     retry = run(visit_id, again)
@@ -319,7 +319,7 @@ def test_a_confirmed_visit_is_never_extracted_again(org: Org_) -> None:
 
     with pytest.raises(Conflict) as error:
         with session_scope() as session:
-            extraction.queue_again(session, org.org_id, visit_id)
+            reprocess.reprocess(session, org.org_id, visit_id, "extract")
 
     assert error.value.code == "visit_confirmed"
     assert len(rows(Extraction)) == 1
@@ -449,7 +449,7 @@ def test_extracting_again_keeps_the_insights_the_rep_added(org: Org_) -> None:
             )
         )
     with session_scope() as session:
-        extraction.queue_again(session, org.org_id, visit_id)
+        reprocess.reprocess(session, org.org_id, visit_id, "extract")
 
     run(visit_id, answer(insight(), insight()))
 
@@ -485,7 +485,7 @@ def test_a_visit_still_being_processed_isnt_queued_again(
 
     with pytest.raises(Conflict) as error:
         with session_scope() as session:
-            extraction.queue_again(session, org.org_id, visit_id)
+            reprocess.reprocess(session, org.org_id, visit_id, "extract")
 
     assert error.value.code == "visit_processing"
 
