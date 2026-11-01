@@ -237,7 +237,9 @@ def _read_text(path: Path) -> str:
         raise PackError(path, "(file)", f"can't be read ({type(error).__name__})") from None
 
 
-def _read_yaml(path: Path) -> dict[str, Any]:
+def read_yaml(path: Path) -> dict[str, Any]:
+    """A YAML mapping, read strictly: a duplicate key, a key that isn't plain text or a file
+    that isn't YAML is a PackError naming the file and the line. Batch 10's K2 files too."""
     try:
         data = yaml.load(_read_text(path), Loader=_StrictLoader)  # noqa: S506 - a SafeLoader
     except _DuplicateKey as error:
@@ -287,7 +289,7 @@ def _inside(folder: Path, relative: str, path: Path, field: str, *, must_exist: 
 def load_playbook(playbook_id: str, version: int, root: Path = PLAYBOOKS_DIR) -> Playbook:
     folder = _folder(root, playbook_id, version, root / str(playbook_id) / "playbook.yaml")
     path = folder / "playbook.yaml"
-    playbook = _model(Playbook, _read_yaml(path), path)
+    playbook = _model(Playbook, read_yaml(path), path)
     if (playbook.id, playbook.version) != (playbook_id, version):
         raise PackError(path, "id", f"says {playbook.id} v{playbook.version}, not its folder's")
     if "other" not in playbook.roles:
@@ -444,7 +446,7 @@ def load_org_pack(
 ) -> OrgPack:
     folder = _folder(root, pack_id, version, root / str(pack_id) / "org_pack.yaml")
     path = folder / "org_pack.yaml"
-    file = _model(OrgPackFile, _read_yaml(path), path)
+    file = _model(OrgPackFile, read_yaml(path), path)
     if (file.id, file.version) != (pack_id, version):
         raise PackError(path, "id", f"says {file.id} v{file.version}, not its folder's")
     ref = file.playbook
