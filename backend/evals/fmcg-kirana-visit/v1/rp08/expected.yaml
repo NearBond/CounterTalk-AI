@@ -1,0 +1,35 @@
+# K2 for rp08: pricing and channel conflict.
+# Answer key, checked 1 Nov 2026.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov (pricing → sales_ops).
+# Blinkit isn't in the catalog, so it isn't linked as a competitor.
+recording: rp08
+insights:
+  - kind: problem
+    category: pricing
+    severity: medium               # user's call (1 Nov, a2): medium, though "आपका माल रखना कम कर दूँ" was weighed as a risk of losing the shop
+    speaker: shopkeeper
+    phrase: "Blinkit पे मेरे landing price से सस्ता मिल रहा है"
+    skus: [lays, kurkure]
+    competitors: []
+    scheme: null
+    teams: [sales_ops]
+
+  - kind: problem
+    category: pricing
+    severity: medium
+    speaker: shopkeeper
+    phrase: "उससे लगभग पचास रुपये कम में मंडी में मिल जाता है"
+    skus: [kurkure]
+    competitors: []
+    scheme: null
+    teams: [sales_ops]
+
+  - kind: product_request
+    category: pricing              # a smaller pack to hit a lower price is pricing, not demand (the codebook's excludes)
+    severity: low
+    speaker: shopkeeper
+    phrase: "पाँच रुपये का, या ज़्यादा से ज़्यादा दस का"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [sales_ops]

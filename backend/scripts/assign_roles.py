@@ -15,20 +15,17 @@ are the org packs' and playbooks' folders, for a test's own packs.
 
 import argparse
 import sys
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from countertalk import llm_calls, roles
-from countertalk.config import get_settings
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.errors import DomainError, describe
-from countertalk.llm import pricing
-from countertalk.llm.base import CallDetails, StructuredLlm
-from countertalk.llm.client import MetaLlm
+from countertalk.llm.base import StructuredLlm
 from countertalk.logs import configure_logging
 from countertalk.models import LlmPurpose, Org, Visit, parse_id
 from countertalk.playbooks import ORG_PACKS_DIR, PLAYBOOKS_DIR, OrgPack, load_org_pack
+from scripts._paid import estimate, model_llm, paid_since, show_calls
 
 # A dry run's estimate of the answer: each label's line. Reasoning is added on top (pricing).
 ANSWER_TOKENS_PER_LABEL = 25
@@ -63,36 +60,21 @@ def show_roles(found: dict[str, tuple[str, float]]) -> None:
 
 
 def dry_run(visit_id: str, request: roles.Request) -> None:
-    chars = pricing.request_chars(request.messages, request.schema)
-    tokens_in = pricing.input_tokens(request.messages, request.schema)
-    tokens_out = pricing.output_tokens(len(request.labels) * ANSWER_TOKENS_PER_LABEL)
+    answer = len(request.labels) * ANSWER_TOKENS_PER_LABEL
+    found = estimate(request.messages, request.schema, answer)
     print(
         f"visit {visit_id}: {request.turns} turns, {len(request.labels)} labels:"
         f" {', '.join(request.labels)}"
     )
-    print(f"to send: {request.sent} turns, {chars:,} characters with the instructions and schema")
     print(
-        f"about {tokens_in:,} input and {tokens_out:,} output tokens,"
-        f" ${pricing.cost(tokens_in, 0, tokens_out):.4f} a request"
+        f"to send: {request.sent} turns, {found.chars:,} characters with the instructions"
+        " and schema"
+    )
+    print(
+        f"about {found.tokens_in:,} input and {found.tokens_out:,} output tokens,"
+        f" ${found.usd:.4f} a request"
         " (an estimate: a re-ask or a repair sends another; --yes sends it)"
     )
-
-
-def show_calls(calls: Sequence[CallDetails], purposes: Sequence[str] | None = None) -> None:
-    """Each call's tokens, time and cost, then the total. With `purposes`, each call's too."""
-    for number, call in enumerate(calls, start=1):
-        what = f"{purposes[number - 1]} " if purposes else ""
-        print(
-            f"call {number}: {what}{call.error or 'ok'}, {call.input_tokens or 0:,} input"
-            f" ({call.cached_input_tokens or 0:,} cached), {call.output_tokens or 0:,} output"
-            f" ({call.reasoning_tokens or 0:,} reasoning), {call.latency_ms / 1000:.1f} s,"
-            f" ${pricing.call_cost(call):.4f}"
-        )
-    print(f"cost: ${sum(map(pricing.call_cost, calls)):.4f}")
-
-
-def paid_since(visit_id: str, seq: int) -> list[CallDetails]:
-    return [call for _, call in llm_calls.since(visit_id, seq, LlmPurpose.ROLES)]
 
 
 def saved_already(visit_id: str, saved: dict[str, tuple[str, float]]) -> int:
@@ -106,11 +88,11 @@ def run(visit_id: str, found: Found, llm: StructuredLlm) -> int:
     try:
         assigned = roles.assign_roles(found.transcript_id, llm, found.pack)
     except DomainError as error:
-        show_calls(paid_since(visit_id, before))
+        show_calls(paid_since(visit_id, before, LlmPurpose.ROLES))
         print(f"failed: {describe(error)}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
-        show_calls(paid_since(visit_id, before))
+        show_calls(paid_since(visit_id, before, LlmPurpose.ROLES))
         print("stopped: a call in flight may still be billed; no roles saved", file=sys.stderr)
         return 130
     if not assigned.calls:  # another run saved them meanwhile
@@ -146,12 +128,9 @@ def main(argv: list[str], llm: StructuredLlm | None = None) -> int:
                 return saved_already(visit_id, request.roles)
             dry_run(visit_id, request)
             return 0
+        llm = llm or model_llm()
         if llm is None:
-            key = get_settings().MODEL_API_KEY.get_secret_value()
-            if not key:
-                print("MODEL_API_KEY isn't set in backend/.env", file=sys.stderr)
-                return 1
-            llm = MetaLlm(key)
+            return 1
         return run(visit_id, found, llm)
     except SETUP_ERRORS as error:
         print(f"failed: {setup_trouble(error)}", file=sys.stderr)

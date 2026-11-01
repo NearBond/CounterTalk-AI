@@ -33,11 +33,22 @@ BAD_INPUTS = {
     "extract_visit.py": ([UNKNOWN], {}),
     "show_quotes.py": ([UNKNOWN], {}),
     "compare_extraction.py": ([UNKNOWN, "no-such.expected.yaml"], {}),
+    "export_eval_case.py": ([UNKNOWN, "rp99"], {}),
 }
 
 
 def test_every_script_has_a_bad_input_here() -> None:
-    assert sorted(path.name for path in SCRIPTS.glob("*.py")) == sorted(BAD_INPUTS)
+    # A leading underscore marks a module the scripts share, not a script (_paid.py).
+    names = [path.name for path in SCRIPTS.glob("*.py") if not path.name.startswith("_")]
+    assert sorted(names) == sorted(BAD_INPUTS)
+
+
+def test_a_shared_module_has_no_main() -> None:
+    shared = sorted(SCRIPTS.glob("_*.py"))
+
+    assert [path.name for path in shared] == ["_paid.py"]
+    for path in shared:
+        assert main_block(ast.parse(path.read_text(encoding="utf-8"))) == []
 
 
 def main_block(tree: ast.Module) -> list[ast.stmt]:

@@ -1,0 +1,332 @@
+{
+  "recording": "rp01",
+  "title": "Payment delay and a competitor's credit terms",
+  "duration_ms": 196862,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "shubh"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "ashutosh"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते शर्मा जी, कैसे हैं? बहुत दिन बाद आना हुआ।",
+      "start_ms": 500,
+      "end_ms": 3487
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अरे नमस्ते रोहित जी, आइए आइए। बस सब ठीक है। आज गर्मी बहुत है, पानी लेंगे?",
+      "start_ms": 4089,
+      "end_ms": 8270
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नहीं नहीं, अभी पीकर आया हूँ। Business कैसा चल रहा है इस हफ़्ते?",
+      "start_ms": 9043,
+      "end_ms": 12371
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक ही है। सुबह तो खाली रहता है, शाम को थोड़ा rush होता है। Weekend पे बच्चे आते हैं chips लेने।",
+      "start_ms": 13331,
+      "end_ms": 19304
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बढ़िया। कल का match देखा आपने? आख़िरी over में क्या कमाल किया।",
+      "start_ms": 20079,
+      "end_ms": 24175
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ देखा, पूरी दुकान में यही बात हो रही थी। उस दिन तो cold drink भी बहुत बिकी।",
+      "start_ms": 24849,
+      "end_ms": 29542
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और घर पे सब ठीक? बेटे का admission हो गया?",
+      "start_ms": 30244,
+      "end_ms": 32548
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, हो गया। उसी के चक्कर में पिछले हफ़्ते दुकान दो दिन बंद रही। Fees भी बहुत बढ़ गई है आजकल।",
+      "start_ms": 33431,
+      "end_ms": 40599
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "सही बोल रहे हैं, हर चीज़ महँगी हो गई है।",
+      "start_ms": 40853,
+      "end_ms": 43328
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ भाई, पर क्या करें, पढ़ाई तो ज़रूरी है।",
+      "start_ms": 44126,
+      "end_ms": 46942
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पिछली delivery तो time पे आ गई थी ना?",
+      "start_ms": 47703,
+      "end_ms": 49324
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, वो ठीक थी, उसमें कोई problem नहीं।",
+      "start_ms": 49645,
+      "end_ms": 52120
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा है। तो आज मैं Kurkure का नया scheme लेकर आया हूँ। दस carton पे एक carton free।",
+      "start_ms": 52722,
+      "end_ms": 57159
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हम्म।",
+      "start_ms": 56859,
+      "end_ms": 57371
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Scheme तो ठीक है, लेकिन पहले पिछला हिसाब तो clear करवाइए। पिछले महीने का payment अभी तक adjust नहीं हुआ।",
+      "start_ms": 58071,
+      "end_ms": 64471
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "कौन सा payment, शर्मा जी? थोड़ा detail में बताइए।",
+      "start_ms": 65428,
+      "end_ms": 68159
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "वो जो damaged माल वापस किया था ना, उसका credit note आना था। Distributor ने अभी तक credit note नहीं दिया।",
+      "start_ms": 69041,
+      "end_ms": 75185
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा। कितना amount है?",
+      "start_ms": 75503,
+      "end_ms": 76868
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "लगभग साढ़े चार हज़ार रुपये। चार हज़ार पाँच सौ। मैं तीन बार बोल चुका हूँ, और हर बार यही जवाब मिलता है कि अगले हफ़्ते।",
+      "start_ms": 77553,
+      "end_ms": 85574
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "तीन बार? ये तो ठीक नहीं है। आपके पास कोई slip या bill है?",
+      "start_ms": 85889,
+      "end_ms": 89046
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, slip रखी है, ये देखिए। तारीख़ भी लिखी है इस पर।",
+      "start_ms": 89792,
+      "end_ms": 93376
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, मैं इसकी photo ले लेता हूँ।",
+      "start_ms": 93676,
+      "end_ms": 95895
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और एक बात बताऊँ, बुरा मत मानना।",
+      "start_ms": 96795,
+      "end_ms": 98672
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ जी, बोलिए।",
+      "start_ms": 98472,
+      "end_ms": 99155
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Balaji वाले तीस दिन का credit देते हैं। आप लोग सिर्फ़ पंद्रह दिन देते हो। तो मैं क्या करूँ, Balaji wafers ज़्यादा रखता हूँ। Customer को तो chips चाहिए, brand से उसे उतना फ़र्क नहीं पड़ता।",
+      "start_ms": 100042,
+      "end_ms": 109514
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "समझ गया। Credit के बारे में मैं अपने area manager से बात करूँगा, पर अभी कोई promise नहीं कर सकता।",
+      "start_ms": 109729,
+      "end_ms": 115190
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बात तो करो। पंद्रह दिन में पूरा माल बिकता भी नहीं है।",
+      "start_ms": 116160,
+      "end_ms": 119061
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और credit note की बात, मैं आज ही finance team को बोलता हूँ। Next week तक credit note आ जाएगा, मैं खुद follow up करूँगा।",
+      "start_ms": 119738,
+      "end_ms": 126821
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "देखते हैं। पिछली बार भी यही बोला था किसी ने।",
+      "start_ms": 127465,
+      "end_ms": 129684
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "इस बार पक्का, शर्मा जी। मैं आपको Wednesday को phone करके बताता हूँ कि कहाँ तक पहुँचा।",
+      "start_ms": 130156,
+      "end_ms": 134593
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है। और हाँ, Doritos का छोटा वाला pack चाहिए, दस रुपये वाला। Customers पूछते हैं, ख़ासकर college के बच्चे। बड़ा pack उनको महँगा लगता है।",
+      "start_ms": 135482,
+      "end_ms": 144442
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दस रुपये वाला Doritos? वो अभी इस area में आया नहीं है, पर मैं note कर लेता हूँ।",
+      "start_ms": 145299,
+      "end_ms": 149310
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, note करो। आ गया तो बीस पच्चीस packet तो रोज़ निकल जाएँगे।",
+      "start_ms": 149896,
+      "end_ms": 154077
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा, तो आज का order? Kurkure scheme के साथ दस carton लगा दूँ?",
+      "start_ms": 154754,
+      "end_ms": 158509
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नहीं, अभी पाँच carton Kurkure, और Lay's के तीन carton। Scheme वाला अगली बार, जब credit note आ जाएगा।",
+      "start_ms": 159149,
+      "end_ms": 165293
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, पाँच Kurkure, तीन Lay's। Lay's में Magic Masala या Classic Salted?",
+      "start_ms": 166225,
+      "end_ms": 170918
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "दो Magic Masala, एक Classic।",
+      "start_ms": 171184,
+      "end_ms": 173915
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हो गया। Delivery परसों तक हो जाएगी।",
+      "start_ms": 174879,
+      "end_ms": 177098
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है। और वो credit note भूलना मत।",
+      "start_ms": 177965,
+      "end_ms": 180525
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बिल्कुल नहीं भूलूँगा।",
+      "start_ms": 181308,
+      "end_ms": 182673
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "चाय पीकर जाइए, बस बन ही रही है।",
+      "start_ms": 183086,
+      "end_ms": 185134
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अगली बार ज़रूर, शर्मा जी। आज अभी चार दुकानें और करनी हैं इस गली में।",
+      "start_ms": 185703,
+      "end_ms": 189458
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है, ठीक है। ध्यान से जाना, धूप बहुत है।",
+      "start_ms": 189814,
+      "end_ms": 192715
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "जी, चलिए, नमस्ते शर्मा जी।",
+      "start_ms": 193288,
+      "end_ms": 194909
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते।",
+      "start_ms": 195209,
+      "end_ms": 196062
+    }
+  ]
+}

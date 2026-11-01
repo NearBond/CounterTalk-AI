@@ -1,0 +1,35 @@
+# K2 for rp07: quality, expiry and returns.
+# Answer key, checked 1 Nov 2026.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov (quality → distribution).
+recording: rp07
+insights:
+  - kind: problem
+    category: quality              # the codebook files packets with no air, crushed inside, under quality
+    severity: medium
+    speaker: shopkeeper
+    phrase: "इनमें हवा ही नहीं है"
+    skus: [lays]
+    competitors: []
+    scheme: null
+    teams: [distribution]
+
+  - kind: problem
+    category: damage
+    severity: medium               # review: "high" if you count four cartons the shop will lose as money owed
+    speaker: shopkeeper
+    phrase: "वापस नहीं लेंगे"
+    skus: [kurkure]
+    competitors: []
+    scheme: null
+    teams: [distribution]
+    # One insight for the near-expiry stock and the refused return together.
+
+  - kind: problem
+    category: quality
+    severity: medium
+    speaker: shopkeeper
+    phrase: "taste अलग है"
+    skus: [kurkure]
+    competitors: []
+    scheme: null
+    teams: [distribution]

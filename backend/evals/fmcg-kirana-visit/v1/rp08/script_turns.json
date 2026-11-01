@@ -1,0 +1,360 @@
+{
+  "recording": "rp08",
+  "title": "Pricing and channel conflict",
+  "duration_ms": 233117,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "shubh"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "ashutosh"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते अग्रवाल जी। कैसा चल रहा है?",
+      "start_ms": 500,
+      "end_ms": 2377
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आओ राहुल। चल रहा है, बस चल ही रहा है। बैठो।",
+      "start_ms": 2579,
+      "end_ms": 5736
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "भाभी जी की तबीयत अब कैसी है? पिछली बार बताया था hospital गई थीं।",
+      "start_ms": 6193,
+      "end_ms": 10204
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, अब ठीक है। Sugar थोड़ी बढ़ गई थी, अब दवाई चल रही है।",
+      "start_ms": 10817,
+      "end_ms": 13633
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "चलिए, अच्छा है। ध्यान रखिए उनका। पर आज आवाज़ में वो जोश नहीं है।",
+      "start_ms": 14410,
+      "end_ms": 18079
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "जोश कहाँ से आएगा भाई। Sale गिर रही है। ये phone वाले apps ने सब बिगाड़ दिया है।",
+      "start_ms": 19009,
+      "end_ms": 24044
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "कौन से apps?",
+      "start_ms": 24691,
+      "end_ms": 25459
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अरे वही, दस मिनट में delivery वाले। Blinkit, और बाकी सब। ये देखो, मेरे भतीजे ने कल दिखाया।",
+      "start_ms": 25910,
+      "end_ms": 31798
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दिखाइए।",
+      "start_ms": 31598,
+      "end_ms": 32451
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Blinkit पे मेरे landing price से सस्ता मिल रहा है। Lay's का बड़ा pack, मुझे चालीस रुपये में पड़ता है, वो वहाँ अड़तीस में बेच रहे हैं। Delivery free ऊपर से।",
+      "start_ms": 32739,
+      "end_ms": 41528
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अड़तीस? आपकी landing से भी कम?",
+      "start_ms": 42483,
+      "end_ms": 44958
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, यही तो। अब customer मुझसे MRP पे क्यों लेगा? वो बोलता है, अंकल app पे सस्ता है। मैं क्या जवाब दूँ?",
+      "start_ms": 45279,
+      "end_ms": 53215
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "कल एक औरत आई, Kurkure के तीन packet लिए, फिर phone निकाल के बोली, भैया app पे तो दो रुपये सस्ता है। मैंने बोला, मेरा भी खर्चा है, किराया है, बिजली है। वो packet रख के चली गई।",
+      "start_ms": 54129,
+      "end_ms": 64625
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हम्म, ये तो बुरा हुआ।",
+      "start_ms": 65180,
+      "end_ms": 66972
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ऐसा रोज़ दो तीन बार होता है अब।",
+      "start_ms": 67421,
+      "end_ms": 69213
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये कब से देख रहे हैं आप?",
+      "start_ms": 69444,
+      "end_ms": 70639
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "दो तीन महीने से बढ़ गया है। पहले तो इतना नहीं था। अब तो colony के आधे घर app से मँगाते हैं।",
+      "start_ms": 71591,
+      "end_ms": 76626
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हम्म। ये तो pricing का मामला है। मैं ये ऊपर ज़रूर बताऊँगा, screenshot भेज दीजिए मुझे।",
+      "start_ms": 77432,
+      "end_ms": 82552
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "भेज दूँगा। और ये सिर्फ़ app की बात नहीं है।",
+      "start_ms": 83352,
+      "end_ms": 86339
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और क्या?",
+      "start_ms": 87061,
+      "end_ms": 87658
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "मंडी में, wholesale market में, वहाँ भी सस्ता बिक रहा है। छोटे दुकानदार वहीं से ले आते हैं, नकद में, कम rate पे। फिर मुझसे सस्ता बेचते हैं।",
+      "start_ms": 88013,
+      "end_ms": 95778
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Wholesale में कितना सस्ता?",
+      "start_ms": 95997,
+      "end_ms": 97704
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Kurkure का carton, मुझे distributor से जो rate मिलता है, उससे लगभग पचास रुपये कम में मंडी में मिल जाता है। पता नहीं कहाँ से आता है उनके पास।",
+      "start_ms": 98154,
+      "end_ms": 107029
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पचास रुपये per carton कम? ये तो बहुत फ़र्क है। मंडी में कौन लोग बेच रहे हैं, आपको पता है?",
+      "start_ms": 107597,
+      "end_ms": 113058
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नाम तो नहीं पता, पर दो तीन बड़े वाले हैं जो सीधा truck से उतारते हैं। छोटे दुकानदार सुबह छह बजे वहाँ लाइन लगाते हैं।",
+      "start_ms": 113526,
+      "end_ms": 120779
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, ये बात भी काम की है।",
+      "start_ms": 121717,
+      "end_ms": 123765
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ। तो मेरे पास दो रास्ते हैं। या तो मैं भी मंडी से लूँ, या फिर आपका माल रखना कम कर दूँ।",
+      "start_ms": 124610,
+      "end_ms": 131266
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नहीं नहीं, ऐसा मत कीजिए। मैं ये दोनों बातें लिख रहा हूँ, app वाली भी और wholesale वाली भी।",
+      "start_ms": 131785,
+      "end_ms": 137076
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "लिखो। पर लिखने से क्या होगा, राहुल? पिछली बार भी लिखा था।",
+      "start_ms": 137319,
+      "end_ms": 141415
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "इस बार screenshot और rate दोनों के साथ भेजूँगा, तो बात ठीक से पहुँचेगी।",
+      "start_ms": 142085,
+      "end_ms": 145925
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है। और एक चीज़ चाहिए मुझे।",
+      "start_ms": 146825,
+      "end_ms": 149385
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, बताइए।",
+      "start_ms": 149793,
+      "end_ms": 150561
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "छोटा pack। सस्ता वाला। पाँच रुपये का, या ज़्यादा से ज़्यादा दस का। यहाँ मज़दूर लोग आते हैं, बच्चे आते हैं, उनके पास बीस रुपये नहीं होते एक packet के लिए।",
+      "start_ms": 150980,
+      "end_ms": 160964
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पाँच रुपये वाला pack?",
+      "start_ms": 161671,
+      "end_ms": 162780
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ। दूसरे brand वाले पाँच का दे रहे हैं, थोड़ा कम quantity में। वो खूब बिकता है। आपका सबसे छोटा भी अब दस से ऊपर चला गया है।",
+      "start_ms": 163465,
+      "end_ms": 173193
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पाँच रुपये वाले में कितना माल हो तो चलेगा?",
+      "start_ms": 174060,
+      "end_ms": 176193
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "थोड़ा कम हो तो भी चलेगा, बस packet देखने में भरा लगे। बच्चों को packet चाहिए, quantity उतना नहीं देखते।",
+      "start_ms": 176395,
+      "end_ms": 182710
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "समझ गया। छोटा और सस्ता pack, पाँच या दस रुपये का। ये भी मैं pricing team को बताऊँगा।",
+      "start_ms": 183533,
+      "end_ms": 188226
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बताओ। वो आ गया तो मेरी sale फिर से बढ़ जाएगी।",
+      "start_ms": 189089,
+      "end_ms": 192161
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "तो मैं ये तीन बातें लिख लेता हूँ। Blinkit पे आपकी landing price से कम में बिक रहा है। मंडी में wholesale rate आपसे पचास रुपये per carton कम है। और आपको पाँच या दस रुपये वाला छोटा pack चाहिए।",
+      "start_ms": 193077,
+      "end_ms": 203744
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बिल्कुल सही।",
+      "start_ms": 204290,
+      "end_ms": 205143
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और आज का order?",
+      "start_ms": 205594,
+      "end_ms": 206703
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आज कम लूँगा। Kurkure के तीन carton, Lay's के दो। बस।",
+      "start_ms": 207607,
+      "end_ms": 211276
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "तीन Kurkure, दो Lay's। Doritos नहीं?",
+      "start_ms": 211949,
+      "end_ms": 214850
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Doritos अभी पड़ा है, पिछला ही। अगली बार देखेंगे।",
+      "start_ms": 215170,
+      "end_ms": 218242
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है अग्रवाल जी। मैं screenshot का इंतज़ार करूँगा।",
+      "start_ms": 218512,
+      "end_ms": 221072
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "शाम तक भेज दूँगा। और राहुल, सच में ऊपर बात करना। ऐसे नहीं चलेगा ज़्यादा दिन।",
+      "start_ms": 221912,
+      "end_ms": 227715
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पक्का बात करूँगा। चलिए, नमस्ते।",
+      "start_ms": 228480,
+      "end_ms": 230613
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते।",
+      "start_ms": 231464,
+      "end_ms": 232317
+    }
+  ]
+}

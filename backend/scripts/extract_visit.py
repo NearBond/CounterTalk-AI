@@ -24,13 +24,10 @@ from pathlib import Path
 
 from sqlalchemy import func, select
 
-from countertalk import extraction, jobs, llm_calls, roles, visits, worker
-from countertalk.config import get_settings
+from countertalk import extraction, llm_calls, roles
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
-from countertalk.errors import DomainError, RetryableError, describe
-from countertalk.llm import pricing
+from countertalk.errors import DomainError, describe
 from countertalk.llm.base import StructuredLlm
-from countertalk.llm.client import MetaLlm
 from countertalk.logs import configure_logging
 from countertalk.models import (
     Evidence,
@@ -45,7 +42,7 @@ from countertalk.models import (
     parse_id,
 )
 from countertalk.playbooks import ORG_PACKS_DIR, PLAYBOOKS_DIR
-from scripts.assign_roles import show_calls
+from scripts._paid import estimate, model_llm, run_extract_job, show_paid
 
 # A dry run's estimate of the answer's tokens: a summary, a few insights with quotes, a task or
 # two. Reasoning is added on top (pricing).
@@ -74,14 +71,13 @@ def dry_run(visit_id: str, saved: dict[str, tuple[str, float]], folders: dict[st
         org_id = session.get_one(Visit, visit_id).org_id
     pack = extraction.pack_for(org_id, **folders)
     request = extraction.request_for(visit_id, pack, {k: role for k, (role, _) in saved.items()})
-    tokens_in = pricing.input_tokens(request.messages, request.schema)
-    tokens_out = pricing.output_tokens(ANSWER_TOKENS)
+    found = estimate(request.messages, request.schema, ANSWER_TOKENS)
     print(f"visit {visit_id}: {request.turns} turns, on {request.visit_date}")
     print(f"roles: {'saved, reused' if saved else 'to ask first (see assign_roles.py)'}")
     print(
-        f"to send: {pricing.request_chars(request.messages, request.schema):,} characters;"
-        f" about {tokens_in:,} input and {tokens_out:,} output tokens (reasoning counted),"
-        f" ${pricing.cost(tokens_in, 0, tokens_out):.4f} (an estimate: --yes sends it)"
+        f"to send: {found.chars:,} characters;"
+        f" about {found.tokens_in:,} input and {found.tokens_out:,} output tokens"
+        f" (reasoning counted), ${found.usd:.4f} (an estimate: --yes sends it)"
     )
 
 
@@ -106,53 +102,27 @@ def show_result(visit_id: str) -> None:
             )
 
 
-def show_paid(visit_id: str, since: int) -> None:
-    paid = llm_calls.since(visit_id, since)
-    show_calls([call for _, call in paid], [purpose for purpose, _ in paid])
-
-
 def run(visit: Visit, again: bool, llm: StructuredLlm, folders: dict[str, Path]) -> int:
-    runner = worker.Worker(handlers={JobKind.EXTRACT: worker.extract_with(llm, **folders)})
-    # Queued and claimed in one transaction: a worker can't take the job in between.
-    with session_scope() as session:
-        if again:
-            extraction.queue_again(session, visit.org_id, visit.id)
-        elif visit.status == VisitStatus.TRANSCRIBED:
-            jobs.enqueue(session, JobKind.EXTRACT, visit_id=visit.id)
-        job = jobs.claim_for_visit(session, runner.id, visit.id, JobKind.EXTRACT)
-    if job is None:
+    before = llm_calls.latest_seq(visit.id)
+    done = run_extract_job(visit, again, llm, folders)
+    if done is None:
         print(f"visit {visit.id} not extracted: it has no queued job", file=sys.stderr)
         return 1
-    before = llm_calls.latest_seq(visit.id)
-    try:
-        runner.run_job(job)
-    except KeyboardInterrupt:
-        stopped = RetryableError("stopped_by_hand", "The run was stopped part-way")
-        with session_scope() as session:
-            jobs.mark_failed(session, job, runner.id, stopped, visits.fail_processing)
+    if done.stopped:
         show_paid(visit.id, before)
-        print(f"stopped: the job is {job_state(job.id)[0]}", file=sys.stderr)
+        print(f"stopped: the job is {done.state}", file=sys.stderr)
         return 130
     show_result(visit.id)
     show_paid(visit.id, before)
-    state, last_error = job_state(job.id)
-    if state == JobState.DONE:
+    if done.state == JobState.DONE:
         return 0
     # Queued again after a backoff: a worker would retry it, and pay again.
-    print(f"job {state}: {last_error}", file=sys.stderr)
+    print(f"job {done.state}: {done.last_error}", file=sys.stderr)
     with session_scope(read_only=True) as session:
         reason = session.get_one(Visit, visit.id).failure_reason
     if reason:
         print(f"visit failed: {reason}", file=sys.stderr)
     return 1
-
-
-def job_state(job_id: str) -> tuple[str, str | None]:
-    with session_scope(read_only=True) as session:
-        state, last_error = session.execute(
-            select(Job.state, Job.last_error).where(Job.id == job_id)
-        ).one()
-        return state, last_error
 
 
 def main(argv: list[str], llm: StructuredLlm | None = None) -> int:
@@ -194,13 +164,9 @@ def main(argv: list[str], llm: StructuredLlm | None = None) -> int:
         if not args.yes:
             dry_run(visit_id, saved, folders)
             return 0
+        llm = llm or model_llm()
         if llm is None:
-            key = get_settings().MODEL_API_KEY.get_secret_value()
-            if not key:
-                # Before the claim, so a run without a key doesn't use up one of the job's tries.
-                print("MODEL_API_KEY isn't set in backend/.env", file=sys.stderr)
-                return 1
-            llm = MetaLlm(key)
+            return 1
         return run(visit, args.again, llm, folders)
     except SETUP_ERRORS as error:
         print(f"failed: {setup_trouble(error)}", file=sys.stderr)

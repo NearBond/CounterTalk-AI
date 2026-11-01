@@ -1,0 +1,360 @@
+{
+  "recording": "rp02",
+  "title": "Late delivery, damaged cartons and a suggestion",
+  "duration_ms": 247793,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "priya"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "ashutosh"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते गुप्ता जी। कैसे हैं आप?",
+      "start_ms": 500,
+      "end_ms": 2975
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते नेहा जी। ठीक हूँ, आइए। आज बड़ी जल्दी आ गईं आप।",
+      "start_ms": 3533,
+      "end_ms": 7117
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, आज route थोड़ा बदला है। आपकी तरफ़ पहले आ गई। दुकान में नया rack लगवाया है क्या?",
+      "start_ms": 7986,
+      "end_ms": 15666
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, पिछले महीने लगवाया। जगह कम पड़ रही थी। अब biscuit और namkeen अलग अलग रख देता हूँ।",
+      "start_ms": 16657,
+      "end_ms": 22716
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा लग रहा है, साफ़ साफ़ दिखता है सब कुछ।",
+      "start_ms": 23111,
+      "end_ms": 27548
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, अब customer ख़ुद देख के उठा लेता है। पहले हर चीज़ मुझे निकाल के देनी पड़ती थी।",
+      "start_ms": 27869,
+      "end_ms": 31965
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये तो अच्छा है, self service जैसा हो गया। और त्योहार की तैयारी कैसी है? Diwali आने वाली है।",
+      "start_ms": 32269,
+      "end_ms": 41400
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, सोच रहा हूँ इस बार gift pack भी रखूँ। पिछली बार dry fruits के pack ख़ूब बिके थे।",
+      "start_ms": 41704,
+      "end_ms": 46653
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, त्योहार में सब कुछ बिकता है। Namkeen और chips की demand भी बढ़ जाती है।",
+      "start_ms": 46858,
+      "end_ms": 53173
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बिल्कुल। मेहमान आते हैं तो लोग बड़े pack ले जाते हैं।",
+      "start_ms": 53790,
+      "end_ms": 57374
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आपकी बेटी कैसी है? पिछली बार बता रहे थे उसका college का पहला साल है।",
+      "start_ms": 58144,
+      "end_ms": 63264
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, अच्छी है। Hostel में है, हर Sunday video call करती है। कहती है खाना अच्छा नहीं है, घर की याद आती है।",
+      "start_ms": 63815,
+      "end_ms": 70130
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हा हा, सबके साथ यही होता है पहले साल में। धीरे धीरे आदत पड़ जाएगी।",
+      "start_ms": 70546,
+      "end_ms": 76007
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, यही बोलता हूँ उसको।",
+      "start_ms": 76744,
+      "end_ms": 78024
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, वो तो ठीक है। पर आपसे एक शिकायत है।",
+      "start_ms": 78824,
+      "end_ms": 81725
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बताइए, क्या हुआ?",
+      "start_ms": 82687,
+      "end_ms": 84820
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Last order तीन दिन late आया। Saturday को आना था, Tuesday को आया।",
+      "start_ms": 85802,
+      "end_ms": 89727
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "तीन दिन? ओह।",
+      "start_ms": 89577,
+      "end_ms": 91284
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और ऊपर से Kurkure के दो carton damaged थे। एक तो पूरा पिचका हुआ था, packets फटे हुए। दूसरे में भी आधे packet दबे हुए थे।",
+      "start_ms": 91519,
+      "end_ms": 99882
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये तो बहुत गलत हुआ। आपके पास photo है उसकी?",
+      "start_ms": 100557,
+      "end_ms": 103970
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, photo ली थी। उसी दिन ले ली थी, delivery वाले के सामने।",
+      "start_ms": 104483,
+      "end_ms": 108152
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बहुत अच्छा किया। आप मुझे WhatsApp कर दीजिए।",
+      "start_ms": 108773,
+      "end_ms": 112698
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, WhatsApp कर दूँगा, आज शाम तक। आपका वही number है ना?",
+      "start_ms": 113381,
+      "end_ms": 116709
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ जी, वही है।",
+      "start_ms": 117023,
+      "end_ms": 118730
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और देखिए, ये delivery का बहुत चक्कर है। Delivery वाला बोलता है Tuesday आएगा, कभी Thursday को आता है, कभी Friday को। कुछ fix ही नहीं है।",
+      "start_ms": 119021,
+      "end_ms": 128408
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हर बार ऐसा होता है, या बस पिछले कुछ हफ़्तों से?",
+      "start_ms": 129397,
+      "end_ms": 133578
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "पिछले डेढ़ दो महीने से। पहले ठीक था। जब से नया लड़का आया है, तब से ऐसा ही है।",
+      "start_ms": 134423,
+      "end_ms": 139372
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "समझ गई। इसमें आपका नुकसान भी होता होगा।",
+      "start_ms": 140121,
+      "end_ms": 142852
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "होता है ना। Weekend पे shelf खाली रहती है, customer आता है, Kurkure माँगता है, मैं बोलता हूँ कल आएगा। वो दूसरा कुछ लेकर चला जाता है।",
+      "start_ms": 143762,
+      "end_ms": 152039
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, ये तो सही बात है।",
+      "start_ms": 152282,
+      "end_ms": 153818
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "एक suggestion है मेरा, अगर आप ऊपर बता सको।",
+      "start_ms": 154718,
+      "end_ms": 157790
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, बिल्कुल, बोलिए।",
+      "start_ms": 158097,
+      "end_ms": 160486
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अगर delivery सुबह दस बजे से पहले हो जाए, तो rush से पहले shelf भर जाता है। दोपहर में आता है तो बीच में सब हटाना पड़ता है, customer खड़े रहते हैं।",
+      "start_ms": 161295,
+      "end_ms": 169914
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "सुबह दस बजे से पहले, ठीक है। ये मैं note कर रही हूँ।",
+      "start_ms": 170424,
+      "end_ms": 175373
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, आस पास की सारी दुकानों का यही हाल है, सबको सुबह ही चाहिए।",
+      "start_ms": 175625,
+      "end_ms": 179550
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा, मैं distributor से बात करती हूँ, delivery के दिन और time दोनों के बारे में। और आप photo भेज दीजिए, हम damage का claim डाल देंगे।",
+      "start_ms": 180080,
+      "end_ms": 189211
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Claim का पैसा कब तक आएगा?",
+      "start_ms": 190195,
+      "end_ms": 191987
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Photo मिलते ही मैं claim डाल दूँगी। उसके बाद जो होगा, मैं आपको बताती रहूँगी।",
+      "start_ms": 192676,
+      "end_ms": 199076
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है। देखते हैं।",
+      "start_ms": 199439,
+      "end_ms": 201231
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और आज का order? पिछली बार वाला ही?",
+      "start_ms": 201568,
+      "end_ms": 205749
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, लगभग वही। Kurkure के चार carton, Lay's के दो, और Uncle Chipps का एक।",
+      "start_ms": 206618,
+      "end_ms": 212933
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Kurkure में कौन सा flavour? Masala Munch ही?",
+      "start_ms": 213333,
+      "end_ms": 216576
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "तीन Masala Munch और एक Green Chutney।",
+      "start_ms": 217274,
+      "end_ms": 219749
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है। और Lay's में?",
+      "start_ms": 220057,
+      "end_ms": 222873
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "एक Magic Masala, एक American Style Cream and Onion।",
+      "start_ms": 223477,
+      "end_ms": 226805
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "चार Kurkure, दो Lay's, एक Uncle Chipps। हो गया। Delivery इस बार मैं ख़ुद confirm करवा दूँगी।",
+      "start_ms": 227227,
+      "end_ms": 234566
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और delivery वाले को बोल देना, इस बार carton ध्यान से उतारे।",
+      "start_ms": 235063,
+      "end_ms": 238647
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ज़रूर बोलूँगी। चलिए गुप्ता जी, मैं निकलती हूँ। Photo भेजना मत भूलना।",
+      "start_ms": 239278,
+      "end_ms": 244569
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नहीं भूलूँगा। नमस्ते।",
+      "start_ms": 245286,
+      "end_ms": 246993
+    }
+  ]
+}

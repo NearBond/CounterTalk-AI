@@ -1,0 +1,67 @@
+# K2 for rp09: servicing and coverage, long and noisy.
+# Answer key, checked 1 Nov 2026.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+# The rep's own recap (four points) matches the first four insights.
+recording: rp09
+insights:
+  - kind: problem
+    category: servicing
+    severity: medium               # the whole lane, two weeks, but the shop copes by phoning the office; the switching risk is its own insight below
+    speaker: shopkeeper
+    phrase: "वो दो हफ़्ते से नहीं आया"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [sales_ops]
+
+  - kind: problem
+    category: supply
+    severity: high                 # a fast seller out of stock for a week; customers buy Bingo's ₹10 pack instead
+    speaker: shopkeeper
+    phrase: "वो एक हफ़्ते से out of stock है"
+    skus: [kurkure]
+    competitors: [bingo]
+    scheme: null
+    teams: [distribution]
+
+  - kind: problem
+    category: supply
+    severity: low
+    speaker: shopkeeper
+    phrase: "और बाकी दो चीज़ें भी नहीं आईं थीं"
+    skus: [lays, uncle_chipps]
+    competitors: []
+    scheme: null
+    teams: [distribution]
+    optional: true                 # the rest of the short delivery ("इतना urgent नहीं"): one insight with the stock-out above, or split out, are both fine
+
+  - kind: product_request
+    category: demand
+    severity: medium               # 4–5 customers a day asking, sales lost to an unlaunched product. User's call (1 Nov, b3): medium here but low for rp01's Doritos, since Lay's potato chips sell far more than Doritos in India
+    speaker: shopkeeper
+    phrase: "नीले रंग के packet में"
+    skus: [lays]
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]
+
+  - kind: problem
+    category: servicing
+    severity: medium               # user's call (1 Nov, c2): another distributor would still sell our brands, despite the one-week ultimatum ("एक हफ़्ता। उससे ज़्यादा नहीं")
+    speaker: shopkeeper
+    phrase: "मैं सोच रहा हूँ किसी दूसरे distributor से माल लूँ"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [sales_ops]
+
+  - kind: problem
+    category: other
+    severity: low
+    speaker: shopkeeper
+    phrase: "इस बाज़ार को नई जगह shift करने की बात चल रही है"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: []                      # other → triage
+    optional: true                 # the weekly market may move, and half the market-day sales with it; borderline small talk

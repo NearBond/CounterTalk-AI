@@ -1,0 +1,34 @@
+# K2 for rp01: payment delay and a competitor's credit terms.
+# Answer key, checked 1 Nov 2026.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+recording: rp01
+insights:
+  - kind: problem
+    category: payments
+    severity: high                 # money owed to the shop (₹4,500), asked three times
+    speaker: shopkeeper
+    phrase: "Distributor ने अभी तक credit note नहीं दिया"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [finance, area_manager] # payments, high: the override adds the area manager
+
+  - kind: competitor_preference    # reason: credit_terms
+    category: payments
+    severity: medium               # stocks more Balaji, but still orders from us
+    speaker: shopkeeper
+    phrase: "Balaji वाले तीस दिन का credit देते हैं"
+    skus: []
+    competitors: [balaji]
+    scheme: null
+    teams: [finance]
+
+  - kind: product_request
+    category: demand               # review: the playbook's own demand example; "pricing" if you read it as wanting a cheaper pack
+    severity: low                  # user's call (1 Nov, b3): low here but medium for rp09's blue-pack Lay's, since Lay's potato chips sell far more than Doritos in India
+    speaker: shopkeeper
+    phrase: "Doritos का छोटा वाला pack चाहिए"
+    skus: [doritos]
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]

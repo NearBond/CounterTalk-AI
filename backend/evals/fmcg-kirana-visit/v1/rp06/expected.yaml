@@ -1,0 +1,45 @@
+# K2 for rp06: schemes and visibility.
+# Answer key, checked 1 Nov 2026.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+recording: rp06
+insights:
+  - kind: problem
+    category: schemes
+    severity: high                 # money owed: 15 cartons bought at full rate, no free carton or discount
+    speaker: shopkeeper
+    phrase: "कौन सा scheme? Distributor ने कुछ बताया ही नहीं"
+    skus: []                       # only the rep names Kurkure and Lay's; the shopkeeper names no brand
+    competitors: []
+    scheme: null                   # "12 cartons + 1 free and 2% on Kurkure and Lay's" matches none of the pack's 4 schemes
+    teams: [finance]
+
+  - kind: problem
+    category: schemes              # a display payout is a scheme, not visibility (the codebook's excludes)
+    severity: high                 # ₹500 a month, August and September pending
+    speaker: shopkeeper
+    phrase: "इसका पैसा दो महीने से नहीं आया"
+    skus: []
+    competitors: []
+    scheme: lays_display_rack
+    teams: [finance]
+
+  - kind: problem
+    category: visibility
+    severity: medium               # cold drinks aren't cold, customers walk away
+    speaker: shopkeeper
+    phrase: "एक हफ़्ते से ठंडा ही नहीं कर रहा"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]
+
+  - kind: problem
+    category: other
+    severity: low
+    speaker: shopkeeper
+    phrase: "सड़क खुदी पड़ी है"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: []                      # other → triage
+    optional: true                 # said as small talk, but nearly the codebook's own "other" example: extracting it or not are both fine

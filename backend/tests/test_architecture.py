@@ -846,8 +846,9 @@ def test_a_copied_helper_is_found_but_not_one_calling_another_import() -> None:
 
 def percent_formats(sources: list[Source]) -> list[str]:
     """CODING_GUIDELINES §8.5 R10: a percentage is printed only by countertalk/reporting.py,
-    whose share() and percent() name the denominator. An f-string or format() with a % spec
-    anywhere else is found. Added in batch 12, when R10 came up three times in one part."""
+    whose share() and percent() name the denominator. An f-string or format() whose spec is a
+    percentage (it ends in %) anywhere else is found; a date's %b %Y isn't one. Added in batch
+    12, when R10 came up three times in one part."""
     found = []
     for path, tree in sources:
         if path == "countertalk/reporting.py":
@@ -860,9 +861,10 @@ def percent_formats(sources: list[Source]) -> list[str]:
                 isinstance(node, ast.Call) and dotted(node.func) == "format" and len(node.args) > 1
             ):
                 spec = node.args[1]
-            if spec is not None and any(
-                isinstance(part, ast.Constant) and "%" in str(part.value) for part in ast.walk(spec)
-            ):
+            if spec is None:
+                continue
+            text = "".join(str(p.value) for p in ast.walk(spec) if isinstance(p, ast.Constant))
+            if text.endswith("%"):
                 found.append(f"{path}:{node.lineno}")
     return found
 
@@ -884,3 +886,4 @@ def test_a_percentage_formatted_elsewhere_is_found(code: str) -> None:
 def test_reporting_may_format_and_other_specs_are_fine() -> None:
     assert percent_formats([("countertalk/reporting.py", ast.parse("f'{x:.0%}'\n"))]) == []
     assert percent_formats([("scripts/x.py", ast.parse("f'{gap:+.1f} {n:>3}'\n"))]) == []
+    assert percent_formats([("scripts/x.py", ast.parse("f'{day:%b %Y}'\n"))]) == []

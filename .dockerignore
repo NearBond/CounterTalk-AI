@@ -42,6 +42,7 @@ web/dist/
 
 # Not needed to run.
 backend/tests/
+backend/evals/
 **/*.test.ts
 **/*.test.tsx
 **/*.md

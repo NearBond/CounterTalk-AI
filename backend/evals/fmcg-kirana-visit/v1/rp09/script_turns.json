@@ -1,0 +1,1060 @@
+{
+  "recording": "rp09",
+  "title": "Servicing and coverage, long and noisy",
+  "duration_ms": 774543,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "shubh"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "ashutosh"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते मिश्रा जी! बड़ी भीड़ है आज बाहर।",
+      "start_ms": 500,
+      "end_ms": 3145
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अरे सुनील, आओ आओ। हाँ, आज हफ़्ते का बाज़ार है ना, पूरी सड़क पे ठेले लगे हैं। अंदर आ जाओ, यहाँ थोड़ा कम शोर है।",
+      "start_ms": 3652,
+      "end_ms": 12015
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, बाहर तो अपनी आवाज़ भी सुनाई नहीं दे रही थी। कैसे हैं आप?",
+      "start_ms": 12944,
+      "end_ms": 16016
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक हूँ भाई, बस घुटने का दर्द थोड़ा परेशान करता है। सर्दी आने वाली है ना, तो बढ़ जाता है।",
+      "start_ms": 16914,
+      "end_ms": 22461
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Doctor को दिखाया?",
+      "start_ms": 22706,
+      "end_ms": 23559
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "दिखाया था। बोले वज़न कम करो, सुबह टहलो। अब दुकान पे सुबह सात बजे से रात दस बजे तक बैठना है, टहलूँ कब?",
+      "start_ms": 24099,
+      "end_ms": 32462
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हा हा, ये बात तो है। पर थोड़ा time निकालिए, सेहत ज़रूरी है।",
+      "start_ms": 33314,
+      "end_ms": 36727
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बेटा भी यही बोलता है। चलो, तुम बताओ, बहुत दिन बाद आए इस बार।",
+      "start_ms": 37387,
+      "end_ms": 41398
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, पिछले महीने मेरा area बदल गया था कुछ दिनों के लिए, और बीच में एक हफ़्ते की training भी थी। अब फिर से यही beat मिली है।",
+      "start_ms": 41872,
+      "end_ms": 48443
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Training? किस चीज़ की?",
+      "start_ms": 48652,
+      "end_ms": 50017
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नए phone app की। अब सारे order phone पे ही लिखने हैं, काग़ज़ पे नहीं। शुरू में थोड़ा मुश्किल लगा, अब आदत हो गई।",
+      "start_ms": 50950,
+      "end_ms": 56923
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अच्छा, सब कुछ phone पे हो गया आजकल। मेरा बेटा भी बोलता है दुकान का hisaab phone पे रखो।",
+      "start_ms": 57505,
+      "end_ms": 62198
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अच्छा हुआ, तुम आ गए। तुमसे बहुत सारी बातें करनी हैं।",
+      "start_ms": 63098,
+      "end_ms": 66255
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ जी, बोलिए, सब बताइए।",
+      "start_ms": 66880,
+      "end_ms": 68672
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "सबसे पहली बात। आपका salesman, जो distributor की तरफ़ से आता है, order लेने, वो दो हफ़्ते से नहीं आया।",
+      "start_ms": 69433,
+      "end_ms": 77454
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दो हफ़्ते से? कौन, राजू?",
+      "start_ms": 77254,
+      "end_ms": 79046
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, राजू। पहले हर Monday आता था, पक्का। सुबह ग्यारह बजे तक आ जाता था। अब दो Monday निकल गए, ना आया, ना phone किया।",
+      "start_ms": 80002,
+      "end_ms": 87767
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आपने उसको phone किया था?",
+      "start_ms": 88187,
+      "end_ms": 89467
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "किया था, दो बार। एक बार उठाया, बोला कल आऊँगा। फिर नहीं आया। दूसरी बार phone ही नहीं उठाया।",
+      "start_ms": 89956,
+      "end_ms": 94564
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये तो ठीक नहीं है। फिर आपने माल कैसे मँगाया?",
+      "start_ms": 95118,
+      "end_ms": 97678
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "मैंने ख़ुद distributor के office पे phone करके order लिखवाया। पर वो भी आधा ही आया। जो लिखवाया था, उसमें से तीन चीज़ें नहीं आईं।",
+      "start_ms": 98381,
+      "end_ms": 106146
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "कौन सी चीज़ें नहीं आईं?",
+      "start_ms": 106880,
+      "end_ms": 108160
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "वो बाद में बताता हूँ, लंबी list है। पहले ये समझो कि beat पे कोई आता ही नहीं है तो order कैसे दूँ? हर बार मैं phone करूँ, ये तो नहीं चलेगा।",
+      "start_ms": 108494,
+      "end_ms": 116430
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "समझ रहा हूँ। Beat पे आना उसकी ज़िम्मेदारी है। मैं ये बात आज ही distributor को और अपने area manager को बताता हूँ।",
+      "start_ms": 116646,
+      "end_ms": 123131
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बताओ। और ये सिर्फ़ मेरी बात नहीं है। आस पास की चार पाँच दुकानें हैं, सबका यही हाल है। वो गुप्ता जी की दुकान, कोने वाली, उनके यहाँ भी नहीं आया।",
+      "start_ms": 123716,
+      "end_ms": 132847
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा, पूरी गली में नहीं आ रहा?",
+      "start_ms": 133606,
+      "end_ms": 135654
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, पूरी गली में। लगता है उसने ये गली छोड़ ही दी है। या फिर उसको कोई बड़ा area दे दिया है।",
+      "start_ms": 136202,
+      "end_ms": 141834
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, मैं पता करता हूँ। अगर राजू नहीं आ सकता तो कोई दूसरा लड़का लगवाऊँगा।",
+      "start_ms": 142589,
+      "end_ms": 146856
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, कोई भी आए, बस हर हफ़्ते आए, time पे आए।",
+      "start_ms": 147427,
+      "end_ms": 150072
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पक्का। मैं लिख रहा हूँ, distributor का salesman दो हफ़्ते से beat पे नहीं आया, पूरी गली में।",
+      "start_ms": 150423,
+      "end_ms": 155884
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ। अरे रुको, एक customer है।",
+      "start_ms": 156784,
+      "end_ms": 159941
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ बोलो बेटा, क्या चाहिए? Parle G? हाँ, ये लो, दस रुपये। हाँ ठीक है।",
+      "start_ms": 161141,
+      "end_ms": 166176
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, कहाँ थे हम? हाँ, salesman की बात।",
+      "start_ms": 167676,
+      "end_ms": 170833
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ जी, वो मैंने लिख लिया है। आप बता रहे थे कि जो माल मँगाया था, उसमें से कुछ नहीं आया।",
+      "start_ms": 171393,
+      "end_ms": 176598
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, सबसे बड़ी problem यही है। Kurkure का दस रुपये वाला pack। वो एक हफ़्ते से out of stock है।",
+      "start_ms": 176987,
+      "end_ms": 183131
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दस रुपये वाला Kurkure? एक हफ़्ते से?",
+      "start_ms": 183361,
+      "end_ms": 185921
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, पूरा एक हफ़्ता। एक भी packet नहीं है दुकान में। देखो ये shelf, यहाँ हमेशा भरा रहता था। अब ख़ाली पड़ा है।",
+      "start_ms": 186541,
+      "end_ms": 193794
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, दिख रहा है। ये तो सबसे ज़्यादा बिकने वाला pack है।",
+      "start_ms": 194158,
+      "end_ms": 196974
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "वही तो। Customer आता है, दस रुपये वाला Kurkure माँगता है, मैं बोलता हूँ नहीं है। वो बीस वाला नहीं लेता, Bingo का दस वाला ले जाता है, या कोई और namkeen।",
+      "start_ms": 197191,
+      "end_ms": 206492
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हम्म, मतलब sale सीधी दूसरों के पास जा रही है।",
+      "start_ms": 207369,
+      "end_ms": 210868
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, और customer की आदत भी बदल जाती है। एक बार दूसरा brand खा लिया, पसंद आ गया, तो वापस नहीं आता।",
+      "start_ms": 211415,
+      "end_ms": 218156
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बिल्कुल सही। Distributor ने कुछ बताया क्यों नहीं आ रहा?",
+      "start_ms": 218664,
+      "end_ms": 221395
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बोलते हैं godown में ही नहीं है, company से supply कम आ रही है। पता नहीं सच है या नहीं।",
+      "start_ms": 221835,
+      "end_ms": 227126
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "मैं check करता हूँ। अगर company से supply की problem है तो मुझे पता होना चाहिए। अगर distributor के पास पड़ा है और नहीं भेज रहा, तो वो अलग बात है।",
+      "start_ms": 227665,
+      "end_ms": 236369
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, पता करो। मुझे कम से कम पाँच carton चाहिए दस रुपये वाले, जल्दी से जल्दी।",
+      "start_ms": 237136,
+      "end_ms": 241573
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पाँच carton, ठीक है। Supply आते ही सबसे पहले आपका भिजवाता हूँ।",
+      "start_ms": 241944,
+      "end_ms": 245784
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और बाकी दो चीज़ें भी नहीं आईं थीं। Lay's का बड़ा pack, और Uncle Chipps। पर वो इतना urgent नहीं है, थोड़ा stock पड़ा है।",
+      "start_ms": 246729,
+      "end_ms": 256628
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, वो आज के order में डाल देता हूँ।",
+      "start_ms": 256973,
+      "end_ms": 258936
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, डाल दो। चाय पियोगे? बाहर वाले से मँगाता हूँ।",
+      "start_ms": 259836,
+      "end_ms": 263335
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, चाय चलेगी। बिना चीनी।",
+      "start_ms": 263568,
+      "end_ms": 265616
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अरे छोटू! दो चाय भेजना, एक बिना चीनी।",
+      "start_ms": 266232,
+      "end_ms": 269816
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और मिश्रा जी, बेटे का क्या हाल है? उसकी नौकरी लग गई?",
+      "start_ms": 270346,
+      "end_ms": 273333
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ भाई, लग गई। Bangalore में, किसी software company में। पिछले महीने join किया।",
+      "start_ms": 274215,
+      "end_ms": 279591
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अरे वाह! बहुत बधाई हो। ये तो बड़ी ख़ुशी की बात है।",
+      "start_ms": 279989,
+      "end_ms": 283829
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ख़ुशी तो है। पर घर ख़ाली ख़ाली लगता है अब। उसकी माँ तो रोज़ phone पे पूछती है, खाना खाया कि नहीं।",
+      "start_ms": 284069,
+      "end_ms": 291578
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हा हा, माँ तो माँ होती है। वहाँ का खाना पसंद आ रहा है उसको?",
+      "start_ms": 292115,
+      "end_ms": 297150
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बोलता है सब कुछ इडली डोसा मिलता है, रोटी के लिए तरस गया। अब ख़ुद बनाना सीख रहा है, YouTube से देख के।",
+      "start_ms": 297781,
+      "end_ms": 303754
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "चलिए, अच्छा है, सब सीख जाएगा। Diwali पे आएगा घर?",
+      "start_ms": 304477,
+      "end_ms": 307549
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ticket करवा लिया है। दस दिन के लिए आएगा। उसकी माँ ने अभी से list बना ली है, क्या क्या बनाना है।",
+      "start_ms": 308327,
+      "end_ms": 314471
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बढ़िया। Diwali के time तो दुकान पे भी बहुत काम होगा।",
+      "start_ms": 314960,
+      "end_ms": 317861
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, वो तो है। उसी बारे में भी बात करनी है तुमसे।",
+      "start_ms": 318549,
+      "end_ms": 321792
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, बताइए।",
+      "start_ms": 321642,
+      "end_ms": 322410
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "पिछले दो हफ़्ते से customers एक नई चीज़ माँग रहे हैं। वो जो नया आया है, TV पे ad आता है रोज़। Lay's का कोई नया flavour है, नीले रंग के packet में।",
+      "start_ms": 323285,
+      "end_ms": 331818
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा, वो नया launch? हाँ, वो पिछले महीने launch हुआ है।",
+      "start_ms": 332620,
+      "end_ms": 336375
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, वही। रोज़ चार पाँच लोग पूछते हैं। बच्चे तो ख़ास करके। TV पे देखा, cricket match में भी ad आता है। पर यहाँ तो आया ही नहीं अभी तक।",
+      "start_ms": 337076,
+      "end_ms": 346292
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, वो अभी बड़े शहरों में पहले भेजा गया है। हमारे इस area में अभी supply शुरू नहीं हुई।",
+      "start_ms": 347087,
+      "end_ms": 351951
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "देखो, ad यहाँ भी दिखाते हो, और माल यहाँ भेजते नहीं। Customer मुझसे पूछता है, मैं क्या जवाब दूँ? लगता है मेरी दुकान पीछे रह गई।",
+      "start_ms": 352200,
+      "end_ms": 360392
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "सही बात है आपकी। कितने लोग पूछ रहे हैं, कोई अंदाज़ा?",
+      "start_ms": 361053,
+      "end_ms": 363613
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "रोज़ के चार पाँच, कम से कम। Weekend पे तो और ज़्यादा। अगर आ जाए तो पहले हफ़्ते में ही दो तीन carton निकल जाएँगे, मैं लिख के दे सकता हूँ।",
+      "start_ms": 364395,
+      "end_ms": 372843
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये बहुत अच्छी जानकारी है। मैं brand वालों को बताता हूँ कि इस area में demand है, customers पूछ रहे हैं। इससे supply जल्दी शुरू हो सकती है।",
+      "start_ms": 373806,
+      "end_ms": 381742
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बताओ। और जब आए, तो सबसे पहले मुझे देना। गली में सबसे पहले मेरे यहाँ होना चाहिए।",
+      "start_ms": 382061,
+      "end_ms": 387181
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हा हा, पक्का मिश्रा जी, आपका नाम सबसे ऊपर लिखूँगा।",
+      "start_ms": 387796,
+      "end_ms": 390441
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "लो, चाय आ गई। लो भाई।",
+      "start_ms": 391441,
+      "end_ms": 393404
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Thank you। अच्छी बनी है चाय।",
+      "start_ms": 393961,
+      "end_ms": 396009
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, छोटू की चाय पूरे बाज़ार में मशहूर है। अदरक डालता है।",
+      "start_ms": 396894,
+      "end_ms": 401075
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठंड आ रही है, अदरक वाली चाय का मौसम है अब।",
+      "start_ms": 402016,
+      "end_ms": 404661
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, सुबह सुबह तो अब हल्की ठंड लगने लगी है। रात को पंखा बंद करना पड़ता है।",
+      "start_ms": 404884,
+      "end_ms": 409577
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "इस बार ठंड जल्दी आ गई लगता है।",
+      "start_ms": 410137,
+      "end_ms": 412100
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ। ठंड में namkeen की sale बढ़ जाती है वैसे, चाय के साथ लोग लेते हैं। गर्मी में cold drink, ठंड में namkeen।",
+      "start_ms": 412551,
+      "end_ms": 418951
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और सुना, अगले महीने इस बाज़ार को नई जगह shift करने की बात चल रही है।",
+      "start_ms": 419727,
+      "end_ms": 424676
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा? कहाँ?",
+      "start_ms": 425574,
+      "end_ms": 426683
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "पीछे वाले मैदान में। नगर निगम वाले आए थे, बोले सड़क पे जाम लगता है। पर ठेले वाले मान नहीं रहे।",
+      "start_ms": 427284,
+      "end_ms": 433257
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हम्म, फिर तो आपकी दुकान के सामने भीड़ कम हो जाएगी।",
+      "start_ms": 434064,
+      "end_ms": 437904
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, यही डर है। बाज़ार के दिन तो आधी sale उसी से आती है। देखो क्या होता है।",
+      "start_ms": 438596,
+      "end_ms": 443033
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "उम्मीद है यहीं रहेगा।",
+      "start_ms": 443452,
+      "end_ms": 444903
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "भगवान जाने। और तुम्हारे घर में सब कैसे हैं? बिटिया कितनी बड़ी हो गई?",
+      "start_ms": 445457,
+      "end_ms": 450321
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "चार साल की हो गई। पिछले महीने school जाना शुरू किया है। पहले हफ़्ते तो रोज़ रोती थी।",
+      "start_ms": 450992,
+      "end_ms": 456283
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हा हा, सब बच्चे रोते हैं। मेरा बेटा तो पूरे एक महीने रोया था, उसकी माँ को रोज़ school के बाहर बैठना पड़ता था।",
+      "start_ms": 456834,
+      "end_ms": 464429
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अब तो उसको मज़ा आने लगा है, दोस्त बन गए हैं।",
+      "start_ms": 464701,
+      "end_ms": 467005
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बस यही चाहिए। बच्चों के दोस्त बन गए तो सब ठीक।",
+      "start_ms": 467508,
+      "end_ms": 471263
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "एक मिनट। हाँ भाई, क्या चाहिए? सरसों का तेल? एक liter वाला? एक सौ अस्सी रुपये। हाँ, ये लो।",
+      "start_ms": 472463,
+      "end_ms": 477839
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आपकी दुकान में तो सब कुछ मिलता है, तेल से लेकर chips तक।",
+      "start_ms": 479039,
+      "end_ms": 482794
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, मोहल्ले की दुकान है, सब रखना पड़ता है। Customer एक चीज़ के लिए दो दुकान नहीं जाना चाहता।",
+      "start_ms": 483678,
+      "end_ms": 489139
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, सही बोले। तो order में namkeen थोड़ा बढ़ा दें?",
+      "start_ms": 489932,
+      "end_ms": 493089
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बढ़ा देंगे। पर पहले एक और बात, जो सबसे ज़रूरी है।",
+      "start_ms": 494089,
+      "end_ms": 497929
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ जी।",
+      "start_ms": 498668,
+      "end_ms": 499948
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "देखो सुनील, सीधी बात कहता हूँ, बुरा मत मानना। मैं सोच रहा हूँ किसी दूसरे distributor से माल लूँ।",
+      "start_ms": 500535,
+      "end_ms": 506679
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दूसरे distributor से?",
+      "start_ms": 506479,
+      "end_ms": 507759
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ। ये जो अभी वाला है, उससे परेशान हो गया हूँ। Salesman आता नहीं, माल आधा आता है, दस वाला pack एक हफ़्ते से नहीं है। ऐसे कैसे दुकान चलाऊँ?",
+      "start_ms": 508524,
+      "end_ms": 517569
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आपकी परेशानी समझ रहा हूँ।",
+      "start_ms": 518436,
+      "end_ms": 519972
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बगल वाले market में एक और distributor है, शर्मा traders। उनका आदमी मुझसे मिला था। बोला हर हफ़्ते दो बार आएँगे, और पूरा माल देंगे।",
+      "start_ms": 520231,
+      "end_ms": 529276
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हम्म। वो भी हमारी company का माल रखते हैं?",
+      "start_ms": 529751,
+      "end_ms": 532908
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, वही तो। बोल रहे थे हम भी Kurkure, Lay's सब देते हैं। तो मैं पूछ रहा हूँ, क्या मैं उनसे ले सकता हूँ? आपकी company की तरफ़ से कोई problem तो नहीं?",
+      "start_ms": 533568,
+      "end_ms": 541333
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "देखिए मिश्रा जी, हर distributor का अपना area fix होता है। आपकी दुकान अभी वाले distributor के area में आती है। तो सीधा दूसरे से लेना थोड़ा मुश्किल है, scheme और claim का भी हिसाब गड़बड़ हो जाता है।",
+      "start_ms": 541712,
+      "end_ms": 551355
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "तो फिर मैं क्या करूँ? वही झेलता रहूँ?",
+      "start_ms": 551695,
+      "end_ms": 554511
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नहीं, बिल्कुल नहीं। आप जो पूछ रहे हैं, कि दूसरे distributor से supply मिल सकती है या नहीं, ये मैं अपने area manager से पूछता हूँ। साथ में ये भी बताऊँगा कि अभी वाला service ठीक नहीं दे रहा।",
+      "start_ms": 555240,
+      "end_ms": 564541
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ये सही है। दोनों बातें बताओ। अगर ये ठीक हो जाए, तो मुझे बदलने की ज़रूरत ही नहीं।",
+      "start_ms": 564946,
+      "end_ms": 570407
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बिल्कुल। मैं एक हफ़्ते का time माँगता हूँ। अगर तब तक सुधार नहीं हुआ, तो फिर दूसरे distributor की बात आगे बढ़ाते हैं।",
+      "start_ms": 570854,
+      "end_ms": 577083
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है, एक हफ़्ता। उससे ज़्यादा नहीं।",
+      "start_ms": 577809,
+      "end_ms": 579772
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "तुम्हारे area manager कभी आते नहीं इधर? एक बार उनको भी लाओ, ख़ुद देखें क्या हाल है।",
+      "start_ms": 580215,
+      "end_ms": 584482
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा idea है। वो अगले महीने इस area का round लेने वाले हैं। मैं उनको आपकी दुकान पे ज़रूर लेकर आऊँगा।",
+      "start_ms": 584964,
+      "end_ms": 590681
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, लाओ। मैं उनको सब बताऊँगा, सामने बैठ के।",
+      "start_ms": 591417,
+      "end_ms": 594404
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, मैं date पक्की करके आपको बता दूँगा।",
+      "start_ms": 595344,
+      "end_ms": 597648
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पक्का। तो मैं सारी बातें फिर से दोहरा देता हूँ, ताकि कुछ छूटे नहीं।",
+      "start_ms": 598548,
+      "end_ms": 602388
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बोलो।",
+      "start_ms": 602781,
+      "end_ms": 603549
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पहली, distributor का salesman दो हफ़्ते से beat पे नहीं आया, आपकी पूरी गली में। दूसरी, Kurkure का दस रुपये वाला pack एक हफ़्ते से out of stock है, आपको पाँच carton चाहिए।",
+      "start_ms": 604435,
+      "end_ms": 614846
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ।",
+      "start_ms": 614746,
+      "end_ms": 615514
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "तीसरी, Lay's का नया launch जो TV पे आ रहा है, customers रोज़ पूछ रहे हैं, पर इस area में अभी आया नहीं। और चौथी, आप पूछ रहे हैं कि क्या दूसरे distributor से supply ले सकते हैं।",
+      "start_ms": 615804,
+      "end_ms": 627324
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, यही चार बातें। बिल्कुल सही लिखा।",
+      "start_ms": 627941,
+      "end_ms": 630672
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है। अब आज का order लिख लेते हैं।",
+      "start_ms": 631578,
+      "end_ms": 633711
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, लिखो। Kurkure Masala Munch, बीस रुपये वाला, चार carton।",
+      "start_ms": 634040,
+      "end_ms": 637624
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "चार carton Masala Munch।",
+      "start_ms": 638422,
+      "end_ms": 640129
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और दस वाला, जैसे ही आए, पाँच carton। वो अलग से लिख लो।",
+      "start_ms": 640901,
+      "end_ms": 644485
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, दस वाले के पाँच carton, supply आते ही।",
+      "start_ms": 644876,
+      "end_ms": 647607
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Lay's के बड़े pack, Magic Masala, दो carton। Classic Salted, एक carton।",
+      "start_ms": 648018,
+      "end_ms": 653309
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दो Magic Masala, एक Classic।",
+      "start_ms": 654271,
+      "end_ms": 656063
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Uncle Chipps के दो carton। Doritos का एक। और Cheetos का एक।",
+      "start_ms": 656570,
+      "end_ms": 661263
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दो Uncle Chipps, एक Doritos, एक Cheetos। Namkeen में Aloo Bhujia भी लगा दूँ? ठंड के लिए?",
+      "start_ms": 662204,
+      "end_ms": 667751
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, Aloo Bhujia के दो carton लगा दो। और एक carton Navratan Mix।",
+      "start_ms": 668006,
+      "end_ms": 673211
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दो Aloo Bhujia, एक Navratan Mix। Pepsi और Mountain Dew?",
+      "start_ms": 673907,
+      "end_ms": 677406
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Cold drink अब कम करो। Pepsi की दो crate, और Mountain Dew की एक। बस। इस महीने कोई scheme है?",
+      "start_ms": 678153,
+      "end_ms": 684809
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, Lay's पे बारह carton पे एक free चल रहा है।",
+      "start_ms": 685455,
+      "end_ms": 688954
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बारह तो नहीं लूँगा अभी। आज इतना ही ठीक है, अगली बार देखेंगे।",
+      "start_ms": 689520,
+      "end_ms": 693104
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, कोई बात नहीं। कल का match देखेंगे आप?",
+      "start_ms": 693325,
+      "end_ms": 695885
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, दुकान पे ही छोटा TV लगा रखा है, देखो वो कोने में। Match वाले दिन लोग यहीं खड़े होकर देखते हैं, साथ में कुछ ख़रीद भी लेते हैं।",
+      "start_ms": 696286,
+      "end_ms": 702686
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हा हा, ये तो बढ़िया तरीका है sale बढ़ाने का।",
+      "start_ms": 703307,
+      "end_ms": 705952
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, match के दिन cold drink और chips दोनों डबल बिकते हैं।",
+      "start_ms": 706304,
+      "end_ms": 709632
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, मैं पूरा पढ़ देता हूँ। Kurkure Masala Munch चार carton, दस वाले पाँच carton जब आएँ, Lay's Magic Masala दो, Classic Salted एक, Uncle Chipps दो, Doritos एक, Cheetos एक, Aloo Bhujia दो, Navratan Mix एक, Pepsi दो crate, Mountain Dew एक crate।",
+      "start_ms": 709968,
+      "end_ms": 727632
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, सब सही। Delivery कब तक?",
+      "start_ms": 728022,
+      "end_ms": 730155
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Thursday तक आ जाना चाहिए। मैं ख़ुद distributor को phone करके confirm करूँगा, इस बार पूरा माल आए।",
+      "start_ms": 730474,
+      "end_ms": 736191
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, पूरा आए। आधा आया तो मैं वापस भेज दूँगा।",
+      "start_ms": 736711,
+      "end_ms": 739612
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नहीं आएगा आधा, भरोसा रखिए। और salesman वाली बात आज ही उठाऊँगा।",
+      "start_ms": 739893,
+      "end_ms": 744074
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है सुनील। तुम पे भरोसा है, इसीलिए इतना बोल रहा हूँ। दूसरा कोई होता तो मैं कब का बदल चुका होता।",
+      "start_ms": 744755,
+      "end_ms": 750643
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "शुक्रिया मिश्रा जी। मैं आपको Friday को phone करके बताता हूँ, क्या हुआ।",
+      "start_ms": 751156,
+      "end_ms": 754569
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है, Friday को। और चाय के पैसे मत देना, वो मेरी तरफ़ से।",
+      "start_ms": 755479,
+      "end_ms": 759490
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हा हा, ठीक है, अगली बार मेरी तरफ़ से। घुटने का ध्यान रखिए, और सुबह थोड़ा टहलिए।",
+      "start_ms": 760480,
+      "end_ms": 765344
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ हाँ, कोशिश करूँगा। जाओ, ध्यान से जाना, बाहर बहुत भीड़ है।",
+      "start_ms": 765573,
+      "end_ms": 769840
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "जी, नमस्ते मिश्रा जी।",
+      "start_ms": 770513,
+      "end_ms": 772390
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते।",
+      "start_ms": 772890,
+      "end_ms": 773743
+    }
+  ]
+}

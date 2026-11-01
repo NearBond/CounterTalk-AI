@@ -449,6 +449,19 @@ class Totals:
         ]
 
 
+def script_beside(path: Path) -> Path:
+    """rpNN.turns.json beside rpNN.expected.yaml, or an eval case's script_turns.json beside its
+    expected.yaml (batch 13)."""
+    if path.name == "expected.yaml":
+        return path.with_name("script_turns.json")
+    return path.with_name(path.name.replace(".expected.yaml", ".turns.json"))
+
+
+def recording_of(path: Path) -> str:
+    """rpNN, from rpNN.expected.yaml or an eval case's rpNN/expected.yaml."""
+    return path.parent.name if path.name == "expected.yaml" else path.name.split(".")[0]
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="compare_extraction.py")
     parser.add_argument("pairs", nargs="+", help="<visit_id> <rpNN.expected.yaml>, repeated")
@@ -467,9 +480,7 @@ def main(argv: list[str]) -> int:
             if visit_id is None:
                 parser.error(f"{raw_id} isn't a visit ID")
             path = Path(expected_path)
-            turns_path = args.turns or path.with_name(
-                path.name.replace(".expected.yaml", ".turns.json")
-            )
+            turns_path = args.turns or script_beside(path)
             loaded = load_extracted(visit_id)
             if loaded is None:
                 print(f"visit {visit_id} has no transcript", file=sys.stderr)
@@ -482,7 +493,7 @@ def main(argv: list[str]) -> int:
                 print(f"can't use {path.name} or {turns_path.name}: {why}", file=sys.stderr)
                 return 1
             result = match_insights(expected, extracted)
-            report(f"{path.name.split('.')[0]} ({visit_id})", result, extracted, reviews)
+            report(f"{recording_of(path)} ({visit_id})", result, extracted, reviews)
             totals.add(expected, extracted, result, reviews)
     except SETUP_ERRORS as error:
         print(f"failed: {setup_trouble(error)}", file=sys.stderr)

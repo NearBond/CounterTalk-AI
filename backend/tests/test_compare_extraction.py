@@ -24,7 +24,9 @@ from scripts.compare_extraction import (
     link_outcome,
     main,
     match_insights,
+    recording_of,
     routing_outcome,
+    script_beside,
 )
 from tests.test_extraction import answer, insight, run, transcribed
 from tests.test_roles import ALL_PLACED, tiny_org
@@ -315,3 +317,14 @@ def test_a_quote_never_checked_is_counted_apart_from_one_that_failed() -> None:
     totals.add(expected, [unchecked], match_insights(expected, [unchecked]))
 
     assert totals.lines()[5] == "quotes: exact 0, fuzzy 0, none 0, unchecked 1"
+
+
+@pytest.mark.parametrize(
+    ("expected", "script", "name"),
+    [
+        ("samples/rp01.expected.yaml", "samples/rp01.turns.json", "rp01"),
+        ("evals/v1/rp01/expected.yaml", "evals/v1/rp01/script_turns.json", "rp01"),  # a case
+    ],
+)
+def test_the_script_and_name_of_an_answer_key(expected: str, script: str, name: str) -> None:
+    assert (script_beside(Path(expected)), recording_of(Path(expected))) == (Path(script), name)

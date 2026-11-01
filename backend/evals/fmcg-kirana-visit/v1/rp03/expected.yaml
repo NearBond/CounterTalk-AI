@@ -1,0 +1,35 @@
+# K2 for rp03: margin, a pending scheme payout, praise, and a third voice.
+# Answer key, checked 1 Nov 2026.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+# The customer (role "other") asks for Thums Up and Kurkure: none of that is an insight.
+recording: rp03
+insights:
+  - kind: competitor_preference    # reason: margin
+    category: pricing
+    severity: medium               # Bingo went from 1 carton to 3, and gets the front of the shelf
+    speaker: shopkeeper
+    phrase: "ITC वाले Bingo पे ग्यारह percent दे रहे हैं"
+    skus: []                       # corrected 1 Nov after batch 12: the shopkeeper says only "आपका margin"; Kurkure is named by the rep alone
+    competitors: [bingo]
+    scheme: null
+    teams: [sales_ops]
+
+  - kind: problem
+    category: schemes
+    severity: high                 # money owed to the shop: a whole quarter's display payout
+    speaker: shopkeeper
+    phrase: "उसका payout अभी तक pending है"
+    skus: []
+    competitors: []
+    scheme: lays_display_rack      # review: the script says "display scheme, rack वाला" without a brand; linked by the alias
+    teams: [finance]
+
+  - kind: praise
+    category: praise
+    severity: low
+    speaker: shopkeeper
+    phrase: "Kurkure का नया flavour अच्छा चल रहा है"
+    skus: [kurkure]
+    competitors: []
+    scheme: null
+    teams: [area_manager]

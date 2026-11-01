@@ -1,0 +1,325 @@
+{
+  "recording": "rp07",
+  "title": "Quality, expiry and returns",
+  "duration_ms": 229563,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "priya"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "ashutosh"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते जैन साहब। आज दुकान बड़ी सजी हुई लग रही है।",
+      "start_ms": 500,
+      "end_ms": 4511
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते सीमा जी। हाँ, कल पूजा थी घर पे, तो दुकान भी साफ़ करवा दी। बैठिए।",
+      "start_ms": 4926,
+      "end_ms": 10131
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अरे वाह, किस चीज़ की पूजा थी?",
+      "start_ms": 11090,
+      "end_ms": 13479
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "दुकान के पाँच साल पूरे हुए। तो सोचा थोड़ा भगवान का धन्यवाद कर लें।",
+      "start_ms": 13706,
+      "end_ms": 17973
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पाँच साल! बहुत बधाई हो। शुरू में तो बहुत छोटी सी दुकान थी।",
+      "start_ms": 18209,
+      "end_ms": 23414
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, एक counter था बस। अब देखिए, दो rack, एक fridge, और पीछे godown भी।",
+      "start_ms": 23770,
+      "end_ms": 28634
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "मेहनत का फल है, जैन साहब। तो बताइए, इस हफ़्ते सब ठीक रहा?",
+      "start_ms": 29248,
+      "end_ms": 34624
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "सब ठीक नहीं रहा, सीमा जी। दिखाता हूँ आपको। ये देखिए।",
+      "start_ms": 34954,
+      "end_ms": 38111
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अरे, ये क्या हुआ इन packets को?",
+      "start_ms": 38811,
+      "end_ms": 41030
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Lay's के packet हैं, पिछली delivery के। देखिए, इनमें हवा ही नहीं है। पूरे पिचके हुए हैं, अंदर chips चूरा हो गए।",
+      "start_ms": 41304,
+      "end_ms": 48131
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, ये तो पूरे crushed हैं। कितने packet ऐसे निकले?",
+      "start_ms": 48589,
+      "end_ms": 51746
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "एक पूरा carton ऐसा ही था। और दूसरे carton में भी दस बारह packet। ऐसे packet customer को कैसे दूँ?",
+      "start_ms": 52423,
+      "end_ms": 59506
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नहीं, ये तो बेच ही नहीं सकते। आपने इनको अलग रखा है, ये अच्छा किया।",
+      "start_ms": 60228,
+      "end_ms": 65604
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और दूसरी problem उससे भी बड़ी है।",
+      "start_ms": 66404,
+      "end_ms": 68879
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "क्या?",
+      "start_ms": 68729,
+      "end_ms": 70009
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Distributor से जो माल आया है, Kurkure का, उसकी expiry देखिए। बस एक महीना बचा है। इतने कम time में इतना माल कैसे बिकेगा?",
+      "start_ms": 70398,
+      "end_ms": 78249
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "एक महीना? ये तो बहुत कम है। आमतौर पर तीन चार महीने का होता है।",
+      "start_ms": 79127,
+      "end_ms": 84674
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये माल कब आया था?",
+      "start_ms": 85540,
+      "end_ms": 87503
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "पिछले हफ़्ते ही आया। मतलब distributor के पास पहले से पड़ा था, पुराना माल मुझे पकड़ा दिया।",
+      "start_ms": 88008,
+      "end_ms": 93811
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हम्म, लगता है पुराना stock आगे भेज दिया।",
+      "start_ms": 94651,
+      "end_ms": 98406
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "वही तो। और मैंने distributor को बोला, ये वापस ले लो। वो बोलता है, वापस नहीं लेंगे, आपने order किया था।",
+      "start_ms": 99168,
+      "end_ms": 105483
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "वापस लेने से मना कर दिया?",
+      "start_ms": 106052,
+      "end_ms": 108185
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, साफ़ मना कर दिया। अब expiry के बाद ये सारा नुकसान मेरा। चार carton हैं ऐसे।",
+      "start_ms": 108896,
+      "end_ms": 114784
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये ठीक नहीं है, जैन साहब। Near expiry stock की return policy होती है। मैं इसके बारे में distribution वालों से बात करती हूँ।",
+      "start_ms": 115304,
+      "end_ms": 123837
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बात कीजिए। और एक तीसरी चीज़ भी है।",
+      "start_ms": 124147,
+      "end_ms": 126792
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बोलिए।",
+      "start_ms": 127467,
+      "end_ms": 128150
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "वो जो नया flavour आया है ना Kurkure का, उसके बारे में customers बोल रहे हैं कि taste अलग है। पहले जैसा नहीं लगता।",
+      "start_ms": 129135,
+      "end_ms": 135962
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Taste अलग मतलब? ख़राब लगता है, या बस अलग?",
+      "start_ms": 136765,
+      "end_ms": 140861
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "दो तीन लोगों ने बोला कि ज़्यादा खट्टा है, और थोड़ा बासी सा लगता है। एक लड़के ने तो आधा packet वापस करके दूसरा माँगा।",
+      "start_ms": 141647,
+      "end_ms": 150778
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हम्म। किस batch का माल था, packet पे number दिख रहा है?",
+      "start_ms": 151270,
+      "end_ms": 155878
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ये देखिए, ये पीछे लिखा है। बाकी packet भी इसी batch के हैं।",
+      "start_ms": 156116,
+      "end_ms": 159956
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, मैं इसकी photo ले लेती हूँ, batch number के साथ। Quality team को भेजूँगी।",
+      "start_ms": 160875,
+      "end_ms": 167702
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, भेजिए। मुझे डर है customer भाग न जाएँ।",
+      "start_ms": 167982,
+      "end_ms": 171395
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आपकी company वाले कभी कभी quality का check भी करते हैं ना?",
+      "start_ms": 172095,
+      "end_ms": 175167
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, करते हैं। इस batch number से उनको पता चलेगा कि गड़बड़ कहाँ हुई।",
+      "start_ms": 175417,
+      "end_ms": 182329
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "समझती हूँ। तो मैं लिख लेती हूँ। Lay's के packets बिना हवा के, crushed आए। Kurkure का stock एक महीने की expiry वाला, जिसे distributor वापस नहीं ले रहा। और नए flavour का taste customers को अलग लग रहा है।",
+      "start_ms": 182641,
+      "end_ms": 196721
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, यही सब। crushed वाले packet का क्या करूँ?",
+      "start_ms": 197397,
+      "end_ms": 200042
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "उन्हें अभी अलग रखिए। मैं replacement के लिए बात करती हूँ।",
+      "start_ms": 200706,
+      "end_ms": 205570
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है। आज order थोड़ा कम लगाऊँगा, पहले ये stock निकलना चाहिए।",
+      "start_ms": 206227,
+      "end_ms": 211432
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "जी, बताइए।",
+      "start_ms": 212326,
+      "end_ms": 213521
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Lay's के दो carton, बस। Kurkure अभी नहीं, पहले वाला ही बहुत पड़ा है।",
+      "start_ms": 214205,
+      "end_ms": 218386
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दो carton Lay's। ठीक है जैन साहब, मैं दो दिन में आपको update देती हूँ।",
+      "start_ms": 218680,
+      "end_ms": 224312
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है सीमा जी। नमस्ते।",
+      "start_ms": 224701,
+      "end_ms": 226749
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते।",
+      "start_ms": 227568,
+      "end_ms": 228763
+    }
+  ]
+}

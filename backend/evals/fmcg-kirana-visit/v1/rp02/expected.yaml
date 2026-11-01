@@ -1,0 +1,36 @@
+# K2 for rp02: late delivery, damaged cartons and a suggestion.
+# Answer key, checked 1 Nov 2026.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+recording: rp02
+insights:
+  - kind: problem
+    category: supply
+    severity: medium               # review: "high" if you count the empty weekend shelf as a fast seller out of stock
+    speaker: shopkeeper
+    phrase: "Last order तीन दिन late आया"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [distribution]
+    # One insight for both the late order and the irregular delivery days ("कुछ fix ही नहीं है").
+    # review: if you'd expect two insights, add the second here.
+
+  - kind: problem
+    category: damage
+    severity: medium
+    speaker: shopkeeper
+    phrase: "Kurkure के दो carton damaged थे"
+    skus: [kurkure]
+    competitors: []
+    scheme: null
+    teams: [distribution]
+
+  - kind: suggestion
+    category: supply
+    severity: low
+    speaker: shopkeeper
+    phrase: "अगर delivery सुबह दस बजे से पहले हो जाए"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [distribution]

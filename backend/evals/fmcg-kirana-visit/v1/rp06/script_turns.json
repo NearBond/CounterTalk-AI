@@ -1,0 +1,325 @@
+{
+  "recording": "rp06",
+  "title": "Schemes and visibility",
+  "duration_ms": 196463,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "shubh"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "ashutosh"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते खान साहब। कैसे हैं?",
+      "start_ms": 500,
+      "end_ms": 2377
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "वालेकुम अस्सलाम, आइए विकास जी। ठीक हूँ। बाहर बड़ा शोर है आज, सड़क खुदी पड़ी है।",
+      "start_ms": 3352,
+      "end_ms": 8813
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, देखा, पूरी लाइन में काम चल रहा है। Customer आ पा रहे हैं ना?",
+      "start_ms": 9337,
+      "end_ms": 12836
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आ रहे हैं, पर कम।",
+      "start_ms": 13785,
+      "end_ms": 15406
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये काम कब तक चलेगा, कुछ बताया?",
+      "start_ms": 15921,
+      "end_ms": 17713
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बोल रहे हैं दो हफ़्ते। पर आप तो जानते हो, दो हफ़्ते का मतलब दो महीने।",
+      "start_ms": 18197,
+      "end_ms": 22976
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हा हा, सही बोले। धूल भी बहुत उड़ रही होगी।",
+      "start_ms": 23893,
+      "end_ms": 26538
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "धूल ही धूल। दिन में तीन बार shelf साफ़ करनी पड़ती है। चलिए, काम की बात करते हैं।",
+      "start_ms": 27242,
+      "end_ms": 32447
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ज़रूर। इस महीने हमारा नया scheme चल रहा है, Kurkure और Lay's दोनों पे। बारह carton लेने पे एक carton free, और उसके ऊपर से दो percent extra discount।",
+      "start_ms": 32993,
+      "end_ms": 41697
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "कौन सा scheme? Distributor ने कुछ बताया ही नहीं।",
+      "start_ms": 41397,
+      "end_ms": 44725
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "मतलब आपको इस महीने का scheme मिला ही नहीं?",
+      "start_ms": 45523,
+      "end_ms": 47912
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बिल्कुल नहीं। मैंने तो इस महीने पंद्रह carton लिए हैं, पूरे rate पे। ना free carton आया, ना discount। Bill में भी कुछ नहीं लिखा।",
+      "start_ms": 48240,
+      "end_ms": 56688
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये तो गलत है। Scheme तो सबके लिए था। आपके पास इस महीने के bill हैं?",
+      "start_ms": 57035,
+      "end_ms": 61046
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, सब फ़ाइल में रखे हैं। ये देखिए, ये दोनों।",
+      "start_ms": 61554,
+      "end_ms": 64114
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Scheme का discount bill में अलग से लिखा आना चाहिए, और free carton delivery के साथ ही आता है।",
+      "start_ms": 64826,
+      "end_ms": 69775
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "मेरे bill में तो ऐसा कुछ नहीं था। Delivery वाला लड़का भी कुछ नहीं बोला।",
+      "start_ms": 70611,
+      "end_ms": 74451
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, यहाँ तो scheme का कुछ नहीं है। मैं इनकी photo ले लेता हूँ।",
+      "start_ms": 74950,
+      "end_ms": 77937
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "लीजिए। और सुनिए, एक और बात है, rack वाली।",
+      "start_ms": 78737,
+      "end_ms": 82492
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, बोलिए।",
+      "start_ms": 83353,
+      "end_ms": 84377
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ये जो आपका display rack लगा है ना, सामने वाला, इसका पैसा दो महीने से नहीं आया। हर महीने आना था, पाँच सौ रुपये।",
+      "start_ms": 84898,
+      "end_ms": 91981
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दो महीने से? पिछली बार कब आया था?",
+      "start_ms": 92516,
+      "end_ms": 94479
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "जुलाई में आया था आख़िरी बार। अगस्त और सितंबर का बाकी है। मैंने rack पे सिर्फ़ आपका माल रखा है, दूसरी company वाले भी पूछ रहे थे।",
+      "start_ms": 95230,
+      "end_ms": 103081
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "समझ गया। Display payment वाली बात मैं trade marketing वालों को आज ही बता दूँगा।",
+      "start_ms": 103575,
+      "end_ms": 107244
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और वो cooler देखिए, उधर कोने में।",
+      "start_ms": 108144,
+      "end_ms": 111899
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "जी, क्या हुआ उसको?",
+      "start_ms": 112204,
+      "end_ms": 113655
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "एक हफ़्ते से ठंडा ही नहीं कर रहा। चलता है, light जलती है, पर अंदर सब गरम रहता है। Cold drink ठंडी नहीं होती तो customer लौट जाता है।",
+      "start_ms": 114077,
+      "end_ms": 121501
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "एक हफ़्ते से? आपने किसी को बताया था?",
+      "start_ms": 122022,
+      "end_ms": 124497
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, distributor के लड़के को बोला था। बोला mechanic भेजेंगे। अभी तक कोई नहीं आया।",
+      "start_ms": 125035,
+      "end_ms": 129984
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, मैं देख लेता हूँ।",
+      "start_ms": 129784,
+      "end_ms": 130893
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "देख लीजिए, गरमी में cooler ही तो सबसे ज़रूरी है।",
+      "start_ms": 131420,
+      "end_ms": 134407
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, बिल्कुल। मैं तीनों बातें लिख रहा हूँ। Scheme का benefit आप तक नहीं पहुँचा, rack का payment दो महीने से pending है, और cooler एक हफ़्ते से ठंडा नहीं कर रहा।",
+      "start_ms": 134816,
+      "end_ms": 143093
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, यही तीन। और जल्दी करवाइए, विकास जी।",
+      "start_ms": 144039,
+      "end_ms": 146684
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "कोशिश करूँगा। Cooler के लिए आज ही service की request डाल दूँगा।",
+      "start_ms": 147239,
+      "end_ms": 150140
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "त्योहार के लिए कुछ extra stock रखेंगे इस बार?",
+      "start_ms": 151094,
+      "end_ms": 153825
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "रखूँगा, अगर scheme ठीक से मिले तो। वरना उतना ही लूँगा जितना बिकता है।",
+      "start_ms": 154637,
+      "end_ms": 158733
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "समझ गया। इसीलिए scheme वाली बात मैं सबसे पहले उठाऊँगा।",
+      "start_ms": 159029,
+      "end_ms": 162101
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, वही सबसे ज़रूरी है। अब order लिख लीजिए।",
+      "start_ms": 162819,
+      "end_ms": 165891
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "जी, बताइए।",
+      "start_ms": 166758,
+      "end_ms": 168123
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Kurkure के छह carton, Lay's के चार। Doritos का एक। और Cheetos का भी एक लगा दीजिए, बच्चे माँगते हैं।",
+      "start_ms": 168983,
+      "end_ms": 176407
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "छह Kurkure, चार Lay's, एक Doritos, एक Cheetos। और scheme वाला मैं इस order में ठीक से लगवाने की कोशिश करता हूँ।",
+      "start_ms": 176949,
+      "end_ms": 183776
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, इस बार तो लगना चाहिए।",
+      "start_ms": 184203,
+      "end_ms": 186336
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "जी। चलिए खान साहब, चलता हूँ। Cooler वाला आदमी आए तो मुझे बता दीजिएगा।",
+      "start_ms": 186794,
+      "end_ms": 190975
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ज़रूर। ख़ुदा हाफ़िज़।",
+      "start_ms": 191832,
+      "end_ms": 193965
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ख़ुदा हाफ़िज़।",
+      "start_ms": 194639,
+      "end_ms": 195663
+    }
+  ]
+}
