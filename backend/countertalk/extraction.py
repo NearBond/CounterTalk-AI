@@ -9,7 +9,8 @@ The request, in an order that lets its start be cached across visits:
 3. the transcript, each turn with its speaker's role.
 
 The `extract` job (handler in worker.py): lock the visit and set `extracting`; check it fits
-Muse Spark's context; roles, reusing saved ones (§9.4); extraction; then, in one transaction
+Muse Spark's context; roles, reusing saved ones (§9.4); extraction; every quote checked and the
+unmatched repaired once (quotes.py, batch 11); then, in one transaction
 under the visit's lock, an Extraction row, the derived rows replaced, and `review`. Only while
 the visit is still `extracting`: a run that finds it moved on (failed, say) writes nothing.
 """
@@ -26,7 +27,7 @@ from typing import Any
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
-from countertalk import jobs, limits, llm_calls, roles, visits
+from countertalk import jobs, limits, llm_calls, quotes, roles, visits
 from countertalk.db import session_scope
 from countertalk.errors import Conflict, NotFound, PermanentError, RetryableError
 from countertalk.llm import pricing
@@ -45,7 +46,6 @@ from countertalk.models import (
     Report,
     Task,
     Team,
-    Turn,
     Visit,
     VisitKind,
     VisitStatus,
@@ -62,6 +62,7 @@ from countertalk.playbooks import (
     load_org_pack,
     playbook_text,
 )
+from countertalk.verify import Transcript, TurnText
 
 log = logging.getLogger(__name__)
 
@@ -77,6 +78,8 @@ class Request:
     turns: int
     messages: list[Message]
     schema: dict[str, Any]
+    # The turns it was built from, for checking the answer's quotes.
+    turn_rows: tuple[roles.SentTurn, ...]
 
 
 def pack_for(org_id: str, packs: Path = ORG_PACKS_DIR, playbooks: Path = PLAYBOOKS_DIR) -> OrgPack:
@@ -119,7 +122,9 @@ def request_for(visit_id: str, pack: OrgPack, speaker_roles: dict[str, str]) -> 
         Message("user", f"The visit, on {visit_date.isoformat()}:\n\n" + "\n".join(lines)),
     ]
     schema = build_extraction_schema(pack.playbook, pack)
-    return Request(visit_id, org_id, transcript_id, visit_date, len(turns), messages, schema)
+    return Request(
+        visit_id, org_id, transcript_id, visit_date, len(turns), messages, schema, tuple(turns)
+    )
 
 
 def playbook_part(pack: OrgPack) -> str:
@@ -222,9 +227,24 @@ def extract(
             ) from None
         raise outcome.error
     assert outcome.answer is not None
+    answer = _no_nul(outcome.answer)
+    # Every quote checked, and the unmatched repaired, before the write (batch 11).
+    transcript = _transcript(request, assigned.roles)
+    checked = quotes.check_quotes(visit_id, answer, transcript, llm, claim_lost=claim_lost)
     # The request's hash: a repair's includes the answer it repaired.
     prompt_hash = outcome.calls[0].prompt_hash
-    _save(request, pack, llm.model, prompt_hash, _no_nul(outcome.answer), assigned.roles)
+    _save(request, pack, llm.model, prompt_hash, answer, checked)
+
+
+def _transcript(request: Request, speaker_roles: dict[str, tuple[str, float]]) -> Transcript:
+    return Transcript(
+        [
+            TurnText(
+                t.turn_id, speaker_roles.get(t.label, (None,))[0], t.start_ms, t.end_ms, t.text
+            )
+            for t in request.turn_rows
+        ]
+    )
 
 
 def _start(visit_id: str) -> tuple[str, str] | None:
@@ -251,9 +271,10 @@ def _save(
     model: str,
     prompt_hash: str,
     answer: dict[str, Any],
-    speaker_roles: dict[str, tuple[str, float]],
+    checked: quotes.Checked,
 ) -> None:
-    """One transaction under the visit's lock: only while it's still `extracting` (§2.3)."""
+    """One transaction under the visit's lock: only while it's still `extracting` (§2.3). Each
+    quote is written with what checking it found; an insight with a matched quote is verified."""
     visit_id = request.visit_id
     with session_scope() as session:
         visit = visits.lock_for_work(session, visit_id)
@@ -261,9 +282,6 @@ def _save(
             status = None if visit is None else visit.status
             log.info("extraction not saved visit=%s status=%s", visit_id, status)
             return
-        query = select(Turn.turn_id, Turn.speaker_label)
-        query = query.where(Turn.transcript_id == request.transcript_id)
-        turns = {turn_id: label for turn_id, label in session.execute(query)}
         query = select(Team.key, Team.id).where(Team.org_id == visit.org_id)
         teams = {key: team_id for key, team_id in session.execute(query)}
         extraction = Extraction(
@@ -310,8 +328,10 @@ def _save(
             for seq, task in enumerate(answer["tasks"])
         )
         unknown = {"turns": 0, "teams": 0}
-        quotes: list[Evidence] = []
-        for seq, found in enumerate(answer["insights"], start=first_seq):
+        evidence: list[Evidence] = []
+        for number, found in enumerate(answer["insights"]):
+            seq = first_seq + number
+            results = [checked.results[(number, j)] for j in range(len(found["evidence"]))]
             team = found["suggested_team"]
             unknown["teams"] += team is not None and team not in teams
             insight = Insight(
@@ -330,27 +350,36 @@ def _save(
                 scheme_key=found["scheme_key"],
                 ai_team_id=teams.get(team) if team is not None else None,
                 ai_team_reason=found["team_reason"],
+                # Unverified, it never reaches a team (BRIEF D9).
+                verified=any(result.match != "none" for result in results),
             )
             session.add(insight)
-            for position, quoted in enumerate(found["evidence"]):
-                # A turn the transcript hasn't got: kept with no turn, never dropped (§9.6).
-                label = turns.get(quoted["turn_id"])
-                unknown["turns"] += label is None
-                quotes.append(
+            for position, (quoted, result) in enumerate(
+                zip(found["evidence"], results, strict=True)
+            ):
+                # Where it was found; unmatched, the cited turn, or none if the transcript hasn't
+                # got it. Kept either way, never dropped (§9.6).
+                unknown["turns"] += result.turn_id is None
+                evidence.append(
                     Evidence(
                         insight_id=insight.id,
                         visit_id=visit_id,
                         seq=position,
                         transcript_id=request.transcript_id,
-                        turn_id=quoted["turn_id"] if label is not None else None,
-                        speaker_role=speaker_roles[label][0] if label in speaker_roles else None,
+                        turn_id=result.turn_id,
+                        speaker_role=result.speaker_role,
                         quote_llm=quoted["quote"],
+                        quote_final=result.quote_final,
+                        match=result.match,
+                        char_start=result.char_start,
+                        char_end=result.char_end,
+                        start_ms=result.start_ms,
                     )
                 )
         # Two flushes in all: the evidence refers to its insights, and the unit of work only
         # orders inserts along relationships, which these tables don't declare.
         session.flush()
-        session.add_all(quotes)
+        session.add_all(evidence)
         visits.set_status(visit, VisitStatus.REVIEW)
     log.info(
         "extracted visit=%s insights=%d tasks=%d unknown_turns=%d unknown_teams=%d",

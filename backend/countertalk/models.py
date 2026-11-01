@@ -396,6 +396,7 @@ class SpeakerRole(Base):
 class LlmPurpose(StrEnum):
     ROLES = "roles"
     EXTRACTION = "extraction"
+    QUOTE_REPAIR = "quote_repair"
 
 
 class LlmCall(Base):
@@ -691,8 +692,8 @@ class Evidence(Base):
             ["transcripts.visit_id", "transcripts.id"],
             ondelete="CASCADE",
         ),
-        # A cited turn is one of the transcript's. One that isn't is kept with no turn, for
-        # batch 11 to search the whole transcript: the quote is never dropped.
+        # Its turn is one of the transcript's: where the quote was found, or for one that
+        # wasn't, the cited turn, or no turn if the transcript hasn't got it. Never dropped.
         ForeignKeyConstraint(
             ["transcript_id", "turn_id"],
             ["turns.transcript_id", "turns.turn_id"],
@@ -711,7 +712,7 @@ class Evidence(Base):
     seq: Mapped[int]
     transcript_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
     turn_id: Mapped[int | None]
-    # The cited turn's speaker, from its saved role.
+    # That turn's speaker, from its saved role.
     speaker_role: Mapped[str | None] = mapped_column(String)
     quote_llm: Mapped[str] = mapped_column(String)
     quote_final: Mapped[str | None] = mapped_column(String)

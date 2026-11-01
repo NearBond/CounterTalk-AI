@@ -145,7 +145,8 @@ def test_a_transcribed_visit_is_extracted_into_its_rows_and_goes_to_review(org: 
         field,
         "Deliveries.",
     )
-    assert (found.extraction_id, found.added_by_rep, found.verified) == (run_row.id, False, False)
+    # Its quote was found in the transcript (batch 11).
+    assert (found.extraction_id, found.added_by_rep, found.verified) == (run_row.id, False, True)
     [quote] = rows(Evidence)
     assert (quote.turn_id, quote.speaker_role, quote.quote_llm) == (
         1,
@@ -212,20 +213,6 @@ def test_the_schemes_sent_are_those_running_within_30_days(
     found = scheme(starts, ends)
 
     assert extraction.schemes_near([found], date(2026, 11, 15)) == ([found] if near else [])
-
-
-def test_a_quote_citing_a_turn_that_isnt_there_is_kept_without_one(org: Org_) -> None:
-    visit_id = transcribed(org)
-    lost = insight(evidence=[{"turn_id": 99, "quote": "Kurkure ke do dabbe chahiye."}])
-
-    run(visit_id, ALL_PLACED, answer(lost))
-
-    [quote] = rows(Evidence)
-    assert (quote.turn_id, quote.speaker_role, quote.quote_llm) == (
-        None,
-        None,
-        "Kurkure ke do dabbe chahiye.",
-    )
 
 
 def test_an_unknown_team_and_impossible_dates_are_left_out_not_guessed(org: Org_) -> None:

@@ -66,16 +66,17 @@ class Assigned:
 
 @dataclass(frozen=True)
 class SentTurn:
-    """A turn as it's sent to Muse Spark: by roles, and by extraction."""
+    """A turn as it's sent to Muse Spark (by roles and extraction) and checked (quotes)."""
 
     turn_id: int
     label: str
     start_ms: int
+    end_ms: int
     text: str
 
 
 def load_turns(session: Session, transcript_id: str) -> list[SentTurn]:
-    query = select(Turn.turn_id, Turn.speaker_label, Turn.start_ms, Turn.text)
+    query = select(Turn.turn_id, Turn.speaker_label, Turn.start_ms, Turn.end_ms, Turn.text)
     query = query.where(Turn.transcript_id == transcript_id).order_by(Turn.turn_id)
     return [SentTurn(*row) for row in session.execute(query)]
 
