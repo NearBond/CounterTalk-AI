@@ -27,6 +27,13 @@ class NotFound(DomainError):
     http_status = 404
 
 
+class Forbidden(DomainError):
+    """Not this user's to do, on something they can see: changing the due date of an issue
+    someone else owns, say (batch 15)."""
+
+    http_status = 403
+
+
 class Conflict(DomainError):
     """Wrong state, or conflicting data."""
 

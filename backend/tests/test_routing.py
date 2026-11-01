@@ -19,7 +19,7 @@ from countertalk.models import (
     new_id,
 )
 from countertalk.playbooks import ORG_PACKS_DIR, PLAYBOOKS_DIR, Override, Route, load_org_pack
-from countertalk.routing import Choice, Decision
+from countertalk.routing import Choice, Decision, Seen
 from tests.conftest import lock_waiters
 from tests.test_extraction import transcribed
 from tests.test_roles import tiny, tiny_org
@@ -125,8 +125,9 @@ def org() -> Org_:
     return tiny_org()
 
 
-def an_insight(org: Org_, *, verified: bool = True) -> str:
-    """An extracted insight of a transcribed visit, not yet routed: its ID."""
+def an_insight(org: Org_, *, verified: bool = True, shown: bool = False) -> str:
+    """An extracted insight of a transcribed visit, not yet routed: its ID. Shown, as confirm
+    leaves a verified one, for a team member's routing (batch 15)."""
     visit_id = transcribed(org)
     with session_scope() as session:
         visit = session.get_one(Visit, visit_id)
@@ -157,6 +158,7 @@ def an_insight(org: Org_, *, verified: bool = True) -> str:
             sku_mentions=[],
             competitor_mentions=[],
             verified=verified,
+            visible=shown,
         )
         session.add(insight)
         return insight.id
@@ -286,13 +288,20 @@ def a_third_team(org: Org_) -> str:
         return team.id
 
 
-def send(org: Org_, insight_id: str, team_id: str) -> int:
+# The slot-1 route as a team member first reads it.
+FIRST_SEEN = Seen(1, 1)
+
+
+def send(org: Org_, insight_id: str, team_id: str, seen: Seen = FIRST_SEEN) -> int:
     with session_scope() as session:
-        return routing.also_send(session, org.org_id, insight_id, team_id, org.rep_id)
+        route = routing.also_send(
+            session, tiny(), org.org_id, insight_id, team_id, org.rep_id, seen
+        )
+        return route.slot
 
 
 def routed_to_money(org: Org_) -> str:
-    insight_id = an_insight(org)
+    insight_id = an_insight(org, shown=True)
     route(insight_id, routing.decide("payments", "low", "field", TINY, TEAMS))
     return insight_id
 
@@ -310,7 +319,7 @@ def test_also_send_fills_slot_2_with_its_history(org: Org_) -> None:
 
 
 def test_also_send_takes_the_first_free_slot(org: Org_) -> None:
-    insight_id = an_insight(org)
+    insight_id = an_insight(org, shown=True)
     route(insight_id, HIGH_PAYMENT)
     with session_scope() as session:  # as a later change might leave it
         session.execute(
@@ -319,7 +328,7 @@ def test_also_send_takes_the_first_free_slot(org: Org_) -> None:
             )
         )
 
-    assert send(org, insight_id, team_ids(org.org_id)["money"]) == 1
+    assert send(org, insight_id, team_ids(org.org_id)["money"], Seen(2, 1)) == 1
 
 
 def code_of(org: Org_, insight_id: str, team_id: str) -> str:
@@ -329,7 +338,7 @@ def code_of(org: Org_, insight_id: str, team_id: str) -> str:
 
 
 def test_a_third_team_is_refused(org: Org_) -> None:
-    insight_id = an_insight(org)
+    insight_id = an_insight(org, shown=True)
     route(insight_id, HIGH_PAYMENT)  # money and field
 
     assert code_of(org, insight_id, a_third_team(org)) == "team_limit"
@@ -337,7 +346,7 @@ def test_a_third_team_is_refused(org: Org_) -> None:
 
 
 def test_also_send_refuses_a_team_it_has_a_triage_insight_and_another_orgs(org: Org_) -> None:
-    insight_id, in_triage = routed_to_money(org), an_insight(org)
+    insight_id, in_triage = routed_to_money(org), an_insight(org, shown=True)
     route(in_triage, Decision((), None))
     other = make_org("Another Org")
     with session_scope() as session:
@@ -357,7 +366,10 @@ def test_two_also_sends_at_once_one_wins_and_the_other_gets_team_limit(org: Org_
 
     with ThreadPoolExecutor(max_workers=1) as pool, session_scope() as session:
         # The first holds the insight's lock, with slot 2 written but not committed.
-        assert routing.also_send(session, org.org_id, insight_id, field, org.rep_id) == 2
+        sent = routing.also_send(
+            session, tiny(), org.org_id, insight_id, field, org.rep_id, Seen(1, 1)
+        )
+        assert sent.slot == 2
         second = pool.submit(send, org, insight_id, third)
         wait_for(lambda: lock_waiters() == 1, "the second never waited for the insight's lock")
         session.commit()

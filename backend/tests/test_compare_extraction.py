@@ -8,7 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from countertalk import review, routing
 from countertalk.db import session_scope
@@ -193,7 +193,9 @@ def test_a_person_s_later_change_isnt_the_rule_s_routing(
         money = session.scalar(
             select(Team.id).where(Team.org_id == org.org_id, Team.key == "money")
         )
-        routing.also_send(session, org.org_id, insight_id, money, org.rep_id)
+        session.execute(update(Insight).where(Insight.id == insight_id).values(visible=True))
+        seen = routing.Seen(1, 1)
+        routing.also_send(session, tiny(), org.org_id, insight_id, money, org.rep_id, seen)
     expected = k2_file(tmp_path, "teams: [field]")
 
     main([visit_id, expected])

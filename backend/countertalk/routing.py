@@ -29,6 +29,7 @@ from sqlalchemy import delete, exists, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from countertalk import issues, rows
 from countertalk.db import constraint_name
 from countertalk.errors import Conflict, NotFound
 from countertalk.models import (
@@ -235,63 +236,164 @@ def _write(
     return "routed"
 
 
-def also_send(session: Session, org_id: str, insight_id: str, team_id: str, user_id: str) -> int:
-    """A team member also sends a routed insight to another team: the first free slot, under
-    the insight's lock. 409 team_limit when it has as many teams as the cap allows, already_routed
-    when that team has it, not_routed when it's in triage (that's a triage assignment). Its
-    slot."""
-    insight = _lock(session, org_id, insight_id)
-    query = select(Team.id).where(Team.org_id == org_id, Team.id == parse_id(team_id))
-    team = session.scalar(query)
-    if team is None:
-        raise NotFound("team_not_found", "There's no such team")
-    routed = select(InsightRoute.slot, InsightRoute.team_id).where(
-        InsightRoute.insight_id == insight.id
-    )
-    routes = {slot: routed_to for slot, routed_to in session.execute(routed)}
+# --- a team member's routing, after confirm (the inbox, batch 15) ----------------------------
+
+
+@dataclass(frozen=True)
+class Seen:
+    """The route a team member acted on, as they read it: a change names it, and gets 409
+    route_changed if it has moved on (compare-and-set, §2.3)."""
+
+    slot: int
+    version: int
+
+
+def accept(session: Session, org_id: str, insight_id: str, actor: str, seen: Seen) -> InsightRoute:
+    """The AI's suggestion, accepted: the route is a person's now, so "suggested by AI" goes."""
+    insight = _shown(session, org_id, insight_id)
+    route = _seen(_routes(session, insight), seen)
+    if route.routed_by != RoutedBy.AI:
+        raise Conflict("nothing_to_accept", "It isn't the AI's suggestion")
+    route.routed_by = RoutedBy.PERSON
+    route.version += 1
+    _person(session, insight, route.slot, route.team_id, RoutingAction.ACCEPT, actor)
+    return route
+
+
+def move(
+    session: Session,
+    pack: OrgPack,
+    org_id: str,
+    insight_id: str,
+    team_id: str,
+    actor: str,
+    seen: Seen,
+) -> InsightRoute:
+    """The route goes to another team: out of its issue, into that team's (issues.py, in §2.3's
+    order, after the insight's lock), and a person's now."""
+    insight = _shown(session, org_id, insight_id)
+    team = _team(session, org_id, team_id)
+    routes = _routes(session, insight)
+    route = _seen(routes, seen)
+    _not_sent_to(routes, team)
+    left = issues.detach(route)
+    route.team_id = team
+    route.routed_by = RoutedBy.PERSON
+    route.version += 1
+    _person(session, insight, route.slot, team, RoutingAction.MOVE, actor)
+    issues.attach_route(session, pack, actor, route, insight, leaving=left)
+    return route
+
+
+def also_send(
+    session: Session,
+    pack: OrgPack,
+    org_id: str,
+    insight_id: str,
+    team_id: str,
+    actor: str,
+    seen: Seen,
+) -> InsightRoute:
+    """The insight also goes to another team: the first free slot, filed in that team's issue.
+    409 team_limit when it has as many teams as the cap allows (two people at once included),
+    already_routed when that team has it, not_routed when it's in triage (that's a triage
+    assignment)."""
+    insight = _shown(session, org_id, insight_id)
+    team = _team(session, org_id, team_id)
+    routes = _routes(session, insight)
     if not routes:
         raise Conflict("not_routed", "It has no team yet: give it one from triage first")
-    if team in routes.values():
-        raise Conflict("already_routed", "It's already sent to that team")
+    _seen(routes, seen)
+    _not_sent_to(routes, team)
     slot = next(n for n in count(1) if n not in routes)
+    route = InsightRoute(
+        org_id=org_id, insight_id=insight.id, slot=slot, team_id=team, routed_by=RoutedBy.PERSON
+    )
     try:
         with session.begin_nested():
-            session.add(
-                InsightRoute(
-                    org_id=org_id,
-                    insight_id=insight.id,
-                    slot=slot,
-                    team_id=team,
-                    routed_by=RoutedBy.PERSON,
-                )
-            )
+            session.add(route)
             session.flush()
     except IntegrityError as error:
         if constraint_name(error) != CAP_CONSTRAINT:
             raise
         raise Conflict("team_limit", "It already has as many teams as it can have") from None
+    _person(session, insight, slot, team, RoutingAction.ALSO_SEND, actor)
+    issues.attach_route(session, pack, actor, route, insight)
+    return route
+
+
+def assign_from_triage(
+    session: Session, pack: OrgPack, org_id: str, insight_id: str, team_id: str, actor: str
+) -> InsightRoute:
+    """A team for an insight the rule left in triage: slot 1, filed in that team's issue. The
+    request read it with no routes; one that has any now is 409 already_routed, so two people
+    can't put it in two teams (compare-and-set, §2.3)."""
+    insight = _shown(session, org_id, insight_id)
+    team = _team(session, org_id, team_id)
+    if _routes(session, insight):
+        raise Conflict("already_routed", "Someone gave it a team meanwhile: reload it")
+    route = InsightRoute(
+        org_id=org_id, insight_id=insight.id, slot=1, team_id=team, routed_by=RoutedBy.PERSON
+    )
+    session.add(route)
+    _person(session, insight, 1, team, RoutingAction.TRIAGE_ASSIGN, actor)
+    issues.attach_route(session, pack, actor, route, insight)
+    return route
+
+
+def _shown(session: Session, org_id: str, insight_id: str) -> Insight:
+    """The insight, locked: only a confirmed visit's shown insight is routed by hand."""
+    insight = _lock(session, org_id, insight_id)
+    if not insight.visible:
+        raise Conflict("insight_not_confirmed", "Only a confirmed visit's findings go to teams")
+    return insight
+
+
+def _routes(session: Session, insight: Insight) -> dict[int, InsightRoute]:
+    """Its routes by slot, read fresh under its lock (R6)."""
+    query = select(InsightRoute).where(InsightRoute.insight_id == insight.id)
+    found = session.scalars(query.execution_options(populate_existing=True))
+    return {route.slot: route for route in found}
+
+
+def _seen(routes: dict[int, InsightRoute], seen: Seen) -> InsightRoute:
+    route = routes.get(seen.slot)
+    if route is None or route.version != seen.version:
+        raise Conflict("route_changed", "Someone routed it meanwhile: reload it")
+    return route
+
+
+def _not_sent_to(routes: dict[int, InsightRoute], team: str) -> None:
+    if team in {route.team_id for route in routes.values()}:
+        raise Conflict("already_routed", "It's already sent to that team")
+
+
+def _team(session: Session, org_id: str, team_id: str) -> str:
+    query = select(Team.id).where(Team.org_id == org_id, Team.id == parse_id(team_id))
+    team = session.scalar(query)
+    if team is None:
+        raise NotFound("team_not_found", "There's no such team")
+    return team
+
+
+def _person(
+    session: Session, insight: Insight, slot: int, team: str, action: RoutingAction, actor: str
+) -> None:
+    """A person's routing decision's history row."""
     session.add(
         RoutingDecision(
-            org_id=org_id,
+            org_id=insight.org_id,
             insight_id=insight.id,
             slot=slot,
             team_id=team,
-            action=RoutingAction.ALSO_SEND,
-            decided_by=user_id,
+            action=action,
+            decided_by=actor,
             extraction_id=insight.extraction_id,
         )
     )
-    return slot
 
 
 def _lock(session: Session, org_id: str, insight_id: str) -> Insight:
     """SELECT … FOR UPDATE on one insight of this org, read fresh (R6). Another org's is 404."""
-    found = parse_id(insight_id)
-    query = select(Insight).where(Insight.id == found, Insight.org_id == org_id)
-    insight = None
-    if found is not None:
-        query = query.with_for_update().execution_options(populate_existing=True)
-        insight = session.scalars(query).one_or_none()
-    if insight is None:
-        raise NotFound("insight_not_found", "There's no such insight")
-    return insight
+    missing = NotFound("insight_not_found", "There's no such insight")
+    return rows.find_one(session, Insight, org_id, insight_id, missing, for_update=True)

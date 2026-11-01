@@ -10,12 +10,16 @@ Attaching, on confirm (review.confirm, after lock_visit) and when a team member 
 confirmed insight (the inbox): issues are locked in (team_id, issue_key) order, the lock order
 of CODING_GUIDELINES §2.3, so two transactions can't deadlock. For each route:
 1. the open or in-progress issue with its team and key is joined;
-2. else one resolved less than REOPEN_WINDOW_DAYS ago reopens, with an IssueEvent by the actor;
+2. else one resolved less than REOPEN_WINDOW_DAYS ago, before the insight was seen, reopens,
+   with an IssueEvent by the actor; an insight seen before the resolve starts a new one;
 3. else a new one: INSERT … ON CONFLICT DO NOTHING on the partial unique index; if another
    transaction made it first, it's joined once that one commits.
 Joining: the severity becomes the higher, the seen times widen, and a higher severity can only
-bring the due date earlier. A new or reopened issue is due its severity's due_days from now.
-Every change bumps the issue's version, for the inbox's compare-and-set (§2.3).
+bring the due date earlier. A new or reopened issue, or an emptied one joined again, starts
+fresh: due its severity's due_days from now. A route moving to another team leaves its old
+issue, whose severity and seen times are worked out again from the routes it has left, both
+issues locked in the same order. Every change bumps the issue's version, for the inbox's
+compare-and-set (§2.3).
 """
 
 import logging
@@ -25,12 +29,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import Select, select, text
+from sqlalchemy import Select, exists, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from countertalk import entities, limits
-from countertalk.errors import Conflict
+from countertalk import entities, limits, rows
+from countertalk.errors import Conflict, Forbidden, Invalid, NotFound
 from countertalk.models import (
     ACTIVE_ISSUE,
     ACTIVE_ISSUE_SQL,
@@ -148,7 +152,8 @@ def attach(
             session, pack, actor, (org_id, team_id, key), fields, member, names, now
         )
         if how != "created":
-            _join(issue, member, pack, now)
+            routed = select(exists().where(InsightRoute.issue_id == issue.id))
+            _join(issue, member, pack, now, fresh=not session.scalar(routed))
         member.route.issue_id = issue.id
         touched.setdefault(issue.id, (issue, how))
     for issue, how in touched.values():
@@ -198,7 +203,10 @@ def _issue_for(
             return active, "joined"
         since = now - timedelta(days=limits.REOPEN_WINDOW_DAYS)
         recent = select(Issue).where(
-            *same, Issue.status == IssueStatus.RESOLVED, Issue.resolved_at > since
+            *same,
+            Issue.status == IssueStatus.RESOLVED,
+            Issue.resolved_at > since,
+            Issue.resolved_at < member.seen_at,
         )
         resolved = session.scalars(
             _locked(recent.order_by(Issue.resolved_at.desc()).limit(1))
@@ -275,14 +283,25 @@ def _reopen(
     issue.due_at = now + _due(pack, issue.severity)
 
 
-def _join(issue: Issue, member: Member, pack: OrgPack, now: datetime) -> None:
-    order = list(pack.playbook.severities)
+def _join(issue: Issue, member: Member, pack: OrgPack, now: datetime, *, fresh: bool) -> None:
+    """Fresh: an issue every route had left starts again from this one (decision 7)."""
     severity = member.insight.severity
-    if order.index(severity) < order.index(issue.severity):
+    if fresh:
+        issue.severity = severity
+        issue.due_at = now + _due(pack, severity)
+        issue.first_seen_at = issue.last_seen_at = member.seen_at
+        return
+    if _rank(pack, severity) < _rank(pack, issue.severity):
         issue.severity = severity
         issue.due_at = min(issue.due_at, now + _due(pack, severity))
     issue.first_seen_at = min(issue.first_seen_at, member.seen_at)
     issue.last_seen_at = max(issue.last_seen_at, member.seen_at)
+
+
+def _rank(pack: OrgPack, severity: str) -> int:
+    """Highest first; a severity the playbook no longer has ranks last."""
+    order = list(pack.playbook.severities)
+    return order.index(severity) if severity in order else len(order)
 
 
 def _names(
@@ -305,3 +324,168 @@ def _names(
     )
     names.update(dict(session.execute(distributors).all()))
     return names
+
+
+def attach_route(
+    session: Session,
+    pack: OrgPack,
+    actor: str,
+    route: InsightRoute,
+    insight: Insight,
+    *,
+    leaving: str | None = None,
+) -> Counter[str]:
+    """A route a team member made or moved after confirm (routing.py) joins its team's issue.
+    Moved, it left `leaving` (detach): both issues are locked in §2.3's order, and the one it
+    left is worked out again from the routes it has left, its version bumped."""
+    visit = session.get_one(Visit, insight.visit_id)
+    shop = session.get_one(Shop, visit.shop_id)
+    member = Member(route, insight, shop, visit.created_at)
+    old = session.get(Issue, leaving) if leaving is not None else None
+    [(team_id, key, _, _)] = plan(pack, [member])
+    old_first = old is not None and (old.team_id, old.issue_key) < (team_id, key)
+    if old is not None and old_first:
+        old = session.scalars(_locked(select(Issue).where(Issue.id == old.id))).one()
+    done = attach(session, pack, insight.org_id, actor, [member])
+    if old is not None:
+        if not old_first:
+            old = session.scalars(_locked(select(Issue).where(Issue.id == old.id))).one()
+        _refresh(session, pack, old)
+    log.info(
+        "issues attached visit=%s insight=%s %s left=%s",
+        visit.id,
+        insight.id,
+        log_buckets(done, HOW),
+        int(old is not None),
+    )
+    return done
+
+
+def detach(route: InsightRoute) -> str | None:
+    """A route leaving its issue, before it moves to another team (routing.move): the issue it
+    left, for attach_route. The issue stays, hidden while it has no routes (with_routes)."""
+    left, route.issue_id = route.issue_id, None
+    return left
+
+
+def _refresh(session: Session, pack: OrgPack, issue: Issue) -> None:
+    """An issue a route left: its severity and seen times from the routes it has left, its due
+    date as it was. One with none left keeps them, hidden until a new insight joins it."""
+    rows = session.execute(
+        select(Insight.severity, Visit.created_at)
+        .join(InsightRoute, InsightRoute.insight_id == Insight.id)
+        .join(Visit, Visit.id == Insight.visit_id)
+        .where(InsightRoute.issue_id == issue.id)
+    ).all()
+    if rows:
+        issue.severity = min((severity for severity, _ in rows), key=lambda s: _rank(pack, s))
+        issue.first_seen_at = min(seen for _, seen in rows)
+        issue.last_seen_at = max(seen for _, seen in rows)
+    issue.version += 1
+
+
+def with_routes() -> Any:
+    """An issue with at least one route: the only ones the inbox shows and counts (R1, R10).
+    One emptied by moves stays, and a new insight with its key brings it back."""
+    return exists().where(InsightRoute.issue_id == Issue.id)
+
+
+# --- a team member's changes (the inbox) -----------------------------------------------------
+
+# By hand, an open or in-progress issue can go to these; resolved ones reopen only with a new
+# insight, and merging is batch 15c's.
+SETTABLE = (IssueStatus.OPEN, IssueStatus.IN_PROGRESS, IssueStatus.RESOLVED)
+
+
+def change(
+    session: Session,
+    org_id: str,
+    actor: str,
+    issue_id: str,
+    version: int,
+    *,
+    status: str | None = None,
+    note: str | None = None,
+    assign_to_me: bool = False,
+    due_at: datetime | None = None,
+) -> Issue:
+    """A team member's change, compare-and-set on the version they read (§2.3): 409
+    issue_changed if it moved on, nothing written. Assign to me sets the owner; only the owner
+    changes the due date (403); resolving needs a note. An IssueEvent per field changed, and
+    one version bump. Nothing changed, nothing written."""
+    issue = _lock_issue(session, org_id, issue_id)
+    if issue.version != version:
+        raise Conflict("issue_changed", "Someone changed this issue meanwhile: reload it")
+    if issue.status == IssueStatus.MERGED:
+        raise Conflict("issue_merged", "It was merged into another issue: change that one")
+    if issue.status not in ACTIVE_ISSUE:
+        raise Conflict("issue_closed", "It's resolved: a new finding reopens it")
+    if status is not None and status not in SETTABLE:
+        raise Invalid("status_invalid", f"The status must be one of {', '.join(SETTABLE)}")
+    if note is not None and status != IssueStatus.RESOLVED:
+        raise Invalid("note_only_when_resolving", "A note goes with resolving it")
+    # Every check first: a refused change writes nothing, whatever the caller does next.
+    owner = actor if assign_to_me else issue.owner_id
+    move_due = due_at is not None and _due_change(issue, owner, actor, due_at)
+    move_status = status is not None and status != issue.status
+    resolution = _note(note) if move_status and status == IssueStatus.RESOLVED else None
+    events: list[tuple[IssueEventField, str | None, str | None, str | None]] = []
+    if owner != issue.owner_id:
+        events.append((IssueEventField.OWNER, issue.owner_id, owner, None))
+        issue.owner_id = owner
+    if move_due and due_at is not None:
+        events.append((IssueEventField.DUE_AT, issue.due_at.isoformat(), due_at.isoformat(), None))
+        issue.due_at = due_at
+    if move_status and status is not None:
+        events.append((IssueEventField.STATUS, issue.status, status, resolution))
+        issue.status = status
+        issue.resolved_at = utc_now() if resolution is not None else None
+        issue.resolution_note = resolution
+    if not events:
+        return issue
+    session.add_all(
+        IssueEvent(
+            org_id=issue.org_id,
+            issue_id=issue.id,
+            actor_id=actor,
+            field=field,
+            from_value=before,
+            to_value=after,
+            note=text_note,
+        )
+        for field, before, after, text_note in events
+    )
+    issue.version += 1
+    log.info("issue changed issue=%s fields=%s", issue.id, ",".join(e[0] for e in events))
+    return issue
+
+
+def _due_change(issue: Issue, owner: str | None, actor: str, due_at: datetime) -> bool:
+    """Whether the due date changes: refused unless the actor owns it (after an assign to me in
+    the same change) and it's a later time, with its time zone (R4)."""
+    if due_at.tzinfo is None:
+        raise Invalid("due_at_without_zone", "A due date needs its time zone")
+    if due_at == issue.due_at:
+        return False
+    if owner != actor:
+        raise Forbidden("not_owner", "Only its owner can change its due date")
+    if due_at <= utc_now():
+        raise Invalid("due_in_past", "The due date must be later than now")
+    return True
+
+
+def _note(note: str | None) -> str:
+    text_note = (note or "").strip()
+    if not text_note:
+        raise Invalid("note_required", "Say how it was resolved: the rep tells the shop")
+    if len(text_note) > limits.RESOLUTION_NOTE_MAX_CHARS:
+        raise Invalid(
+            "note_too_long", f"The note is {limits.RESOLUTION_NOTE_MAX_CHARS} characters at most"
+        )
+    return text_note
+
+
+def _lock_issue(session: Session, org_id: str, issue_id: str) -> Issue:
+    """SELECT … FOR UPDATE on one issue of this org, read fresh (R6). Another org's is 404."""
+    missing = NotFound("issue_not_found", "There's no such issue")
+    return rows.find_one(session, Issue, org_id, issue_id, missing, for_update=True)

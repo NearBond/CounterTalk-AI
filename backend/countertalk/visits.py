@@ -17,7 +17,7 @@ from sqlalchemy import ColumnElement, func, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from countertalk import jobs, storage
+from countertalk import jobs, rows, storage
 from countertalk.errors import Conflict, Invalid, NotFound, TooLarge
 from countertalk.limits import ABANDONED_UPLOAD_MS, MAX_SEGMENT_BYTES, VISITS_PAGE_SIZE
 from countertalk.models import (
@@ -190,17 +190,8 @@ def fail_abandoned_uploads(session: Session) -> int:
 
 def _find_visit(session: Session, org_id: str, visit_id: str, *, for_update: bool) -> Visit:
     """One visit of this org. Another org's visit is 404, never 403 (§2.10)."""
-    found = parse_id(visit_id)
-    visit = None
-    if found is not None:
-        query = select(Visit).where(Visit.id == found, Visit.org_id == org_id)
-        if for_update:
-            query = query.with_for_update()
-        # Read the row as it is now, even if this session loaded the visit before the lock.
-        visit = session.scalars(query.execution_options(populate_existing=True)).one_or_none()
-    if visit is None:
-        raise NotFound("visit_not_found", "There's no such visit")
-    return visit
+    missing = NotFound("visit_not_found", "There's no such visit")
+    return rows.find_one(session, Visit, org_id, visit_id, missing, for_update=for_update)
 
 
 def lock_visit(session: Session, org_id: str, visit_id: str) -> Visit:
