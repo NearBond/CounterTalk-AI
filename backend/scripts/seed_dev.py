@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from countertalk.catalog import import_org_pack
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.errors import Conflict, DomainError, describe
+from countertalk.logs import configure_logging
 from countertalk.models import Base, Distributor, Org, Role, Shop, User
 from countertalk.playbooks import OrgPack, load_org_pack
 from countertalk.users import DEMO_REP_EMAIL
@@ -104,4 +105,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    configure_logging()
     sys.exit(main())

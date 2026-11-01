@@ -25,6 +25,7 @@ from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import get_engine
 from countertalk.limits import SETUP_CHECK_TIMEOUT_MS
+from countertalk.logs import configure_logging
 
 # pyproject.toml's requires-python; a test keeps the two the same.
 REQUIRED_PYTHON = (3, 12)
@@ -157,4 +158,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    configure_logging()
     sys.exit(main(sys.argv[1:]))

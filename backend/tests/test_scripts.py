@@ -1,6 +1,8 @@
 """Dev scripts never print a traceback (CODING_GUIDELINES §8.5): a bad input gets one line and a
-non-zero exit. Each runs with a bad input that costs nothing: never --yes."""
+non-zero exit. Each runs with a bad input that costs nothing: never --yes. And each sets up
+logging first (R5), so the frames-only excepthook is installed."""
 
+import ast
 import os
 import subprocess
 import sys
@@ -36,6 +38,40 @@ BAD_INPUTS = {
 
 def test_every_script_has_a_bad_input_here() -> None:
     assert sorted(path.name for path in SCRIPTS.glob("*.py")) == sorted(BAD_INPUTS)
+
+
+def main_block(tree: ast.Module) -> list[ast.stmt]:
+    for node in tree.body:
+        if isinstance(node, ast.If) and ast.unparse(node.test) == "__name__ == '__main__'":
+            return node.body
+    return []
+
+
+def calls_configure_logging(statement: ast.stmt) -> bool:
+    return ast.unparse(statement) == "configure_logging()"
+
+
+@pytest.mark.parametrize("script", sorted(BAD_INPUTS))
+def test_every_script_sets_up_logging_first_under_main(script: str) -> None:
+    tree = ast.parse((SCRIPTS / script).read_text(encoding="utf-8"))
+    imported = [
+        alias.name
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom) and node.module == "countertalk.logs"
+        for alias in node.names
+    ]
+
+    assert "configure_logging" in imported
+    assert [calls_configure_logging(s) for s in main_block(tree)][:1] == [True]
+
+
+def test_the_logging_check_sees_a_missing_call() -> None:
+    without = ast.parse('if __name__ == "__main__":\n    sys.exit(main())\n')
+    with_it = ast.parse('if __name__ == "__main__":\n    configure_logging()\n    main()\n')
+
+    assert [calls_configure_logging(s) for s in main_block(without)] == [False]
+    assert [calls_configure_logging(s) for s in main_block(with_it)][:1] == [True]
+    assert main_block(ast.parse("main()\n")) == []
 
 
 @pytest.mark.parametrize("script", sorted(BAD_INPUTS))

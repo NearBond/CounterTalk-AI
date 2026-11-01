@@ -13,6 +13,7 @@ from sqlalchemy import select
 from countertalk import audio, storage
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, describe
+from countertalk.logs import configure_logging
 from countertalk.models import Segment, Visit, parse_id
 
 
@@ -55,4 +56,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    configure_logging()
     sys.exit(main(sys.argv[1:]))

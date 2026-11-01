@@ -29,6 +29,7 @@ from sqlalchemy import select
 
 from countertalk import roles, storage
 from countertalk.db import session_scope
+from countertalk.logs import configure_logging
 from countertalk.models import Turn, Visit, parse_id
 
 LATIN = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)?")
@@ -238,6 +239,7 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    configure_logging()
     # The words are Devanagari: a Windows console's code page can't print them otherwise.
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     sys.exit(main(sys.argv[1:]))

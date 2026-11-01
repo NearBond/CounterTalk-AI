@@ -720,3 +720,41 @@ class Evidence(Base):
     char_start: Mapped[int | None]
     char_end: Mapped[int | None]
     start_ms: Mapped[int | None]
+
+
+class AliasReviewStatus(StrEnum):
+    OPEN = "open"
+    # The catalog screen's three ways to resolve one (batch 16b).
+    ATTACHED = "attached"
+    CREATED = "created"
+    DISMISSED = "dismissed"
+
+
+class AliasReview(Base):
+    """A name linking couldn't place (batch 12): in no catalog item, or as near to two as to one.
+    Never linked to the nearest guess (§9.6): the catalog screen resolves it (batch 16b)."""
+
+    __tablename__ = "alias_reviews"
+    __table_args__ = (
+        CheckConstraint(_one_of("kind", CatalogKind), name="kind"),
+        CheckConstraint(_one_of("status", AliasReviewStatus), name="status"),
+        # Once per name per visit: linking again adds nothing (§2.5). Visit second: it also
+        # serves the foreign key below, and a visit's own reviews.
+        UniqueConstraint("org_id", "visit_id", "kind", "normalised"),
+        # Its visit is its own org's, and it goes with the visit.
+        ForeignKeyConstraint(
+            ["org_id", "visit_id"], ["visits.org_id", "visits.id"], ondelete="CASCADE"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    # The kind of the list the name was in: the org's own, or a competitor's.
+    kind: Mapped[str] = mapped_column(String)
+    # As the model wrote it.
+    text: Mapped[str] = mapped_column(String)
+    # Its linking key (entities.link_key): the names that match alike are one review.
+    normalised: Mapped[str] = mapped_column(String)
+    visit_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    status: Mapped[str] = mapped_column(String, default=AliasReviewStatus.OPEN.value)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)

@@ -41,6 +41,7 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from countertalk.config import BACKEND_DIR
+from countertalk.logs import configure_logging
 
 SAMPLES_DIR = BACKEND_DIR.parent / "data" / "samples"
 
@@ -675,5 +676,6 @@ def main(argv: list[str], *, tts: Tts | None = None) -> int:
 
 
 if __name__ == "__main__":
+    configure_logging()
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]  # for ₹, even when piped
     sys.exit(main(sys.argv[1:]))

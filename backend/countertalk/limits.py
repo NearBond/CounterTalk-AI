@@ -113,6 +113,16 @@ QUOTE_FUZZY_MIN_CHARS = 10
 # Playback starts this long before the quote, into the turn before if need be (D1, 1 Nov).
 QUOTE_LEAD_IN_MS = 1_500
 
+# Linking (batch 12): a fuzzy match needs this rapidfuzz ratio or more on the linking key. From
+# the tests and K1 (1 Nov): misspellings of the right item scored 87 and up, and "Crunchy", in
+# no pepsico pack, scored 80 against Balaji's "crunchem". No two pepsico names of different
+# brands score above 77.
+LINK_FUZZY_MIN_SCORE = 85
+# ...between keys this long (code points): below it, a letter more or less still scores 85.
+LINK_FUZZY_MIN_CHARS = 5
+# ...and another item within this many points of the best makes the name ambiguous (§9.6).
+LINK_NEAR_POINTS = 5
+
 # Speaker roles (BRIEF §12): the turns sent are the first ROLES_FIRST_TURNS, ROLES_SAMPLED_TURNS
 # spread over the rest, and one more for any label not in those.
 ROLES_FIRST_TURNS = 60
