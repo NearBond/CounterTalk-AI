@@ -28,6 +28,10 @@
     {
       "files": ["src/lib/api.ts"],
       "rules": { "eslint/no-restricted-globals": "off" }
+    },
+    {
+      "files": ["e2e/**"],
+      "rules": { "eslint/no-restricted-globals": "off", "eslint/no-console": "off" }
     }
   ],
   "ignorePatterns": ["dist"]
