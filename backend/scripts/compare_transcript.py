@@ -141,13 +141,15 @@ def load_reference(path: Path, offset_ms: int) -> list[Span]:
     spans = []
     for turn in turns:
         try:
-            role = turn["role"]
-            start, end = turn["start_ms"] + offset_ms, turn["end_ms"] + offset_ms
-            spans.append(Span(role, start, end, turn["text"]))
+            role, start, end, text = turn["role"], turn["start_ms"], turn["end_ms"], turn["text"]
         except KeyError as missing:
             raise BadReference(f"a turn lacks {missing.args[0]}") from None
         except TypeError:
             raise BadReference("a turn isn't a role, two times and a text") from None
+        times = all(isinstance(t, int) and not isinstance(t, bool) for t in (start, end))
+        if not (isinstance(role, str) and isinstance(text, str) and times):  # R4
+            raise BadReference("a turn isn't a role, two times and a text")
+        spans.append(Span(role, start + offset_ms, end + offset_ms, text))
     return spans
 
 

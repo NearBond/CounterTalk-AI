@@ -13,7 +13,8 @@ give or take SLACK_MS. They're paired one to one, the biggest overlap first.
 - An extracted one left unmatched is invented. One matched to an optional insight is neither.
 - For each pair: kind, category, severity, the AI's suggested team against the expected
   team(s), and the scheme. Product and competitor links wait for batch 12.
-- Quotes: is each one exactly in its cited turn? (Batch 11 checks them properly.)
+- Quotes: how each was matched when it was checked (batch 11: exact, fuzzy or none), and the
+  share of insights verified, with a matched quote. The target is 95% or more.
 
 It prints each visit's table, then the totals. It prints quotes and summaries: use it on the
 generated test recordings only, never on a real visit.
@@ -22,6 +23,7 @@ generated test recordings only, never on a real visit.
 import argparse
 import sys
 import unicodedata
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -64,8 +66,9 @@ class Extracted:
     summary: str
     # Each quote's turn, in the visit's time; a quote citing no turn has none.
     spans: tuple[tuple[int, int], ...]
-    quotes: int
-    exact_quotes: int
+    # Each quote's match, as stored when it was checked.
+    matches: tuple[str | None, ...]
+    verified: bool
 
 
 @dataclass
@@ -200,15 +203,18 @@ def load_extracted(visit_id: str) -> list[Extracted] | None:
                     scheme=row.scheme_key,
                     summary=row.summary_en,
                     spans=tuple((t.start_ms, t.end_ms) for _, t in own if t is not None),
-                    quotes=len(own),
-                    exact_quotes=sum(
-                        1
-                        for q, t in own
-                        if t is not None and q.quote_llm.strip() and nfc(q.quote_llm) in nfc(t.text)
-                    ),
+                    matches=tuple(q.match for q, _ in own),
+                    verified=row.verified,
                 )
             )
         return found
+
+
+def matched(matches: Sequence[str]) -> str:
+    """The counts of each match; a quote never checked (extracted before batch 11) apart."""
+    counts = Counter(matches)
+    shown = f"exact {counts['exact']}, fuzzy {counts['fuzzy']}, none {counts['none']}"
+    return shown + (f", unchecked {counts['unchecked']}" if counts["unchecked"] else "")
 
 
 def mark(same: bool) -> str:
@@ -233,7 +239,7 @@ def report(name: str, result: Result, extracted: Sequence[Extracted]) -> None:
             f" severity {mark(want.severity == got.severity)},"
             f" team {got.team or '-'} {mark(team_agrees(want, got))},"
             f" scheme {got.scheme or '-'} {mark(want.scheme == got.scheme)},"
-            f" quotes exact {got.exact_quotes}/{got.quotes}"
+            f" quotes {matched([match or 'unchecked' for match in got.matches])}"
         )
         print(f"      expected: {want.phrase}")
         print(f"      got: {got.summary}")
@@ -253,8 +259,8 @@ class Totals:
     categories: int = 0
     severities: int = 0
     teams: int = 0
-    quotes: int = 0
-    exact_quotes: int = 0
+    matches: Counter[str] = field(default_factory=Counter)
+    verified: int = 0
     invented_where_none_expected: int = 0
 
     def add(
@@ -268,8 +274,8 @@ class Totals:
         self.categories += sum(w.category == g.category for w, g in result.pairs)
         self.severities += sum(w.severity == g.severity for w, g in result.pairs)
         self.teams += sum(team_agrees(w, g) for w, g in result.pairs)
-        self.quotes += sum(g.quotes for g in extracted)
-        self.exact_quotes += sum(g.exact_quotes for g in extracted)
+        self.matches.update(match or "unchecked" for g in extracted for match in g.matches)
+        self.verified += sum(g.verified for g in extracted)
         if not expected:
             self.invented_where_none_expected += len(extracted)
 
@@ -284,7 +290,8 @@ class Totals:
             f"category agrees: {share(self.categories, self.pairs)}",
             f"severity agrees: {share(self.severities, self.pairs)}",
             f"team suggestion agrees: {share(self.teams, self.pairs)}",
-            f"quotes exact: {share(self.exact_quotes, self.quotes)}",
+            f"quotes: {matched(tuple(self.matches.elements()))}",
+            f"insights verified: {share(self.verified, self.extracted)}",
             f"invented where nothing was expected: {self.invented_where_none_expected}",
         ]
 

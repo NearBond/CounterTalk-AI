@@ -29,6 +29,7 @@ BAD_INPUTS = {
     "transcribe_visit.py": ([UNKNOWN], {}),
     "assign_roles.py": ([UNKNOWN], {}),
     "extract_visit.py": ([UNKNOWN], {}),
+    "show_quotes.py": ([UNKNOWN], {}),
     "compare_extraction.py": ([UNKNOWN, "no-such.expected.yaml"], {}),
 }
 

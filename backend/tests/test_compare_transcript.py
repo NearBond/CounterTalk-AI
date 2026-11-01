@@ -134,8 +134,16 @@ def test_roles_of_a_visit_with_none_saved_is_one_line(
         (None, "it can't be read"),
         ("not json", "it isn't JSON"),
         ('{"turns": [{}]}', "a turn lacks role"),
+        (
+            '{"turns": [{"role": "rep", "text": null, "start_ms": 0, "end_ms": 1}]}',
+            "a turn isn't a role, two times and a text",
+        ),
+        (
+            '{"turns": [{"role": "rep", "text": "x", "start_ms": true, "end_ms": 1}]}',
+            "a turn isn't a role, two times and a text",
+        ),
     ],
-    ids=["missing", "not-json", "missing-field"],
+    ids=["missing", "not-json", "missing-field", "text-not-a-string", "time-not-a-number"],
 )
 def test_a_reference_it_cant_read_is_one_line(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], content: str | None, why: str

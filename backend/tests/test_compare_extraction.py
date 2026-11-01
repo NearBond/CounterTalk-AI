@@ -26,7 +26,7 @@ def want(number: int, window: tuple[int, int] | None, *, optional: bool = False)
 
 
 def got(seq: int, *spans: tuple[int, int]) -> Extracted:
-    return Extracted(seq, "problem", "supply", "high", "field", None, "s", spans, 1, 1)
+    return Extracted(seq, "problem", "supply", "high", "field", None, "s", spans, ("exact",), True)
 
 
 def pairs(result: Result) -> list[tuple[int, int]]:
@@ -122,7 +122,7 @@ def test_a_visit_against_its_expected_file(
         "",
         f"rp99 ({visit_id}): 1 matched, 0 missed, 1 invented, of 2 extracted",
         "  #1 product_request/demand/medium -> product_request/demand/low: kind ok, category ok,"
-        " severity NO, team field ok, scheme - ok, quotes exact 1/1",
+        " severity NO, team field ok, scheme - ok, quotes exact 1, fuzzy 0, none 0",
         "      expected: do dabbe",
         "      got: The shop wants two boxes.",
         "  INVENTED praise/praise/low: The shop wants two boxes.",
@@ -133,7 +133,8 @@ def test_a_visit_against_its_expected_file(
         "  category agrees: 1/1 (100%)",
         "  severity agrees: 0/1 (0%)",
         "  team suggestion agrees: 1/1 (100%)",
-        "  quotes exact: 2/2 (100%)",
+        "  quotes: exact 2, fuzzy 0, none 0",
+        "  insights verified: 2/2 (100%)",
         "  invented where nothing was expected: 0",
     ]
 
@@ -185,4 +186,17 @@ def test_an_offset_moves_the_script_to_a_recording_that_starts_later(
     main([visit_id, expected, "--offset-ms", "-26000"])
     shifted = capsys.readouterr().out.splitlines()
 
-    assert (without[-7], shifted[-7]) == ("  recall: 0/1 (0%)", "  recall: 1/1 (100%)")
+    assert (without[-8], shifted[-8]) == ("  recall: 0/1 (0%)", "  recall: 1/1 (100%)")
+
+
+def test_a_quote_never_checked_is_counted_apart_from_one_that_failed() -> None:
+    # Extracted before batch 11: no match stored, which isn't "none".
+    expected = [want(1, (0, 1_000))]
+    unchecked = Extracted(
+        0, "problem", "supply", "high", "field", None, "s", ((0, 500),), (None,), False
+    )
+    totals = Totals()
+
+    totals.add(expected, [unchecked], match_insights(expected, [unchecked]))
+
+    assert totals.lines()[5] == "quotes: exact 0, fuzzy 0, none 0, unchecked 1"
