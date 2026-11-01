@@ -65,7 +65,8 @@ def quoting(*quoted: tuple[int, str]) -> dict[str, Any]:
 
 
 # The words matched, from the transcript: its full stop is punctuation, so not part of it.
-EXACT_T1 = (1, "shopkeeper", "exact", ASKED[:-1], 0, len(ASKED) - 1, 4_000)
+# T1 starts at 4 s: playback 1.5 s before it.
+EXACT_T1 = (1, "shopkeeper", "exact", ASKED[:-1], 0, len(ASKED) - 1, 2_500)
 
 
 def test_each_quote_is_written_with_what_checking_it_found(org: Org_) -> None:

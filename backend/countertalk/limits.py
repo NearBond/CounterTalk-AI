@@ -110,7 +110,7 @@ EXTRACT_QUEUE_PER_PASS = 20
 QUOTE_FUZZY_MIN_SCORE = 92
 # ...and a normalised quote this long: a few characters score high almost anywhere.
 QUOTE_FUZZY_MIN_CHARS = 10
-# Playback starts this long before the quote, but never before its turn.
+# Playback starts this long before the quote, into the turn before if need be (D1, 1 Nov).
 QUOTE_LEAD_IN_MS = 1_500
 
 # Speaker roles (BRIEF §12): the turns sent are the first ROLES_FIRST_TURNS, ROLES_SAMPLED_TURNS

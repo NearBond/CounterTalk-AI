@@ -170,13 +170,15 @@ def test_a_short_quote_is_never_a_fuzzy_match() -> None:
 @pytest.mark.parametrize(
     ("turn_start_ms", "char_start", "start_ms"),
     [
-        (10_000, 0, 10_000),  # at the turn's start: never before it
-        (10_000, 10, 10_000),  # 1 s in, less 1.5 s, is before the turn: the turn's start
-        (10_000, 30, 11_500),  # 3 s in, less 1.5 s
-        (0, 0, 0),
+        # 1.5 s before the quote, into the turn before if need be (decided 1 Nov, D1): a
+        # speech-to-text turn can start a little after the speech, clipping the first syllable.
+        (10_000, 0, 8_500),
+        (10_000, 10, 9_500),  # 1 s in
+        (10_000, 30, 11_500),  # 3 s in
+        (1_000, 0, 0),  # never before the recording
     ],
 )
-def test_playback_starts_a_little_before_the_quote_never_before_its_turn(
+def test_playback_starts_a_little_before_the_quote(
     turn_start_ms: int, char_start: int, start_ms: int
 ) -> None:
     # A 60-character turn, 6 s long: each character is 0.1 s.

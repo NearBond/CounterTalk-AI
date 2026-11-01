@@ -406,7 +406,9 @@ def _found(
     char_start, char_end = normalised.spans[start][0], normalised.spans[end - 1][1]
     length = max(len(turn.text), 1)
     into = char_start / length * (turn.end_ms - turn.start_ms)
-    start_ms = max(0, turn.start_ms, round(turn.start_ms + into - limits.QUOTE_LEAD_IN_MS))
+    # Into the turn before if need be (decided 1 Nov, D1): a speech-to-text turn can start a
+    # little after the speech, and a second of the other speaker is harmless context.
+    start_ms = max(0, round(turn.start_ms + into - limits.QUOTE_LEAD_IN_MS))
     return Verified(
         match=match,
         turn_id=turn.turn_id,

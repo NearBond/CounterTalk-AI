@@ -8,9 +8,14 @@ the transcript's words. With --turns (one per visit, in the same order), each ma
 also placed in the role-play's script: the script turn, or two neighbouring turns joined, it
 best fits (verify's normalising, then rapidfuzz partial_ratio; a tie goes to the one nearest
 where it plays), and where in that text it begins, by its share of the turn. The gap is that
-moment less where playback starts. Of all the quotes, the totals count those heard within
-HEARD_WITHIN_MS (a gap from 0) and list those whose playback starts more than LATE_MS after
-the quote began. --offset-ms (one per visit) shifts a script for a recording that starts later.
+moment less where playback starts. A quote whose best fit is under PLACE_MIN_FIT is
+unplaced: shown with its fit, and left out of the timing. Of the placed quotes, the totals count
+those heard within HEARD_WITHIN_MS (a gap from 0) and list those whose playback starts more
+than LATE_MS after the quote began. --offset-ms (one per visit) shifts a script for a recording
+that starts later.
+
+The fits are low across scripts: the role-plays write English words in Latin, and
+speech-to-text writes them in Devanagari. Transliterating them isn't worth it for a dev check.
 
 It prints the quotes: use it on the generated test recordings only, never on a real visit.
 """
@@ -32,6 +37,9 @@ from scripts.compare_transcript import BadReference, Span, clock, load_reference
 
 HEARD_WITHIN_MS = 3_000
 LATE_MS = 500
+# Below this a placement isn't trusted. From batch 11's K1 run (1 Nov): the one quote placed in
+# the wrong turn fit at 47, and the right ones from 49 up, mostly 60-100.
+PLACE_MIN_FIT = 50
 
 
 @dataclass(frozen=True)
@@ -106,8 +114,10 @@ def place(text: str, start_ms: int, script: Sequence[Piece]) -> tuple[int, float
 class Totals:
     quotes: int = 0
     matched: int = 0
+    placed: int = 0
     heard: int = 0
     late: list[str] = field(default_factory=list)
+    unplaced: list[str] = field(default_factory=list)
 
 
 def show(
@@ -123,9 +133,13 @@ def show(
         totals.matched += 1
         line = f"  {name} {quote.match:<5} {clock(quote.start_ms)}"
         found = place(quote.text, quote.start_ms, script) if script is not None else None
-        if found is not None:
+        if found is not None and found[1] < PLACE_MIN_FIT:
+            totals.unplaced.append(f"{visit_id} {name} (fit {found[1]:.0f})")
+            line += f" unplaced (fit {found[1]:.0f})"
+        elif found is not None:
             begins, score = found
             gap = begins - quote.start_ms
+            totals.placed += 1
             totals.heard += 0 <= gap <= HEARD_WITHIN_MS
             if gap < -LATE_MS:
                 totals.late.append(f"{visit_id} {name}")
@@ -175,13 +189,16 @@ def main(argv: list[str]) -> int:
     print(f"\nTotals: {totals.matched} of {totals.quotes} quotes matched")
     if args.turns:
         within, late = HEARD_WITHIN_MS / 1000, LATE_MS / 1000
-        share = totals.heard / totals.quotes if totals.quotes else 0
-        print(
-            f"  heard within {within:g} s (gap 0 to {within:g} s):"
-            f" {totals.heard}/{totals.quotes} ({share:.0%})"
-        )
+        heard = f"{totals.heard}/{totals.placed}"
+        if totals.placed:
+            heard += f" ({totals.heard / totals.placed:.0%})"
+        print(f"  placed in the script (fit {PLACE_MIN_FIT} or more): {totals.placed}")
+        print(f"  heard within {within:g} s (gap 0 to {within:g} s): {heard}")
         print(f"  playback after the quote began (gap under -{late:g} s): {len(totals.late)}")
         for name in totals.late:
+            print(f"    {name}")
+        print(f"  unplaced (fit under {PLACE_MIN_FIT}): {len(totals.unplaced)}")
+        for name in totals.unplaced:
             print(f"    {name}")
     return 0
 
