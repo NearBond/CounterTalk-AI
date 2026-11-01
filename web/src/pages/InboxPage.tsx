@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ChoiceSelect } from "../components/ChoiceSelect";
 import { IssuePanel } from "../components/IssuePanel";
@@ -41,7 +41,33 @@ export function InboxPage() {
     skip: team === null,
   });
   const [open, setOpen] = useState<string | null>(null);
+  // An issue that leaves the list says where it went: resolved here, or (the open card gone after
+  // a refresh) resolved by someone else or moved away. Hidden at once, before the list catches up.
+  const [resolved, setResolved] = useState<Issue | null>(null);
+  const shown = issues.data?.filter((issue) => issue.id !== resolved?.id);
+  const left = open !== null && shown !== undefined && !shown.some((issue) => issue.id === open);
+  const notice =
+    resolved !== null
+      ? `Resolved: ${resolved.title_en}. It's under Status: Resolved now.`
+      : left
+        ? "That issue has left this list: someone resolved it, or its findings went to another team."
+        : "";
+  const status = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (resolved !== null) status.current?.focus(); // where the card was, read out
+  }, [resolved]);
+  const onResolved = (issue: Issue) => {
+    setResolved(issue);
+    setOpen(null);
+    issues.reload();
+  };
+  const toggle = (issueId: string) => {
+    setResolved(null);
+    setOpen(open === issueId ? null : issueId);
+  };
   const choose = (name: string, value: string) => {
+    setResolved(null);
+    setOpen(null);
     const next = new URLSearchParams(params);
     if (value) next.set(name, value);
     else next.delete(name);
@@ -99,22 +125,31 @@ export function InboxPage() {
           />
         </section>
       )}
+      {/* Always there, so screen readers announce what's put in it. */}
+      <p
+        ref={status}
+        role="status"
+        tabIndex={-1}
+        className={notice === "" ? "sr-only" : "rounded-md bg-green-50 p-3 text-green-900"}
+      >
+        {notice}
+      </p>
       {issues.error !== null && (
         <RetryAlert onRetry={issues.reload}>The issues couldn't be loaded: {issues.error.message}</RetryAlert>
       )}
-      {issues.data !== undefined && issues.data.length === 0 && (
-        <p className="text-gray-600">No issues here.</p>
-      )}
-      {issues.data !== undefined && data !== undefined && (
+      {shown !== undefined && shown.length === 0 && <p className="text-gray-600">No issues here.</p>}
+      {shown !== undefined && data !== undefined && (
         <ul aria-label="Issues" className="flex flex-col gap-3">
-          {issues.data.map((issue) => (
+          {shown.map((issue) => (
             <li key={issue.id} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
               <IssueSummary
                 issue={issue}
                 expanded={open === issue.id}
-                onToggle={() => setOpen(open === issue.id ? null : issue.id)}
+                onToggle={() => toggle(issue.id)}
               />
-              {open === issue.id && <IssuePanel issueId={issue.id} teams={data.teams} onChanged={issues.reload} />}
+              {open === issue.id && (
+                <IssuePanel issueId={issue.id} teams={data.teams} onChanged={issues.reload} onResolved={onResolved} />
+              )}
             </li>
           ))}
         </ul>

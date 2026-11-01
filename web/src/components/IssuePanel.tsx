@@ -15,6 +15,7 @@ import { dateInputOf, dueAtOf, SETTABLE, STATUS_LABELS } from "../lib/issues";
 import {
   type Choice,
   type IssueChange,
+  type Issue,
   type IssueDetail,
   type Member,
   RESOLUTION_NOTE_MAX_CHARS,
@@ -31,13 +32,15 @@ interface Props {
   teams: Team[];
   /** The list's cards are out of date: ask for them again. */
   onChanged: () => void;
+  /** It was resolved, so it leaves the open list. */
+  onResolved: (issue: Issue) => void;
 }
 
 // A change made on an old read: shown, and the issue read again, so the page catches up.
 const STALE = new Set(["issue_changed", "route_changed"]);
 
 /** One issue, expanded: its status, owner and due date to change, and each of its insights. */
-export function IssuePanel({ issueId, teams, onChanged }: Props) {
+export function IssuePanel({ issueId, teams, onChanged, onResolved }: Props) {
   const loaded = usePolling((signal) => getIssue(issueId, signal), { key: issueId, shouldPoll: () => false });
   const { playFrom, playAt: _, src, ...player } = usePlayer();
 
@@ -60,7 +63,12 @@ export function IssuePanel({ issueId, teams, onChanged }: Props) {
   return (
     <div className="flex flex-col gap-4 border-t border-gray-200 pt-3">
       {/* Keyed on its version: read again, its form starts from what's saved now. */}
-      <IssueControls key={detail.issue.version} detail={detail} onSaved={changed} onStale={changed} />
+      <IssueControls
+        key={detail.issue.version}
+        detail={detail}
+        onSaved={(saved) => (saved.issue.status === "resolved" ? onResolved(saved.issue) : changed())}
+        onStale={changed}
+      />
       {src !== null && <PagePlayer {...player} src={src} />}
       <ul aria-label="Its insights" className="flex flex-col gap-3">
         {detail.members.map((member) => (
@@ -83,7 +91,7 @@ function IssueControls({
   onStale,
 }: {
   detail: IssueDetail;
-  onSaved: () => void;
+  onSaved: (saved: IssueDetail) => void;
   onStale: () => void;
 }) {
   const { issue } = detail;
@@ -96,9 +104,9 @@ function IssueControls({
   const send = (change: Omit<IssueChange, "version">) =>
     save.run(
       (signal) => changeIssue(issue.id, { version: issue.version, ...change }, signal),
-      () => {
+      (saved) => {
         setNote("");
-        onSaved();
+        onSaved(saved);
       },
     );
   const failed = save.error;

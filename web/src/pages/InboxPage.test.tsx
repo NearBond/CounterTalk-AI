@@ -179,10 +179,12 @@ describe("InboxPage", () => {
 
   it("assigns, then resolves with a note, each naming the version it read", async () => {
     const mine: IssueDetail = { ...DETAIL, issue: { ...ISSUE, owner_name: "Demo Rep", version: 5 } };
+    const done: IssueDetail = { ...mine, issue: { ...mine.issue, status: "resolved", version: 6 } };
     const { api } = open("/inbox", {
-      "GET /api/issues?team=finance": () => json(200, [ISSUE]),
+      "GET /api/issues?team=finance": [() => json(200, [ISSUE]), () => json(200, [ISSUE]), () => json(200, [])],
+      "GET /api/issues?team=finance&area=Old+Market": () => json(200, []),
       "GET /api/issues/issue-1": [() => json(200, DETAIL), () => json(200, mine)],
-      "PATCH /api/issues/issue-1": [() => json(200, mine), () => json(200, mine)],
+      "PATCH /api/issues/issue-1": [() => json(200, mine), () => json(200, done)],
     });
     await expand();
 
@@ -198,6 +200,34 @@ describe("InboxPage", () => {
       { version: 4, assign_to_me: true },
       { version: 5, status: "resolved", note: "Credit note sent." },
     ]);
+    // It leaves the open list at once, and the page says where it went, with focus there.
+    const notice = await screen.findByText(
+      "Resolved: Credit and payments · Station Road Distributors (example). It's under Status: Resolved now.",
+    );
+    expect(notice).toHaveFocus();
+    expect(screen.getByText("No issues here.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Credit and payments/ })).not.toBeInTheDocument();
+    // Another view: the notice goes.
+    await userEvent.selectOptions(screen.getByLabelText("Area"), "Old Market");
+    expect(screen.queryByText(/^Resolved:/)).not.toBeInTheDocument();
+  });
+
+  it("an open card that leaves the list on a refresh says so", async () => {
+    open("/inbox", {
+      "GET /api/issues?team=finance": [() => json(200, [ISSUE]), () => json(200, [])],
+      "GET /api/issues/issue-1": [() => json(200, DETAIL), () => json(200, { ...DETAIL, members: [] })],
+      "POST /api/insights/i-1/move": () => json(200, INSIGHT),
+    });
+    const members = await expand();
+
+    await userEvent.click(within(members).getByRole("button", { name: "Move" }));
+
+    expect(
+      await screen.findByText(
+        "That issue has left this list: someone resolved it, or its findings went to another team.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("No issues here.")).toBeInTheDocument();
   });
 
   it("a change made on an old read says so and keeps the old status on screen", async () => {
