@@ -2,7 +2,7 @@ key,company,brand,product,aliases
 lays,PepsiCo India,Lay's,,lays|lay's|लेज़|लेज|लेस
 lays_classic_salted,PepsiCo India,Lay's,Classic Salted,classic salted|lays salted|क्लासिक सॉल्टेड
 lays_magic_masala,PepsiCo India,Lay's,India's Magic Masala,magic masala|lays magic masala|मैजिक मसाला
-lays_cream_onion,PepsiCo India,Lay's,American Style Cream & Onion,cream and onion|cream onion|क्रीम एंड ओनियन
+lays_cream_onion,PepsiCo India,Lay's,American Style Cream & Onion,cream and onion|cream onion|क्रीम एंड ओनियन|क्रीम ओनियन
 lays_tomato_tango,PepsiCo India,Lay's,Spanish Tomato Tango,tomato tango|टोमेटो टैंगो
 lays_chile_limon,PepsiCo India,Lay's,Chile Limon,chile limon|chilli limon|चिली लिमोन
 lays_hot_n_sweet,PepsiCo India,Lay's,West Indies Hot 'n' Sweet Chilli,hot n sweet|hot and sweet chilli|हॉट एंड स्वीट
@@ -23,7 +23,7 @@ doritos_dinamita,PepsiCo India,Doritos,Dinamita Sizzling Hot,dinamita|डिन�
 cheetos,PepsiCo India,Cheetos,,cheetos|cheeto|चीटोस|चीटो|चीटोज़
 cheetos_masala_balls,PepsiCo India,Cheetos,Masala Balls,masala balls|मसाला बॉल्स
 cheetos_cheez_puffs,PepsiCo India,Cheetos,Cheez Puffs,cheez puffs|cheese puffs|चीज़ पफ्स
-quaker,PepsiCo India,Quaker,,quaker|quaker oats|क्वेकर
+quaker,PepsiCo India,Quaker,,quaker|quaker oats|क्वेकर|क्वेकर ओट्स
 pepsi,PepsiCo India,Pepsi,,pepsi|पेप्सी
 seven_up,PepsiCo India,7UP,,7up|7 up|seven up|सेवन अप
 mountain_dew,PepsiCo India,Mountain Dew,,mountain dew|dew|माउंटेन ड्यू|ड्यू

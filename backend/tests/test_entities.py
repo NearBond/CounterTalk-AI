@@ -46,6 +46,9 @@ TRICKY = [
     ("बिंगो", "bingo", "exact"),
     ("Bingo", "bingo", "exact"),
     ("बालाजी", "balaji", "exact"),
+    ("बालाजी वेफर्स", "balaji", "exact"),  # step 1's live run (13e)
+    ("क्वेकर ओट्स", "quaker", "exact"),
+    ("क्रीम ओनियन", "lays_cream_onion", "exact"),
     ("डोरीटोस", "doritos", "exact"),  # the long ी folded: the catalog writes डोरिटोस
     # spacing, punctuation and spelling
     ("Kur Kure", "kurkure", "exact"),
