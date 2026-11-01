@@ -97,3 +97,71 @@ export function useElapsed(since: number | null): number {
   }, [since]);
   return since === null ? 0 : Math.max(0, now - since);
 }
+
+/** One save at a time (§9.11, §9.13). */
+export interface Save {
+  /** True while it's in flight: its controls are disabled. */
+  saving: boolean;
+  error: ApiError | null;
+  /** Sends `work` with a signal that leaving the page aborts; `onDone` gets its answer only while
+   * the page is still there (§9.9). */
+  run: <T>(work: (signal: AbortSignal) => Promise<T>, onDone: (value: T) => void) => void;
+  /** Sends the last work again, as it was: for work with no inputs to change, like confirm. */
+  retry: () => void;
+}
+
+export function useSave(): Save {
+  const alive = useRef(true);
+  const controller = useRef(new AbortController());
+  useEffect(() => {
+    alive.current = true;
+    controller.current = new AbortController();
+    return () => {
+      alive.current = false;
+      controller.current.abort();
+    };
+  }, []);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
+  const last = useRef<(() => void) | null>(null);
+
+  const run = useCallback(<T>(work: (signal: AbortSignal) => Promise<T>, onDone: (value: T) => void) => {
+    const attempt = () => {
+      setSaving(true);
+      setError(null);
+      void (async () => {
+        try {
+          const value = await work(controller.current.signal);
+          if (!alive.current) return;
+          setSaving(false);
+          onDone(value);
+        } catch (failure) {
+          if (!alive.current) return;
+          setSaving(false);
+          setError(
+            failure instanceof ApiError
+              ? failure
+              : new ApiError(0, "unexpected_error", "Something went wrong while saving."),
+          );
+        }
+      })();
+    };
+    last.current = attempt;
+    attempt();
+  }, []);
+  const retry = useCallback(() => last.current?.(), []);
+  return { saving, error, run, retry };
+}
+
+/** While `dirty`, closing or reloading the page asks first (§9.9). */
+export function useLeaveWarning(dirty: boolean): void {
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = ""; // older Chrome and WebView ask only when it's set
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+}

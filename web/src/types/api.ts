@@ -212,6 +212,8 @@ export interface InsightChange {
  * `invalid_severity`, `summary_empty`, `summary_too_long`; 404 `turn_not_found`; 409 as PATCH.
  */
 export interface NewInsight {
+  /** Made by the client (a UUID): sending the same one again adds nothing. */
+  id: string;
   turn_id: number;
   kind: string;
   category: string;
@@ -221,6 +223,8 @@ export interface NewInsight {
 
 /** POST /api/visits/{id}/notes: NewNote. 400 `note_empty`, `note_too_long`; 409 as PATCH. */
 export interface NewNote {
+  /** Made by the client (a UUID): sending the same one again adds nothing. */
+  id: string;
   text: string;
 }
 
@@ -265,6 +269,8 @@ export interface Review {
   tasks: Task[];
   insights: Insight[];
   notes: Note[];
+  /** Each speaker label's saved role ("c0:A": "rep"): the add-a-finding picker shows it. */
+  speaker_roles: Record<string, string>;
   kinds: Choice[];
   categories: Choice[];
   severities: Choice[];

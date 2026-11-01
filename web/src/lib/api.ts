@@ -7,8 +7,14 @@ import type {
   ErrorBody,
   FrameworkErrorCode,
   Health,
+  Insight,
+  InsightChange,
+  NewInsight,
+  NewNote,
   NewVisit,
+  Note,
   Page,
+  Review,
   Segment,
   Shop,
   Transcript,
@@ -161,6 +167,34 @@ export function postComplete(visitId: string, body: CompleteVisit, signal?: Abor
 /** 404 `transcript_not_found` until the visit is transcribed. */
 export function getTranscript(visitId: string, signal?: AbortSignal): Promise<Transcript> {
   return apiRequest(`/visits/${encodeURIComponent(visitId)}/transcript`, { signal });
+}
+
+/** Everything the review page shows (batch 14). */
+export function getReview(visitId: string, signal?: AbortSignal): Promise<Review> {
+  return apiRequest(`/visits/${encodeURIComponent(visitId)}/review`, { signal });
+}
+
+/** A category or severity change re-routes it; the answer has its new teams. */
+export function patchInsight(insightId: string, change: InsightChange, signal?: AbortSignal): Promise<Insight> {
+  return apiRequest(`/insights/${encodeURIComponent(insightId)}`, { method: "PATCH", body: change, signal });
+}
+
+export function deleteInsight(insightId: string, signal?: AbortSignal): Promise<void> {
+  return apiRequest(`/insights/${encodeURIComponent(insightId)}`, { method: "DELETE", signal });
+}
+
+/** Its ID is the client's: sending it again returns the one added, so it's safe to retry. */
+export function addInsight(visitId: string, body: NewInsight, signal?: AbortSignal): Promise<Insight> {
+  return apiRequest(`/visits/${encodeURIComponent(visitId)}/insights`, { method: "POST", body, signal });
+}
+
+export function addNote(visitId: string, body: NewNote, signal?: AbortSignal): Promise<Note> {
+  return apiRequest(`/visits/${encodeURIComponent(visitId)}/notes`, { method: "POST", body, signal });
+}
+
+/** Use review.confirmReview, which retries it: confirming again returns the same visit. */
+export function postConfirm(visitId: string, signal?: AbortSignal): Promise<Visit> {
+  return apiRequest(`/visits/${encodeURIComponent(visitId)}/confirm`, { method: "POST", signal });
 }
 
 /** The visit's audio, for an <audio> element: the browser fetches it, seeking with Range. */

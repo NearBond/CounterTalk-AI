@@ -14,8 +14,13 @@ export const RETRY_BASE_MS = 1_000;
 export const RETRY_MAX_MS = 30_000;
 export const RETRY_JITTER = 0.2;
 
-/** Tries for `complete`, which finishes the rep's work: about 30 s of waits, then Try again (§9.11). */
+/** Tries for the calls that finish the rep's work, `complete` and `confirm`: about 30 s of waits,
+ * then Try again (§9.11). Both are safe to repeat. */
 export const COMPLETE_ATTEMPTS = 6;
+
+/** Tries for each of a review's saves (an edit, a delete, an added finding or note), all safe to
+ * repeat, before Try again (§9.11). */
+export const SAVE_ATTEMPTS = 4;
 
 /** Tries for each of a page's reads (a visit, a transcript, the list) before it shows an error:
  * about 7 s of waits, so one dropped request never stops a page's polling (§9.5). */

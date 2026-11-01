@@ -63,10 +63,12 @@ class InsightChange(BaseModel):
 
 
 class NewInsight(BaseModel):
-    """POST /api/visits/{id}/insights: a finding the AI missed, quoting a whole turn."""
+    """POST /api/visits/{id}/insights: a finding the AI missed, quoting a whole turn. The client
+    makes its ID, so sending it again is safe (§2.5)."""
 
     model_config = ConfigDict(extra="forbid")
 
+    id: UUID
     turn_id: StrictInt
     kind: str
     category: str
@@ -75,8 +77,11 @@ class NewInsight(BaseModel):
 
 
 class NewNote(BaseModel):
+    """The client makes its ID, so sending it again is safe (§2.5)."""
+
     model_config = ConfigDict(extra="forbid")
 
+    id: UUID
     text: str
 
 

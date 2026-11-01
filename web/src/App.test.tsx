@@ -1,15 +1,11 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
-import { App } from "./App";
+import { routes } from "./App";
 
 function renderAt(path: string) {
   vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <App />
-    </MemoryRouter>,
-  );
+  return render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />);
 }
 
 describe("App", () => {

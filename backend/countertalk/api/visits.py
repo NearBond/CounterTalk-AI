@@ -95,6 +95,8 @@ class ReviewOut(BaseModel):
     tasks: list[TaskOut]
     insights: list[InsightOut]
     notes: list[NoteOut]
+    # Each speaker label's saved role ("c0:A": "rep"), for the add-a-finding picker.
+    speaker_roles: dict[str, str]
     # The playbook's keys and labels, for the page's pickers.
     kinds: list[ChoiceOut]
     categories: list[ChoiceOut]
@@ -282,6 +284,7 @@ def get_review(visit_id: UUID, user: CurrentUser, session: DbSession) -> ReviewO
         tasks=[TaskOut.model_validate(task, from_attributes=True) for task in found.tasks],
         insights=[insight_out(view) for view in found.insights],
         notes=[NoteOut.model_validate(note, from_attributes=True) for note in found.notes],
+        speaker_roles=found.speaker_roles,
         kinds=choices(found.kinds),
         categories=choices(found.categories),
         severities=choices(found.severities),
@@ -293,10 +296,11 @@ def add_insight(
     visit_id: UUID, body: NewInsight, user: CurrentUser, session: DbSession
 ) -> InsightOut:
     """A finding the AI missed: the turn becomes its quote, exact and playable. 404 for a turn
-    that isn't in the visit's transcript."""
+    that isn't in the visit's transcript. The same ID again returns the one added."""
     pack = extraction.pack_for(user.org_id)
+    fields = body.model_dump(exclude={"id"})
     found = review.add_insight(
-        session, pack, user.org_id, user.id, str(visit_id), **body.model_dump()
+        session, pack, user.org_id, user.id, str(visit_id), insight_id=str(body.id), **fields
     )
     [view] = review.insight_views(session, [found])
     return insight_out(view)
@@ -305,7 +309,7 @@ def add_insight(
 @router.post("/{visit_id}/notes", status_code=status.HTTP_201_CREATED)
 def add_note(visit_id: UUID, body: NewNote, user: CurrentUser, session: DbSession) -> NoteOut:
     """For the visit's record only: never routed, never shown to teams."""
-    note = review.add_note(session, user.org_id, user.id, str(visit_id), body.text)
+    note = review.add_note(session, user.org_id, user.id, str(visit_id), str(body.id), body.text)
     return NoteOut.model_validate(note, from_attributes=True)
 
 

@@ -1,19 +1,17 @@
-import { Route, Routes } from "react-router";
+import type { RouteObject } from "react-router";
 import { HealthPage } from "./pages/HealthPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RecordPage } from "./pages/RecordPage";
 import { VisitPage } from "./pages/VisitPage";
 import { VisitsPage } from "./pages/VisitsPage";
 
-export function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<VisitsPage />} />
-      <Route path="/record" element={<RecordPage />} />
-      <Route path="/visits/:visitId" element={<VisitPage />} />
-      <Route path="/health" element={<HealthPage />} />
-      {/* The server answers every unknown path with the app, so the app must answer them too. */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
-  );
-}
+/** The app's pages. A data router (createBrowserRouter) serves them, so a page with unsaved
+ * changes can ask before any navigation, the back button's included (batch 14). */
+export const routes: RouteObject[] = [
+  { path: "/", element: <VisitsPage /> },
+  { path: "/record", element: <RecordPage /> },
+  { path: "/visits/:visitId", element: <VisitPage /> },
+  { path: "/health", element: <HealthPage /> },
+  // The server answers every unknown path with the app, so the app must answer them too.
+  { path: "*", element: <NotFoundPage /> },
+];

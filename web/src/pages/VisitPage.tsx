@@ -1,5 +1,6 @@
-import { useRef } from "react";
-import { Link, useParams } from "react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useBlocker, useParams } from "react-router";
+import { ReviewPanel } from "../components/ReviewPanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { audioUrl, getTranscript, getVisit } from "../lib/api";
 import { formatDateTime, formatDuration, shopLabel } from "../lib/format";
@@ -27,7 +28,8 @@ function chipColours(turns: Turn[]): Map<string, string> {
   return colours;
 }
 
-/** `/visits/:id`: the status, the audio and the transcript. Polled only while processing. */
+/** `/visits/:id`: the status, the audio, the review (batch 14) and the transcript. Polled only
+ * while processing. */
 export function VisitPage() {
   const { visitId = "" } = useParams();
   const audio = useRef<HTMLAudioElement>(null);
@@ -46,12 +48,22 @@ export function VisitPage() {
   const shops = useShops();
   const shop = shops.data?.items.find((item) => item.id === visit.data?.shop_id);
 
-  const playFrom = (turn: Turn) => {
+  // The page's one player: a quote's ▶ and a transcript line both start it, one at a time.
+  const playAt = useCallback((ms: number) => {
     const player = audio.current;
     if (player === null) return;
-    player.currentTime = turn.start_ms / 1000;
-    player.play().catch(() => {}); // a browser that refuses to play still moved to the line
-  };
+    player.currentTime = ms / 1000;
+    player.play().catch(() => {}); // a browser that refuses to play still moved to the moment
+  }, []);
+  const [dirty, setDirty] = useState(false);
+  // Any navigation away with unsaved changes asks first: a link, or the back button (§9.9).
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname);
+  useEffect(() => {
+    if (blocker.state !== "blocked") return;
+    if (window.confirm("Leave without saving your changes?")) blocker.proceed();
+    else blocker.reset();
+  }, [blocker]);
+  const reviewing = visit.data?.status === "review" || visit.data?.status === "confirmed";
 
   const turns = transcript.data?.turns ?? [];
   // The main language the transcript was heard in ("hi" of "hi,en"), so Devanagari renders well.
@@ -106,6 +118,17 @@ export function VisitPage() {
         </audio>
       )}
 
+      {reviewing && (
+        <ReviewPanel
+          visitId={visitId}
+          turns={turns}
+          lang={lang}
+          onPlay={playAt}
+          onDirty={setDirty}
+          onConfirmed={visit.reload}
+        />
+      )}
+
       {transcript.error !== null && (
         <p role="alert" className="text-red-700">
           The transcript couldn't be loaded: {transcript.error.message}{" "}
@@ -131,7 +154,7 @@ export function VisitPage() {
               <li key={turn.turn_id}>
                 <button
                   type="button"
-                  onClick={() => playFrom(turn)}
+                  onClick={() => playAt(turn.start_ms)}
                   className="flex w-full items-start gap-2 rounded-md p-2 text-left hover:bg-gray-50 focus-visible:outline-2"
                 >
                   <span className="shrink-0 text-xs text-gray-500 tabular-nums">{formatDuration(turn.start_ms)}</span>

@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from countertalk import catalog, extraction, limits
 from countertalk.db import session_scope
-from countertalk.models import Insight, Shop
+from countertalk.models import Insight, Shop, new_id
 from countertalk.playbooks import load_org_pack
 from countertalk.users import demo_rep
 from scripts.seed_dev import DEMO_PACK, seed
@@ -82,6 +82,7 @@ def test_the_review_is_everything_the_page_shows(client: TestClient, demo: Org_)
         (1, "finance", "table")
     ]
     assert found["notes"] == []
+    assert found["speaker_roles"] == {"c0:A": "rep", "c0:B": "shopkeeper", "c0:C": "other"}
     assert {"key": "payments", "label": "Credit and payments"} in found["categories"]
     assert [c["key"] for c in found["severities"]] == ["high", "medium", "low"]
     assert {"key": "product_request", "label": "Product request"} in found["kinds"]
@@ -130,6 +131,7 @@ def test_a_deleted_insight_is_gone_from_the_review(client: TestClient, demo: Org
 def test_an_added_finding_quotes_its_turn_and_is_routed(client: TestClient, demo: Org_) -> None:
     visit_id = in_review(demo)
     body = {
+        "id": new_id(),
         "turn_id": 1,
         "kind": "problem",
         "category": "payments",
@@ -153,7 +155,9 @@ def test_an_added_finding_quotes_its_turn_and_is_routed(client: TestClient, demo
 def test_a_note_is_added_for_the_record(client: TestClient, demo: Org_) -> None:
     visit_id = in_review(demo)
 
-    response = client.post(f"/api/visits/{visit_id}/notes", json={"text": "Owner away."})
+    response = client.post(
+        f"/api/visits/{visit_id}/notes", json={"id": new_id(), "text": "Owner away."}
+    )
 
     assert response.status_code == 201, response.text
     assert [n["text"] for n in the_review(client, visit_id)["notes"]] == ["Owner away."]
@@ -181,6 +185,7 @@ def test_a_note_is_added_for_the_record(client: TestClient, demo: Org_) -> None:
             lambda c, v, i: c.post(
                 f"/api/visits/{v}/insights",
                 json={
+                    "id": new_id(),
                     "turn_id": 99,
                     "kind": "problem",
                     "category": "payments",
@@ -196,7 +201,11 @@ def test_a_note_is_added_for_the_record(client: TestClient, demo: Org_) -> None:
             422,
             "invalid_request",
         ),
-        (lambda c, v, i: c.post(f"/api/visits/{v}/notes", json={"text": "  "}), 400, "note_empty"),
+        (
+            lambda c, v, i: c.post(f"/api/visits/{v}/notes", json={"id": new_id(), "text": "  "}),
+            400,
+            "note_empty",
+        ),
         (lambda c, v, i: c.post(f"/api/visits/{v}/notes", json={}), 422, "invalid_request"),
     ],
     ids=[
@@ -231,7 +240,7 @@ def test_confirm_locks_the_visit_and_confirming_again_returns_it(
     edits = [
         client.patch(f"/api/insights/{shown['id']}", json={"summary_en": "x"}),
         client.delete(f"/api/insights/{shown['id']}"),
-        client.post(f"/api/visits/{visit_id}/notes", json={"text": "x"}),
+        client.post(f"/api/visits/{visit_id}/notes", json={"id": new_id(), "text": "x"}),
     ]
     assert [error_of(response) for response in edits] == [(409, "visit_confirmed")] * 3
 
@@ -260,6 +269,7 @@ def test_edits_of_a_visit_still_processing_are_409(client: TestClient, demo: Org
     added = client.post(
         f"/api/visits/{processing}/insights",
         json={
+            "id": new_id(),
             "turn_id": 1,
             "kind": "problem",
             "category": "payments",
@@ -269,7 +279,9 @@ def test_edits_of_a_visit_still_processing_are_409(client: TestClient, demo: Org
     )
 
     assert error_of(added) == (409, "visit_not_in_review")
-    assert error_of(client.post(f"/api/visits/{processing}/notes", json={"text": "x"})) == (
+    assert error_of(
+        client.post(f"/api/visits/{processing}/notes", json={"id": new_id(), "text": "x"})
+    ) == (
         409,
         "visit_not_in_review",
     )
@@ -281,7 +293,7 @@ def test_edits_of_a_visit_still_processing_are_409(client: TestClient, demo: Org
 
 def test_a_note_too_long_is_refused(client: TestClient, demo: Org_) -> None:
     visit_id = in_review(demo)
-    body = {"text": "x" * (limits.NOTE_MAX_CHARS + 1)}
+    body = {"id": new_id(), "text": "x" * (limits.NOTE_MAX_CHARS + 1)}
 
     assert error_of(client.post(f"/api/visits/{visit_id}/notes", json=body)) == (
         400,
@@ -296,11 +308,17 @@ def test_no_edit_reaches_another_org_s_visit(client: TestClient) -> None:
     theirs = in_review(other)
     with session_scope(read_only=True) as session:
         insight_id = session.scalar(select(Insight.id).where(Insight.visit_id == theirs))
-    body = {"turn_id": 1, "kind": "problem", "category": "payments", "severity": "low"}
+    body = {
+        "id": new_id(),
+        "turn_id": 1,
+        "kind": "problem",
+        "category": "payments",
+        "severity": "low",
+    }
 
     calls = [
         client.delete(f"/api/insights/{insight_id}"),
-        client.post(f"/api/visits/{theirs}/notes", json={"text": "x"}),
+        client.post(f"/api/visits/{theirs}/notes", json={"id": new_id(), "text": "x"}),
         client.post(f"/api/visits/{theirs}/insights", json=body | {"summary_en": "x"}),
     ]
 

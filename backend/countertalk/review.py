@@ -36,7 +36,6 @@ from countertalk.models import (
     Visit,
     VisitNote,
     VisitStatus,
-    new_id,
     parse_id,
 )
 from countertalk.playbooks import OrgPack
@@ -196,6 +195,7 @@ def add_insight(
     actor: str,
     visit_id: str,
     *,
+    insight_id: str,
     turn_id: int,
     kind: str,
     category: str,
@@ -203,8 +203,14 @@ def add_insight(
     summary_en: str,
 ) -> Insight:
     """A finding the AI missed, quoting the whole of a turn of the visit's current transcript:
-    exact, playable, and routed by the table (it has no AI team)."""
+    exact, playable, and routed by the table (it has no AI team). Its ID is the client's, so
+    sending it again adds nothing and returns the one added (§2.5)."""
     visit = locked_in_review(session, org_id, visit_id)
+    again = session.get(Insight, insight_id)
+    if again is not None:
+        if again.visit_id == visit.id and again.added_by_rep:
+            return again
+        raise Conflict("insight_exists", "That ID is another insight's")
     found = {
         "kind": _one_of(kind, pack.playbook.kinds, "kind"),
         "category": _one_of(category, pack.playbook.categories, "category"),
@@ -215,7 +221,7 @@ def add_insight(
     if turn is None:
         raise NotFound("turn_not_found", "That line isn't in this visit's transcript")
     insight = Insight(
-        id=new_id(),
+        id=insight_id,
         org_id=org_id,
         visit_id=visit.id,
         seq=next_seq(session, visit.id),
@@ -252,15 +258,23 @@ def add_insight(
     return insight
 
 
-def add_note(session: Session, org_id: str, author: str, visit_id: str, text: str) -> VisitNote:
-    """For the visit's record only: never routed, never shown to teams."""
+def add_note(
+    session: Session, org_id: str, author: str, visit_id: str, note_id: str, text: str
+) -> VisitNote:
+    """For the visit's record only: never routed, never shown to teams. Its ID is the client's,
+    so sending it again adds nothing and returns the one added (§2.5)."""
     visit = locked_in_review(session, org_id, visit_id)
+    again = session.get(VisitNote, note_id)
+    if again is not None:
+        if again.visit_id == visit.id:
+            return again
+        raise Conflict("note_exists", "That ID is another note's")
     body = text.strip()
     if not body:
         raise Invalid("note_empty", "The note is empty")
     if len(body) > limits.NOTE_MAX_CHARS:
         raise Invalid("note_too_long", f"A note is at most {limits.NOTE_MAX_CHARS} characters")
-    note = VisitNote(org_id=org_id, visit_id=visit.id, author_id=author, text=body)
+    note = VisitNote(id=note_id, org_id=org_id, visit_id=visit.id, author_id=author, text=body)
     session.add(note)
     session.flush()
     log.info("note added visit=%s note=%s", visit.id, note.id)
@@ -329,6 +343,8 @@ class ReviewView:
     tasks: list[Task]
     insights: list[InsightView]
     notes: list[VisitNote]
+    # Each speaker label's saved role: the add-a-finding picker shows it.
+    speaker_roles: dict[str, str]
     kinds: list[Choice]
     categories: list[Choice]
     severities: list[Choice]
@@ -357,6 +373,12 @@ def review_of(
         tasks=list(tasks),
         insights=insight_views(session, list(session.scalars(query))),
         notes=list(session.scalars(notes.order_by(VisitNote.created_at, VisitNote.id))),
+        speaker_roles={
+            label: role
+            for label, (role, _) in (
+                roles.saved_roles(session, visit.transcript_id) if visit.transcript_id else {}
+            ).items()
+        },
         kinds=[Choice(key, _label(key)) for key in book.kinds],
         categories=[Choice(key, category.name) for key, category in book.categories.items()],
         severities=[Choice(key, _label(key)) for key in book.severities],

@@ -18,6 +18,7 @@ from countertalk.models import (
     Visit,
     VisitNote,
     VisitStatus,
+    new_id,
 )
 from tests.conftest import give_transcript, lock_waiters
 from tests.test_extraction import answer, insight, run, transcribed
@@ -206,6 +207,7 @@ def test_a_deleted_insight_goes_with_its_quotes_and_routes_and_its_history_stays
 
 def add(org: Org_, visit_id: str, **changes: Any) -> Insight:
     found = {
+        "insight_id": new_id(),
         "turn_id": 1,
         "kind": "problem",
         "category": "payments",
@@ -288,7 +290,7 @@ def test_a_turn_only_another_visit_has_is_404(org: Org_) -> None:
 
 def note(org: Org_, visit_id: str, body: str) -> VisitNote:
     with session_scope() as session:
-        return review.add_note(session, org.org_id, org.rep_id, visit_id, body)
+        return review.add_note(session, org.org_id, org.rep_id, visit_id, new_id(), body)
 
 
 def test_a_note_is_kept_for_the_record_and_never_routed(org: Org_) -> None:
@@ -468,3 +470,34 @@ def test_a_summary_edit_never_loads_the_org_s_pack(org: Org_) -> None:
         )
 
     assert found.summary_en == "Two boxes."
+
+
+def test_adding_the_same_finding_again_adds_nothing(org: Org_) -> None:
+    visit_id, _ = reviewed(org)
+    insight_id = new_id()
+
+    first = add(org, visit_id, insight_id=insight_id)
+    again = add(org, visit_id, insight_id=insight_id)
+
+    assert (again.id, again.seq) == (first.id, first.seq)
+    assert [row[1] for row in edits(visit_id)] == ["created"]
+    assert len(history_of(insight_id)) == 2  # routed once: money, and field (override)
+
+
+def test_an_id_that_s_another_insight_s_is_refused(org: Org_) -> None:
+    visit_id, [extracted] = reviewed(org)
+
+    assert code_of(add, org, visit_id, insight_id=extracted) == "insight_exists"
+
+
+def test_adding_the_same_note_again_adds_nothing(org: Org_) -> None:
+    visit_id, _ = reviewed(org)
+    note_id = new_id()
+
+    with session_scope() as session:
+        review.add_note(session, org.org_id, org.rep_id, visit_id, note_id, "Owner away.")
+    with session_scope() as session:
+        review.add_note(session, org.org_id, org.rep_id, visit_id, note_id, "Owner away.")
+
+    with session_scope(read_only=True) as session:
+        assert session.scalar(select(func.count()).select_from(VisitNote)) == 1
