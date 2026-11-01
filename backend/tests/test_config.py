@@ -92,3 +92,12 @@ def test_tests_read_the_pinned_settings(tmp_path: Path) -> None:
 
 def test_relative_web_dist_dir_is_inside_backend_and_normalised() -> None:
     assert settings(WEB_DIST_DIR="../web/dist").WEB_DIST_DIR == BACKEND_DIR.parent / "web" / "dist"
+
+
+def test_a_password_with_an_unescaped_at_is_refused_without_showing_it() -> None:
+    # Unescaped, the part after "@" would be read as the host, and printed as one.
+    with pytest.raises(ValidationError) as error:
+        settings(DATABASE_URL="postgresql://app:pa@ss-not-real@db.example.com:5432/app")
+
+    assert "ss-not-real" not in str(error.value)
+    assert "%40" in str(error.value)

@@ -2,8 +2,12 @@
 
 Each line says ok, skip (a key that isn't needed yet) or fail (fix it first). Exits with 1 if
 any line failed. Key values and the database password are never printed.
+
+`--database` checks only the settings and the database, with hints that suit any host. start.sh
+runs it before the migrations, so a wrong DATABASE_URL stops the service with a plain reason.
 """
 
+import argparse
 import re
 import shutil
 import subprocess
@@ -31,7 +35,9 @@ REFUSED = [
     (re.compile(r'role "[^"]*" does not exist'), "the user doesn't exist"),
     (re.compile(r'database "[^"]*" does not exist'), "the database doesn't exist"),
 ]
-CANT_CONNECT = "can't connect; is Postgres running? (docker compose up -d db)"
+# Where the database runs differs: on this laptop it's compose's, on a host it's the host's.
+CANT_CONNECT_HERE = "can't connect; is Postgres running? (docker compose up -d db)"
+CANT_CONNECT_ANYWHERE = "can't connect; is the database running, and is DATABASE_URL's host right?"
 
 
 @dataclass(frozen=True)
@@ -81,19 +87,19 @@ def check_settings() -> Check:
     return Check("ok", "settings", "valid")
 
 
-def check_database() -> Check:
+def check_database(cant_connect: str = CANT_CONNECT_HERE) -> Check:
     url = make_url(get_settings().DATABASE_URL)
     where = f"{url.host}:{url.port or 5432}/{url.database}"
     try:
         with get_engine().connect() as conn:
             conn.execute(select(1))
     except (DBAPIError, PoolTimeoutError) as error:
-        return Check("fail", "postgres", f"{where}: {_why_refused(str(error))}")
+        return Check("fail", "postgres", f"{where}: {_why_refused(str(error), cant_connect)}")
     return Check("ok", "postgres", where)
 
 
-def _why_refused(message: str) -> str:
-    return next((why for pattern, why in REFUSED if pattern.search(message)), CANT_CONNECT)
+def _why_refused(message: str, cant_connect: str) -> str:
+    return next((why for pattern, why in REFUSED if pattern.search(message)), cant_connect)
 
 
 def check_keys() -> list[Check]:
@@ -112,7 +118,16 @@ def report(checks: list[Check]) -> int:
     return 1 if any(check.status == "fail" for check in checks) else 0
 
 
-def main() -> int:
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description="Checks this machine is ready for CounterTalk.")
+    parser.add_argument(
+        "--database", action="store_true", help="check only the settings and the database"
+    )
+    if parser.parse_args(argv).database:
+        checks = [check_settings()]
+        if checks[0].status == "ok":
+            checks.append(check_database(CANT_CONNECT_ANYWHERE))
+        return report(checks)
     checks = [
         check_python(),
         check_tool("uv", ["--version"]),
@@ -126,4 +141,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

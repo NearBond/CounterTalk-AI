@@ -60,8 +60,25 @@ class DropQueryString(logging.Filter):
         return True
 
 
+_base_record_factory = logging.getLogRecordFactory()
+
+
+def _frames_only_record(*args: Any, **kwargs: Any) -> logging.LogRecord:
+    """Every record carries its traceback as frames only, before any handler sees it.
+
+    So a handler that isn't ours (an error tracker, uvicorn with its own --log-config) can't
+    print an exception's message either: there's no exception left on the record to format.
+    """
+    record = _base_record_factory(*args, **kwargs)
+    if record.exc_info and record.exc_info[1] is not None:
+        record.exc_text = frames_only(record.exc_info[1])
+        record.exc_info = None
+    return record
+
+
 def configure_logging() -> None:
     """Safe to call again: it replaces the configuration rather than adding to it."""
+    logging.setLogRecordFactory(_frames_only_record)
     uvicorn_logger: dict[str, Any] = {"handlers": [], "propagate": True, "level": "INFO"}
     logging.config.dictConfig(
         {

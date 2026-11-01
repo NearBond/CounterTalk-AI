@@ -109,7 +109,7 @@ def test_bad_database_url_is_one_fail_line_not_a_traceback(
     monkeypatch.setenv("DATABASE_URL", "mysql://admin:pw-not-real@db.example.com/app")
     get_settings.cache_clear()
 
-    exit_code = check_setup.main()
+    exit_code = check_setup.main([])
 
     lines = capsys.readouterr().out.splitlines()
     assert exit_code == 1
@@ -156,3 +156,66 @@ def test_required_python_matches_pyproject() -> None:
     major, minor = REQUIRED_PYTHON
 
     assert project["project"]["requires-python"] == f">={major}.{minor},<{major}.{minor + 1}"
+
+
+def test_database_only_checks_just_the_settings_and_postgres(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = check_setup.main(["--database"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "ok    settings: valid",
+        f"ok    postgres: 127.0.0.1:5432/{TEST_DATABASE}",
+    ]
+
+
+def test_database_only_gives_the_plain_reason_without_the_password(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", f"{SERVER_URL.replace(':countertalk@', ':not-the-pw@')}/x")
+    get_settings.cache_clear()
+
+    exit_code = check_setup.main(["--database"])
+
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "the password was refused" in out
+    assert "not-the-pw" not in out
+
+
+def test_database_only_cant_connect_hint_says_nothing_about_docker(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # .invalid never resolves (RFC 2606), so this fails at once, like a host that's down.
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:not-the-pw@db.invalid:5432/app")
+    get_settings.cache_clear()
+
+    exit_code = check_setup.main(["--database"])
+
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "can't connect" in out
+    assert "docker" not in out.lower()
+
+
+def test_the_full_check_still_suggests_docker_compose_for_local_setup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:not-the-pw@db.invalid:5432/app")
+    get_settings.cache_clear()
+
+    assert "docker compose up -d db" in check_database().detail
+
+
+def test_database_only_reports_bad_settings_as_one_line(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", "mysql://u:not-the-pw@db.example.com/app")
+    get_settings.cache_clear()
+
+    exit_code = check_setup.main(["--database"])
+
+    lines = capsys.readouterr().out.splitlines()
+    assert exit_code == 1
+    assert lines == ["fail  settings: invalid in backend/.env or the environment: DATABASE_URL"]

@@ -7,7 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, StatementError
 
 from countertalk.db import session_scope
-from countertalk.models import Org, Role, Shop, User, new_id, utc_now
+from countertalk.models import Org, Role, Segment, Shop, User, Visit, new_id, utc_now
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -150,5 +150,123 @@ def test_natural_keys_are_unique(make_duplicate: Callable[[str], object], constr
 
     with pytest.raises(IntegrityError) as error, session_scope() as session:
         session.add(make_duplicate(org_id))
+
+    assert constraint_violated(error.value) == constraint
+
+
+def add_visit_parts() -> tuple[str, str, str]:
+    with session_scope() as session:
+        org = Org(name="Visit Model Org")
+        session.add(org)
+        session.flush()
+        rep = User(org_id=org.id, email="model-rep@example.com", name="Rep", role=Role.REP)
+        shop = Shop(org_id=org.id, name="Model Shop", area="Model Area")
+        session.add_all([rep, shop])
+        session.flush()
+        return org.id, rep.id, shop.id
+
+
+def visit_row(**overrides: object) -> Visit:
+    org_id, rep_id, shop_id = add_visit_parts()
+    values: dict[str, object] = {
+        "org_id": org_id,
+        "rep_id": rep_id,
+        "shop_id": shop_id,
+        "kind": "conversation",
+        "client": "web",
+        "status": "recording",
+    }
+    return Visit(**{**values, **overrides})
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "constraint"),
+    [
+        ("status", "archived", "ck_visits_status"),
+        ("kind", "meeting", "ck_visits_kind"),
+        ("client", "desktop", "ck_visits_client"),
+    ],
+)
+def test_an_unknown_visit_value_is_refused_by_the_database(
+    field: str, value: str, constraint: str
+) -> None:
+    with pytest.raises(IntegrityError) as error, session_scope() as session:
+        session.add(visit_row(**{field: value}))
+
+    assert constraint_violated(error.value) == constraint
+
+
+def test_visits_get_an_increasing_seq() -> None:
+    first = visit_row()
+    with session_scope() as session:
+        session.add(first)
+        session.flush()
+        second = Visit(
+            org_id=first.org_id,
+            rep_id=first.rep_id,
+            shop_id=first.shop_id,
+            kind="notes",
+            client="upload",
+            status="recording",
+        )
+        session.add(second)
+
+    # Read back with no extra query: the insert returns it.
+    assert second.seq > first.seq
+
+
+@pytest.mark.parametrize(
+    ("overrides", "constraint"),
+    [
+        ({"seq": -1}, "ck_segments_seq_not_negative"),
+        ({"sha256": "ABC"}, "ck_segments_sha256_hex"),
+        ({"bytes": 0}, "ck_segments_bytes_positive"),
+    ],
+)
+def test_a_bad_segment_is_refused_by_the_database(overrides: dict, constraint: str) -> None:
+    visit = visit_row()
+    with session_scope() as session:
+        session.add(visit)
+    values = {"visit_id": visit.id, "seq": 0, "path": "x", "bytes": 1, "sha256": "a" * 64}
+
+    with pytest.raises(IntegrityError) as error, session_scope() as session:
+        session.add(Segment(**{**values, **overrides}))
+
+    assert constraint_violated(error.value) == constraint
+
+
+def test_a_visits_segments_go_with_it() -> None:
+    visit = visit_row()
+    with session_scope() as session:
+        session.add(visit)
+        session.flush()
+        session.add(Segment(visit_id=visit.id, seq=0, path="x", bytes=1, sha256="a" * 64))
+
+    with session_scope() as session:
+        session.delete(session.get(Visit, visit.id))
+
+    with session_scope(read_only=True) as session:
+        assert session.scalars(select(Segment)).all() == []
+
+
+@pytest.mark.parametrize(
+    ("field", "constraint"),
+    [("shop_id", "fk_visits_org_id_shops"), ("rep_id", "fk_visits_org_id_users")],
+)
+def test_a_visit_with_another_orgs_shop_or_rep_is_refused(field: str, constraint: str) -> None:
+    visit = visit_row()
+    with session_scope() as session:
+        other = Org(name="Another Org")
+        session.add(other)
+        session.flush()
+        other_rep = User(org_id=other.id, email="other-rep@example.com", name="Rep", role=Role.REP)
+        other_shop = Shop(org_id=other.id, name="Other Shop", area="Other Area")
+        session.add_all([other_rep, other_shop])
+        session.flush()
+        theirs = {"shop_id": other_shop.id, "rep_id": other_rep.id}[field]
+
+    with pytest.raises(IntegrityError) as error, session_scope() as session:
+        setattr(visit, field, theirs)
+        session.add(visit)
 
     assert constraint_violated(error.value) == constraint

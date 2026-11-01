@@ -37,9 +37,14 @@ class Settings(BaseSettings):
         # Railway gives postgres:// or postgresql://; SQLAlchemy needs the driver in the scheme.
         for scheme in ("postgres://", "postgresql://"):
             if url.startswith(scheme):
-                return _PSYCOPG + url.removeprefix(scheme)
+                url = _PSYCOPG + url.removeprefix(scheme)
+                break
         if not url.startswith(_PSYCOPG):
             raise ValueError("DATABASE_URL must be a postgres:// or postgresql:// URL")
+        # An unescaped "@" in the password makes the rest of it read as the host, which is then
+        # printed in error lines. Refuse it rather than show any of it.
+        if url.removeprefix(_PSYCOPG).split("/", 1)[0].count("@") > 1:
+            raise ValueError("DATABASE_URL's password has an @: write it as %40")
         return url
 
     @field_validator("DATA_DIR")

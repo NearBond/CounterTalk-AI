@@ -33,6 +33,18 @@ class Conflict(DomainError):
     http_status = 409
 
 
+class TooLarge(DomainError):
+    """A body over its limit, e.g. a segment over MAX_SEGMENT_BYTES."""
+
+    http_status = 413
+
+
+class LengthRequired(DomainError):
+    """A body sent without Content-Length, which an upload limit needs before reading it."""
+
+    http_status = 411
+
+
 class PermanentError(DomainError):
     """Work that retrying can't fix: an unreadable file, or a 4xx from an external service.
 

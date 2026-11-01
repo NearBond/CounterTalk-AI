@@ -62,14 +62,19 @@ def _constraint(error: BaseException) -> str:
     return getattr(diag, "constraint_name", None) or "-"
 
 
+def _sqlstate(error: BaseException) -> str:
+    return getattr(getattr(error, "orig", None), "sqlstate", None) or "-"
+
+
 class UnexpectedErrors:
     """Turns any exception that escapes a request into the 500 error shape, and logs it safely.
 
     It has to be a middleware: an `Exception` handler isn't enough, because Starlette's
-    ServerErrorMiddleware runs the handler and then re-raises, and uvicorn logs the traceback.
-    psycopg's message in it includes Postgres's DETAIL, e.g. `Key (email)=(...)` (§1.9). So the
-    exception stops here, and the log line holds only its type, the constraint name, and the
-    request's method and route template, never the path itself or any message.
+    ServerErrorMiddleware runs the handler and then re-raises, and uvicorn logs the traceback
+    with every message in it. psycopg's includes Postgres's DETAIL, e.g. `Key (email)=(...)`
+    (§1.9). So the exception stops here. The log line holds its type, the constraint name, the
+    SQLSTATE, and the request's method and route template (never the path itself), plus the
+    traceback, whose messages the formatter withholds (§2.8).
     """
 
     def __init__(self, app: ASGIApp) -> None:
@@ -92,11 +97,13 @@ class UnexpectedErrors:
         except Exception as error:  # noqa: BLE001 - every escaped error ends here, logged safely
             route = getattr(scope.get("route"), "path", "-")
             log.error(
-                "request failed method=%s route=%s error=%s constraint=%s",
+                "request failed method=%s route=%s error=%s constraint=%s sqlstate=%s",
                 scope["method"],
                 route,
                 type(error).__name__,
                 _constraint(error),
+                _sqlstate(error),
+                exc_info=error,
             )
         if started:
             # Part of the response is already out; the server closes the connection.

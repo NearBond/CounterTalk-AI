@@ -161,3 +161,47 @@ def test_sigterm_during_the_migrations_stops_them_and_start_sh_exits(tmp_path: P
     finally:
         if process.poll() is None:
             process.kill()
+
+
+def test_a_wrong_database_password_stops_start_sh_before_the_migrations() -> None:
+    url = f"{SERVER_URL.replace(':countertalk@', ':not-the-pw@')}/{SCRATCH_DATABASE}"
+
+    result = run_start(url, free_port())
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "the password was refused" in output
+    assert "not-the-pw" not in output
+    # Neither Alembic nor the server started.
+    assert "Context impl" not in output
+    assert "Uvicorn running" not in output
+
+
+SLOW_PYTHON = SLOW_ALEMBIC.replace("ALEMBIC_MARKER", "PYTHON_MARKER")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows can't send SIGTERM to bash")
+def test_sigterm_during_the_database_check_stops_it_and_start_sh_exits(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    python = fake_bin / "python"
+    python.write_text(SLOW_PYTHON, encoding="utf-8")
+    python.chmod(0o755)
+    marker = tmp_path / "python.marker"
+    env = start_env(PINNED_SETTINGS["DATABASE_URL"], free_port())
+    env["PATH"] = str(fake_bin) + os.pathsep + env["PATH"]
+    env["PYTHON_MARKER"] = str(marker)
+    process = subprocess.Popen([BASH, str(START)], env=env)
+    try:
+        deadline = time.monotonic() + RUN_TIMEOUT_S
+        while not marker.exists():
+            assert time.monotonic() < deadline, "the database check didn't start"
+            time.sleep(0.05)
+
+        process.send_signal(signal.SIGTERM)
+
+        assert process.wait(timeout=10) == 143
+        assert marker.read_text(encoding="utf-8").strip() == "got TERM"
+    finally:
+        if process.poll() is None:
+            process.kill()

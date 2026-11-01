@@ -1,7 +1,9 @@
 """Logs hold no personal data (CODING_GUIDELINES §1.9, batch 2 decision 7)."""
 
 import asyncio
+import io
 import logging
+import re
 import socket
 import sys
 import threading
@@ -79,10 +81,16 @@ def test_a_unique_violation_logs_no_part_of_the_email(caplog: pytest.LogCaptureF
     assert response.status_code == 500
     assert response.json()["error"]["code"] == "internal_error"
     logs = caplog.text.lower()
-    for part in ("leaky", "person", "example.com", FAKE_EMAIL):
+    for part in ("leaky", "leaky.person", "example.com", FAKE_EMAIL, FAKE_NAME):
         assert part.lower() not in logs
+    # "person" as a whole word: the withheld-message note itself says "personal data".
+    assert re.search(r"person", logs) is None
     assert "method=post route=/api/test/users" in logs
-    assert "error=integrityerror constraint=uq_users_email" in logs
+    assert "error=integrityerror constraint=uq_users_email sqlstate=23505" in logs
+    # The frames are there, down to the route that failed, with every message withheld.
+    assert "traceback (most recent call last)" in logs
+    assert "add_the_same_email_again" in logs
+    assert "message not logged" in logs
 
 
 def test_an_error_after_the_response_started_is_logged_without_a_second_response(
@@ -206,3 +214,25 @@ def test_access_log_lines_leave_out_the_query_string() -> None:
     assert logging.getLogger("uvicorn.access").filter(record)
 
     assert record.getMessage() == '127.0.0.1:50000 - "GET /api/visits HTTP/1.1" 200'
+
+
+def test_any_handler_gets_the_frames_but_never_the_message() -> None:
+    # A handler that isn't ours, with the standard formatter: an error tracker, or a
+    # --log-config uvicorn. The record itself carries only the frames.
+    out = io.StringIO()
+    handler = logging.StreamHandler(out)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    logger = logging.getLogger("countertalk.test.other_handler")
+    logger.addHandler(handler)
+    try:
+        try:
+            raise ValueError(DETAIL_MESSAGE)
+        except ValueError as error:
+            logger.error("failed", exc_info=error)
+    finally:
+        logger.removeHandler(handler)
+
+    text = out.getvalue()
+    assert "Traceback (most recent call last)" in text
+    assert "ValueError" in text
+    assert "leaky" not in text.lower()

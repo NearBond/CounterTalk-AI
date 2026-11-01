@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Starts the service: migrations first, then the server (batch 4 adds the worker).
+# Starts the service: a database check, the migrations, then the server (batch 4 adds the
+# worker).
 #
-# - A failed migration exits here, before anything serves a half-migrated database.
+# - A database that can't be reached, or a failed migration, exits here, before anything serves.
 # - If any process exits, the others are stopped and the script exits non-zero, so the host
 #   restarts the service.
 # - SIGTERM and SIGINT are passed on, so a redeploy shuts the server down cleanly.
@@ -27,13 +28,22 @@ on_signal() {
 }
 trap on_signal TERM INT
 
-# In the background, so a stop during the migrations reaches them: run in the foreground,
-# bash (PID 1 in a container) would wait for them to finish before handling the signal.
-# A failed migration rolls back whole, and `wait` returns its status, so set -e exits here.
-alembic upgrade head &
-pids=("$!")
-wait "${pids[0]}"
-pids=()
+# Runs one step to the end, in the background, so a stop during it reaches it: in the
+# foreground, bash (PID 1 in a container) would wait for the step to finish before handling the
+# signal. `wait` returns the step's status, so a failure exits here (set -e).
+run_stoppable() {
+  "$@" &
+  pids=("$!")
+  wait "${pids[0]}"
+  pids=()
+}
+
+# The database first: a wrong DATABASE_URL stops here with one plain line ("the password was
+# refused"), never the URL's password or the server's own message.
+run_stoppable python scripts/check_setup.py --database
+
+# A failed migration rolls back whole, and the server never starts on a half-migrated database.
+run_stoppable alembic upgrade head
 
 # Hosts terminate HTTPS in front of the app, so trust their X-Forwarded-* headers.
 uvicorn countertalk.main:app \
