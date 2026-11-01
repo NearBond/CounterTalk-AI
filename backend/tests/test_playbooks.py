@@ -332,14 +332,25 @@ def test_the_test_orgs_pack_fits_k6() -> None:
         "area_manager",
     ]
     assert all(team.contact.endswith("@example.com") for team in pack.file.teams.values())
-    payments = next(route for route in routing_table(pack) if route.category == "payments")
-    assert (payments.team, payments.override) == (
-        "finance",
-        pack.file.overrides[0],
-    ) and (pack.file.overrides[0].min_severity, pack.file.overrides[0].team) == (
-        "high",
-        "area_manager",
-    )
+    # As the user decided on 1 Nov: schemes to finance (K6 P1), and every category but other
+    # gets the nearest of the five teams.
+    assert {
+        route.category: (route.team, route.override and route.override.min_severity)
+        for route in routing_table(pack)
+    } == {
+        "schemes": ("finance", None),
+        "pricing": ("sales_ops", None),
+        "supply": ("distribution", None),
+        "damage": ("distribution", None),
+        "payments": ("finance", "high"),
+        "quality": ("distribution", None),
+        "demand": ("trade_marketing", None),
+        "servicing": ("sales_ops", None),
+        "visibility": ("trade_marketing", None),
+        "praise": ("area_manager", None),
+        "other": (None, None),
+    }
+    assert [(o.category, o.team) for o in pack.file.overrides] == [("payments", "area_manager")]
     assert [d.key for d in pack.distributors] == ["d1", "d2", "d3"]
     assert len({d.area for d in pack.distributors}) == 2
     assert all(d.name.endswith("(example)") for d in pack.distributors)

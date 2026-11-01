@@ -16,34 +16,49 @@ teams:
   finance:
     name: Finance
     contact: finance@example.com
-    handles: Credit notes, disputed bills, unpaid claims and credit terms with shops and distributors.
+    handles: >-
+      Credit notes, disputed bills, unpaid claims and credit terms with shops and distributors,
+      and the payouts of schemes and display payments.
   distribution:
     name: Distribution
     contact: distribution@example.com
-    handles: Deliveries, stock-outs and short supply, damaged or near-expiry stock, and returns.
+    handles: >-
+      Deliveries, stock-outs and short supply, damaged or near-expiry stock, returns, and
+      complaints about a product's quality.
   trade_marketing:
     name: Trade marketing
     contact: trade.marketing@example.com
-    handles: Trade schemes and their payouts, display payments, and coolers, racks and display material.
+    handles: >-
+      Telling shops about trade schemes; visibility, coolers, racks and display material; and
+      requests for new flavours and packs.
   sales_ops:
     name: Sales operations
     contact: sales.ops@example.com
-    handles: Distributor coverage, the salesmen's beats and visits, and shops asking for another distributor.
+    handles: >-
+      Distributor coverage, the salesmen's beats and visits, shops asking for another distributor,
+      and pricing, margins and channel conflict.
   area_manager:
     name: Area manager
     contact: area.manager@example.com
-    handles: Serious problems that put a shop at risk in the area, such as a high-severity payment dispute.
+    handles: >-
+      Serious problems that put a shop at risk in the area, such as a high-severity payment
+      dispute, and praise worth passing up.
 
-# Each playbook category's team, from Appendix A's "team that usually acts". A category whose
-# usual team isn't one of these five has none and goes to triage, where the AI's team suggestion
-# helps a person pick: pricing, quality, demand, praise and other.
+# Each playbook category's team, as the user decided on 1 Nov: Appendix A's "team that usually
+# acts" where it's one of these five (schemes go to finance, which pays them out: K6 P1), and the
+# nearest of the five where it isn't. Only other goes to triage, where the AI's team suggestion
+# helps a person pick.
 routing:
-  schemes: trade_marketing
+  schemes: finance
+  pricing: sales_ops
   supply: distribution
   damage: distribution
   payments: finance
+  quality: distribution
+  demand: trade_marketing
   servicing: sales_ops
   visibility: trade_marketing
+  praise: area_manager
 
 # At most one per category, so an insight has at most 2 teams (batch 12).
 overrides:
