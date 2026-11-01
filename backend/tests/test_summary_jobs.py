@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 
 from countertalk import jobs, summaries, summary_jobs, worker
 from countertalk.db import session_scope
+from countertalk.llm.client import MetaLlm
 from countertalk.models import (
     Job,
     JobKind,
@@ -25,7 +26,7 @@ from tests.conftest import ORG_PACK_FIXTURES, lock_waiters
 from tests.test_jobs import OTHER_WORKER, claimed, make_stale
 from tests.test_review import PACK
 from tests.test_review_api import error_of, seeded_demo
-from tests.test_roles import tiny_org
+from tests.test_roles import FakeLlm, tiny_org
 from tests.test_summaries import visit_at
 from tests.test_visits import Org_, make_org
 from tests.test_worker import WORKER_ID, wait_for
@@ -59,8 +60,10 @@ def jobs_of(summary_id: str) -> list[str]:
 
 
 def work() -> bool:
-    """One turn of a worker that writes the tiny org's summaries."""
-    handlers = {JobKind.SUMMARY: worker.summarise_with(packs=ORG_PACK_FIXTURES)}
+    """One turn of a worker that writes the tiny org's summaries, with an LLM whose narrative
+    says nothing (test_narrative.py has what it says)."""
+    llm = FakeLlm({"overview": [], "issues": []})
+    handlers = {JobKind.SUMMARY: worker.summarise_with(llm, packs=ORG_PACK_FIXTURES)}
     return worker.Worker(WORKER_ID, handlers=handlers).run_once()
 
 
@@ -316,6 +319,28 @@ def test_the_api_asks_only_for_its_own_org_s_teams(
     assert error_of(client.post("/api/summaries", json=body)) == expected
     params = {k: v for k, v in body.items() if v is not None}
     assert error_of(client.get("/api/summaries", params=params)) == expected
+
+
+def test_no_request_calls_muse_spark(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # §2.4: the job writes the narrative; asking, reading and Try again only queue or read.
+    def never(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Muse Spark was called inside a request")
+
+    monkeypatch.setattr(MetaLlm, "complete", never)
+    seeded_demo()
+    finance = demo_team(client, "finance")
+    params = {"scope": "team", "team_id": finance, "period": "week"}
+
+    asked_for = client.post("/api/summaries", json=params)
+    summary_id = asked_for.json()["id"]
+    responses = [
+        asked_for,
+        client.get("/api/summaries", params=params),
+        client.get(f"/api/summaries/{summary_id}"),
+        client.post(f"/api/summaries/{summary_id}/retry"),
+    ]
+
+    assert [r.status_code for r in responses] == [200, 200, 200, 200]
 
 
 def test_another_org_s_summary_is_404(client: TestClient) -> None:

@@ -102,22 +102,29 @@ def _extract(ctx: JobContext) -> None:
     extract_with(MetaLlm(key))(ctx)
 
 
-def summarise_with(**packs: Path) -> Handler:
-    """The summary handler (and, for tests, other pack folders)."""
+def summarise_with(llm: StructuredLlm | None, **packs: Path) -> Handler:
+    """The summary handler, with this LLM client or none (and, for tests, other pack folders)."""
 
     def handler(ctx: JobContext) -> None:
         if ctx.job.summary_id is None:
             raise PermanentError("no_summary", "A summary job needs a summary")
-        summary_jobs.run(ctx.job.summary_id, **packs)
+        summary_jobs.run(ctx.job.summary_id, llm, claim_lost=ctx.claim_lost, **packs)
 
     return handler
+
+
+def _summarise(ctx: JobContext) -> None:
+    # With no key there's no client: a summary with nothing to cite is still its numbers, and
+    # one with something fails at once, with why (not retried: a retry can't set the key).
+    key = get_settings().MODEL_API_KEY.get_secret_value()
+    summarise_with(MetaLlm(key) if key else None)(ctx)
 
 
 # Each kind's handler. Its max attempts are in jobs.KINDS; a kind with no handler is retried.
 HANDLERS: dict[str, Handler] = {
     JobKind.TRANSCRIBE: _transcribe,
     JobKind.EXTRACT: _extract,
-    JobKind.SUMMARY: summarise_with(),
+    JobKind.SUMMARY: _summarise,
     JobKind.PING: _ping,
     JobKind.SLEEP: _sleep,
 }

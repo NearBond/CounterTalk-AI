@@ -254,15 +254,11 @@ def extract(
     log.info("extraction asked visit=%s turns=%d", visit_id, request.turns)
     outcome = llm.complete(request.messages, NAME, request.schema, claim_lost=claim_lost)
     llm_calls.record(visit_id, LlmPurpose.EXTRACTION, llm.provider, outcome)
-    if outcome.error is not None:
-        if outcome.error.code == "llm_answer_invalid":
-            raise PermanentError(
-                "extraction_invalid",
-                "Extraction invalid: Muse Spark's answer didn't fit, even after a repair",
-            ) from None
-        raise outcome.error
-    assert outcome.answer is not None
-    answer = _no_nul(outcome.answer)
+    invalid = PermanentError(
+        "extraction_invalid",
+        "Extraction invalid: Muse Spark's answer didn't fit, even after a repair",
+    )
+    answer = _no_nul(llm_calls.answer_of(outcome, invalid))
     # Every quote checked, and the unmatched repaired, before the write (batch 11).
     transcript = _transcript(request, assigned.roles)
     checked = quotes.check_quotes(visit_id, answer, transcript, llm, claim_lost=claim_lost)

@@ -5,27 +5,36 @@ answer or raising the error (§9.3). It never holds the prompt or the answer (§
 """
 
 import logging
+from typing import Any
 
 from sqlalchemy import func, select
 
 from countertalk.db import session_scope
+from countertalk.errors import PermanentError
 from countertalk.llm.base import CallDetails, Outcome
 from countertalk.models import LlmCall, LlmPurpose
 
 log = logging.getLogger(__name__)
 
 
-def record(visit_id: str, purpose: LlmPurpose, provider: str, outcome: Outcome) -> None:
+def record(
+    visit_id: str | None,
+    purpose: LlmPurpose,
+    provider: str,
+    outcome: Outcome,
+    *,
+    summary_id: str | None = None,
+) -> None:
     """Logs each call, and a failure's details (§2.10), then writes the calls' rows in one short
     transaction of their own. A failed write is logged, never raised: it mustn't lose an answer
-    that was paid for (BRIEF §12)."""
+    that was paid for (BRIEF §12). A summary's calls (batch 15b) name the summary, not a visit."""
     calls = outcome.calls
+    about = f"visit={visit_id}" if summary_id is None else f"summary={summary_id}"
     if outcome.error is not None:
         found = outcome.error.details or {}
         log.warning(
-            "llm call failed visit=%s purpose=%s code=%s http_status=%s error_type=%s"
-            " request_id=%s",
-            visit_id,
+            "llm call failed %s purpose=%s code=%s http_status=%s error_type=%s request_id=%s",
+            about,
             purpose,
             outcome.error.code,
             found.get("http_status"),
@@ -34,10 +43,10 @@ def record(visit_id: str, purpose: LlmPurpose, provider: str, outcome: Outcome) 
         )
     for call in calls:
         log.info(
-            "llm call visit=%s purpose=%s model=%s ok=%s error=%s input_tokens=%s"
+            "llm call %s purpose=%s model=%s ok=%s error=%s input_tokens=%s"
             " cached_input_tokens=%s output_tokens=%s reasoning_tokens=%s latency_ms=%d"
             " request_id=%s",
-            visit_id,
+            about,
             purpose,
             call.model,
             call.ok,
@@ -56,6 +65,7 @@ def record(visit_id: str, purpose: LlmPurpose, provider: str, outcome: Outcome) 
             session.add_all(
                 LlmCall(
                     visit_id=visit_id,
+                    summary_id=summary_id,
                     purpose=purpose,
                     provider=provider,
                     model=call.model,
@@ -73,12 +83,24 @@ def record(visit_id: str, purpose: LlmPurpose, provider: str, outcome: Outcome) 
             )
     except Exception:  # whatever went wrong, the answer goes on (the lines above have the calls)
         log.warning(
-            "llm calls not logged visit=%s purpose=%s calls=%d",
-            visit_id,
+            "llm calls not logged %s purpose=%s calls=%d",
+            about,
             purpose,
             len(calls),
             exc_info=True,
         )
+
+
+def answer_of(outcome: Outcome, invalid: PermanentError) -> dict[str, Any]:
+    """The answer, once its calls are recorded; or the error raised: `invalid` for an answer
+    that didn't fit even after a repair (a retry would pay again for the same), the call's own
+    otherwise."""
+    if outcome.error is not None:
+        if outcome.error.code == "llm_answer_invalid":
+            raise invalid from None
+        raise outcome.error
+    assert outcome.answer is not None
+    return outcome.answer
 
 
 def latest_seq(visit_id: str) -> int:

@@ -290,7 +290,7 @@ def _earlier(period: Period) -> tuple[Period, ...]:
     return tuple(found)
 
 
-def _shown_in(org_id: str, period: Period) -> tuple[Any, ...]:
+def shown_in(org_id: str, period: Period) -> tuple[Any, ...]:
     """The insights a summary counts: confirmed and shown, from the period's visits. Written
     only here (R1)."""
     return (
@@ -527,7 +527,7 @@ def org_numbers(session: Session, pack: OrgPack, org_id: str, period: Period) ->
         causes.append(CauseNumbers(key, grouped[0].title_en, grouped[0].category, work, measured))
     triage = [
         _Member(*row)
-        for row in session.execute(_members().where(*_shown_in(org_id, period), _no_route()))
+        for row in session.execute(_members().where(*shown_in(org_id, period), _no_route()))
     ]
     routed = [m for i in loaded.found for m in loaded.members[i.id] if period.holds(m.seen_at)]
     return OrgNumbers(
@@ -569,7 +569,7 @@ def _competitors(session: Session, org_id: str, period: Period) -> list[Competit
         .add_columns(func.count(distinct(Insight.id)), func.count(distinct(Visit.shop_id)))
         .join(Insight, Insight.competitor_id == CatalogItem.id)
         .join(Visit, Visit.id == Insight.visit_id)
-        .where(*_shown_in(org_id, period))
+        .where(*shown_in(org_id, period))
         .group_by(CatalogItem.brand, CatalogItem.product)
     )
     found = [
@@ -605,7 +605,7 @@ def check(session: Session, org_id: str, numbers: TeamNumbers | OrgNumbers) -> l
         .select_from(InsightRoute)
         .join(Insight, Insight.id == InsightRoute.insight_id)
         .join(Visit, Visit.id == Insight.visit_id)
-        .where(*_shown_in(org_id, period), InsightRoute.issue_id.is_(None))
+        .where(*shown_in(org_id, period), InsightRoute.issue_id.is_(None))
     )
     if team_id is not None:
         routes = routes.where(InsightRoute.team_id == team_id)
@@ -624,7 +624,7 @@ def check(session: Session, org_id: str, numbers: TeamNumbers | OrgNumbers) -> l
     triage = session.scalar(
         select(func.count(distinct(Insight.id)))
         .join(Visit, Visit.id == Insight.visit_id)
-        .where(*_shown_in(org_id, period), _no_route())
+        .where(*shown_in(org_id, period), _no_route())
     )
     if numbers.totals.triage != triage:
         problems.append("the org's triage isn't a fresh count")
@@ -641,7 +641,7 @@ def _fresh(session: Session, org_id: str, period: Period, team_id: str | None) -
         select(func.count(distinct(Insight.id)), func.count(distinct(Visit.shop_id)))
         .select_from(Insight)
         .join(Visit, Visit.id == Insight.visit_id)
-        .where(*_shown_in(org_id, period))
+        .where(*shown_in(org_id, period))
     )
     if team_id is not None:
         query = query.join(InsightRoute, InsightRoute.insight_id == Insight.id).where(

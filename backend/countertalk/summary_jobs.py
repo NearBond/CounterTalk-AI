@@ -8,13 +8,15 @@
 - find: one summary, for the page to poll by its ID until it's written: cheap (nothing is
   counted), and still the same summary after the week or month turns over.
 - retry: a failed summary back to writing, with a new job. One that isn't failed is left as it is.
-- run, the `summary` job's work: count the numbers, check them (summaries.check), and keep them
-  with the summary. A job that dies leaves its summary failed with why (jobs.py).
+- run, the `summary` job's work: count the numbers and check them (summaries.check), have Muse
+  Spark write the narrative and check its sentences (narrative.py), then keep both with the
+  summary. A job that dies leaves its summary failed with why (jobs.py).
 
 Lock order: the summary, then its job (jobs.py).
 """
 
 import logging
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -26,11 +28,13 @@ from sqlalchemy import Select, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from countertalk import extraction, jobs, rows, summaries
+from countertalk import extraction, jobs, llm_calls, narrative, rows, summaries
 from countertalk.db import session_scope
 from countertalk.errors import Invalid, NotFound, PermanentError
+from countertalk.llm.base import StructuredLlm
 from countertalk.models import (
     JobKind,
+    LlmPurpose,
     Summary,
     SummaryScope,
     SummaryStatus,
@@ -129,8 +133,15 @@ def retry(session: Session, org_id: str, summary_id: str) -> Summary:
     return found
 
 
-def run(summary_id: str, packs: Path = ORG_PACKS_DIR, playbooks: Path = PLAYBOOKS_DIR) -> None:
-    """The summary job's work (module docstring). Raises PermanentError."""
+def run(
+    summary_id: str,
+    llm: StructuredLlm | None,
+    *,
+    claim_lost: threading.Event | None = None,
+    packs: Path = ORG_PACKS_DIR,
+    playbooks: Path = PLAYBOOKS_DIR,
+) -> None:
+    """The summary job's work (module docstring). Raises PermanentError or RetryableError."""
     with session_scope(read_only=True) as session:
         found = session.get(Summary, summary_id)
         if found is None:
@@ -149,6 +160,8 @@ def run(summary_id: str, packs: Path = ORG_PACKS_DIR, playbooks: Path = PLAYBOOK
         log.error("summary numbers don't add up summary=%s problem=%s", summary_id, problem)
     if problems:
         raise PermanentError("summary_numbers_unchecked", "The numbers didn't pass their checks")
+    numbers_json = NUMBERS.dump_python(numbers, mode="json")
+    written = _narrative(summary_id, llm, claim_lost, pack, org_id, numbers)
     with session_scope() as session:
         found = session.scalars(
             select(Summary)
@@ -158,10 +171,49 @@ def run(summary_id: str, packs: Path = ORG_PACKS_DIR, playbooks: Path = PLAYBOOK
         ).one()
         if found.status != SummaryStatus.WRITING:
             return
-        found.numbers = NUMBERS.dump_python(numbers, mode="json")
-        found.counted_at = counted_at
+        found.numbers, found.counted_at = numbers_json, counted_at
+        found.narrative = written
+        # The model asked: none when there was nothing to cite.
+        found.model = llm.model if written is not None and llm is not None else None
         found.status = SummaryStatus.READY
     log.info("summary ready summary=%s", summary_id)
+
+
+def _narrative(
+    summary_id: str,
+    llm: StructuredLlm | None,
+    claim_lost: threading.Event | None,
+    pack: OrgPack,
+    org_id: str,
+    numbers: TeamNumbers | OrgNumbers,
+) -> dict[str, Any] | None:
+    """The narrative as checked, or None with nothing to cite (no call is made then). Without
+    an LLM (no MODEL_API_KEY), a summary with something to cite fails, and Try again works once
+    there's one. Logs only counts: never its words or quotes (§1.9)."""
+    with session_scope(read_only=True) as session:
+        request = narrative.request_for(session, pack, org_id, numbers)
+    if not request.offered:
+        log.info("summary has nothing to cite, so only numbers summary=%s", summary_id)
+        return None
+    if llm is None:
+        raise PermanentError(
+            "llm_not_configured",
+            "The summary's words need Muse Spark, which isn't set up on the server (MODEL_API_KEY)",
+        )
+    log.info("summary narrative asked summary=%s quotes=%d", summary_id, len(request.offered))
+    outcome = llm.complete(request.messages, narrative.NAME, request.schema, claim_lost=claim_lost)
+    llm_calls.record(None, LlmPurpose.SUMMARY, llm.provider, outcome, summary_id=summary_id)
+    invalid = PermanentError(
+        "summary_invalid", "Muse Spark's answer didn't fit, even after a repair"
+    )
+    answer = llm_calls.answer_of(outcome, invalid)
+    with session_scope(read_only=True) as session:
+        written = narrative.checked(session, org_id, numbers, request, answer)
+    dropped = " ".join(f"dropped_{why}={n}" for why, n in written["dropped"].items())
+    log.info(
+        "summary narrative checked summary=%s kept=%d %s", summary_id, written["kept"], dropped
+    )
+    return written
 
 
 def _count(

@@ -1000,7 +1000,9 @@ WRITTEN_ONCE = {
     "select(Team.key, Team.id)": "countertalk/routing.py",
     # The playbook's severities in order: issues.severity_rank.
     "list(pack.playbook.severities)": "countertalk/issues.py",
-    # The insights a summary counts: summaries._shown_in.
+    # An answer that didn't fit, as the caller's PermanentError: llm_calls.answer_of (15b-4).
+    '.code == "llm_answer_invalid"': "countertalk/llm_calls.py",
+    # The insights a summary counts: summaries.shown_in.
     "Visit.created_at >= period.start": "countertalk/summaries.py",
 }
 
