@@ -106,6 +106,13 @@ SCHEME_WINDOW_DAYS = 30
 # after a long outage doesn't start every paid call at once.
 EXTRACT_QUEUE_PER_PASS = 20
 
+# Quote verification (batch 11): a fuzzy match needs this rapidfuzz partial_ratio score or more.
+QUOTE_FUZZY_MIN_SCORE = 92
+# ...and a normalised quote this long: a few characters score high almost anywhere.
+QUOTE_FUZZY_MIN_CHARS = 10
+# Playback starts this long before the quote, but never before its turn.
+QUOTE_LEAD_IN_MS = 1_500
+
 # Speaker roles (BRIEF §12): the turns sent are the first ROLES_FIRST_TURNS, ROLES_SAMPLED_TURNS
 # spread over the rest, and one more for any label not in those.
 ROLES_FIRST_TURNS = 60
