@@ -11,7 +11,14 @@ from pydantic import BaseModel
 
 from countertalk.api.health import HealthOut
 from countertalk.api.shops import ShopOut
-from countertalk.api.visits import CompleteIn, SegmentOut, VisitIn, VisitOut
+from countertalk.api.visits import (
+    CompleteIn,
+    SegmentOut,
+    TranscriptOut,
+    TurnOut,
+    VisitIn,
+    VisitOut,
+)
 from countertalk.config import BACKEND_DIR
 
 TYPES = BACKEND_DIR.parent / "web" / "src" / "types" / "api.ts"
@@ -23,6 +30,8 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "NewVisit": VisitIn,
     "CompleteVisit": CompleteIn,
     "Segment": SegmentOut,
+    "Transcript": TranscriptOut,
+    "Turn": TurnOut,
 }
 
 

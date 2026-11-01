@@ -21,7 +21,7 @@ from sqlalchemy import delete, select
 from countertalk import storage, visits
 from countertalk.db import session_scope
 from countertalk.limits import LOCK_TIMEOUT_MS, MAX_SEGMENT_BYTES, MAX_SEGMENTS_PER_VISIT
-from countertalk.models import Org, Role, Shop, User, Visit
+from countertalk.models import Org, Role, Shop, Transcript, Turn, User, Visit
 from scripts.seed_dev import seed
 
 RACE_TIMEOUT_S = 2 * LOCK_TIMEOUT_MS / 1000
@@ -115,6 +115,7 @@ def test_a_created_visit_is_returned_recording_and_read_back(client: TestClient)
         None,
     )
     assert visit["created_at"].endswith("Z")
+    assert visit["processing"] is False
     assert client.get(f"/api/visits/{visit['id']}").json() == visit
 
 
@@ -149,8 +150,75 @@ def test_complete_returns_the_visit_uploaded(client: TestClient) -> None:
     response = complete(client, visit_id, {"last_seq": 1, "ext": "webm"})
 
     assert response.status_code == 200
-    assert response.json()["status"] == "uploaded"
+    assert (response.json()["status"], response.json()["processing"]) == ("uploaded", True)
     assert response.json()["completed_at"].endswith("Z")
+    listed = client.get("/api/visits").json()["items"]
+    assert [(v["id"], v["processing"]) for v in listed] == [(visit_id, True)]
+
+
+def with_transcript(visit_id: str) -> str:
+    """Gives the visit a transcript of two turns, as the transcribe job would."""
+    with session_scope() as session:
+        transcript = Transcript(
+            visit_id=visit_id, provider="fake", model="fake-1", language_code="hi,en", raw_dir="x"
+        )
+        session.add(transcript)
+        session.flush()
+        session.add_all(
+            Turn(
+                transcript_id=transcript.id,
+                turn_id=n,
+                speaker_label=f"c0:{who}",
+                start_ms=n,
+                end_ms=n + 1,
+                text=words,
+            )
+            for n, (who, words) in enumerate([("A", "Namaste ji."), ("B", "Haan bolo.")])
+        )
+        visit = session.get(Visit, visit_id)
+        assert visit is not None
+        visit.transcript_id = transcript.id
+        return transcript.id
+
+
+def test_a_visits_transcript_is_returned_with_its_turns(client: TestClient) -> None:
+    visit_id = new_visit(client)
+    transcript_id = with_transcript(visit_id)
+
+    response = client.get(f"/api/visits/{visit_id}/transcript")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["id"], body["visit_id"], body["language_code"]) == (
+        transcript_id,
+        visit_id,
+        "hi,en",
+    )
+    assert [(t["speaker_label"], t["text"]) for t in body["turns"]] == [
+        ("c0:A", "Namaste ji."),
+        ("c0:B", "Haan bolo."),
+    ]
+    assert set(body["turns"][0]) == {"turn_id", "speaker_label", "start_ms", "end_ms", "text"}
+
+
+PLAYBACK = bytes(range(256)) * 40
+
+
+def test_a_visits_audio_plays_and_seeks(client: TestClient) -> None:
+    visit_id = new_visit(client)
+    storage.playback_path(visit_id).parent.mkdir(parents=True)
+    storage.playback_path(visit_id).write_bytes(PLAYBACK)
+
+    whole = client.get(f"/api/visits/{visit_id}/audio")
+    middle = client.get(f"/api/visits/{visit_id}/audio", headers={"Range": "bytes=4000-4999"})
+
+    assert whole.status_code == 200
+    assert (whole.headers["content-type"], whole.headers["accept-ranges"]) == ("audio/mp4", "bytes")
+    assert whole.content == PLAYBACK
+    assert whole.headers["cache-control"] == "private, no-cache"
+    assert middle.status_code == 206
+    assert middle.headers["content-range"] == f"bytes 4000-4999/{len(PLAYBACK)}"
+    assert middle.content == PLAYBACK[4000:5000]
 
 
 # --- each error's status and code ----------------------------------------------------------------
@@ -194,6 +262,22 @@ def without_the_demo_rep(client: TestClient) -> httpx.Response:
         (conversation_at_a_do_not_record_shop, 409, "shop_do_not_record"),
         (another_orgs_visit, 404, "visit_not_found"),
         (a_malformed_cursor, 400, "invalid_cursor"),
+        (
+            lambda client: client.get(f"/api/visits/{new_visit(client)}/transcript"),
+            404,
+            "transcript_not_found",
+        ),
+        (
+            lambda client: client.get(f"/api/visits/{other_org()[0]}/transcript"),
+            404,
+            "visit_not_found",
+        ),
+        (
+            lambda client: client.get(f"/api/visits/{new_visit(client)}/audio"),
+            404,
+            "audio_not_found",
+        ),
+        (lambda client: client.get(f"/api/visits/{other_org()[0]}/audio"), 404, "visit_not_found"),
         (without_the_demo_rep, 500, "demo_rep_missing"),
     ],
 )

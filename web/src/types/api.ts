@@ -91,6 +91,8 @@ export interface Visit {
   status: VisitStatus;
   failure_reason: string | null;
   duration_ms: number | null;
+  /** True while it has a queued, running or retrying job: poll until it's false. */
+  processing: boolean;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -121,4 +123,29 @@ export interface Segment {
   bytes: number;
   sha256: string;
   received_at: string;
+}
+
+/** One speaker's turn, in visit time: countertalk/api/visits.py, TurnOut. */
+export interface Turn {
+  turn_id: number;
+  /** Speech-to-text's label, prefixed with its chunk: "c0:A", "c1:A". */
+  speaker_label: string;
+  start_ms: number;
+  end_ms: number;
+  text: string;
+}
+
+/**
+ * GET /api/visits/{id}/transcript: TranscriptOut, 404 `transcript_not_found` until there is
+ * one. The audio is GET /api/visits/{id}/audio (audio/mp4, seekable with Range requests).
+ */
+export interface Transcript {
+  id: string;
+  visit_id: string;
+  provider: string;
+  model: string;
+  /** The languages recognition was biased towards, as ISO 639-1 codes ("hi,en"), or null. */
+  language_code: string | null;
+  created_at: string;
+  turns: Turn[];
 }

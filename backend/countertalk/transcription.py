@@ -22,10 +22,11 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from sqlalchemy import insert, select
+from sqlalchemy.orm import Session
 
 from countertalk import audio, storage, visits
 from countertalk.db import session_scope
-from countertalk.errors import PermanentError, RetryableError
+from countertalk.errors import NotFound, PermanentError, RetryableError
 from countertalk.models import Segment, Transcript, Turn, VisitStatus
 from countertalk.stt.base import Reply, SpeechToText
 
@@ -53,6 +54,24 @@ class SavedReply:
     session_id: str | None
     wall_ms: int
     reply: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class TranscriptView:
+    transcript: Transcript
+    turns: list[Turn]
+
+
+def current_transcript(session: Session, org_id: str, visit_id: str) -> TranscriptView:
+    """The visit's current transcript and its turns, in order."""
+    visit = visits.get_visit(session, org_id, visit_id)
+    transcript = session.get(Transcript, visit.transcript_id) if visit.transcript_id else None
+    if transcript is None:
+        raise NotFound("transcript_not_found", "This visit hasn't been transcribed yet")
+    turns = session.scalars(
+        select(Turn).where(Turn.transcript_id == transcript.id).order_by(Turn.turn_id)
+    )
+    return TranscriptView(transcript, list(turns))
 
 
 def transcribe(
@@ -95,7 +114,7 @@ def _chunk_key(chunk: audio.Chunk) -> dict[str, int]:
     return {"index": chunk.index, "start_ms": chunk.start_ms, "end_ms": chunk.end_ms}
 
 
-def _load_saved(
+def saved_reply(
     visit_id: str, chunk: audio.Chunk, stt: SpeechToText, languages: list[str]
 ) -> SavedReply | None:
     """The reply an earlier try saved for this very audio and request, if any (§9.4)."""
@@ -123,7 +142,7 @@ def _reply_for(
     languages: list[str],
     claim_lost: threading.Event | None,
 ) -> SavedReply:
-    saved = _load_saved(visit_id, chunk, stt, languages)
+    saved = saved_reply(visit_id, chunk, stt, languages)
     if saved is not None:
         return saved
     if claim_lost is not None and claim_lost.is_set():
@@ -140,7 +159,7 @@ def _reply_for(
     reply = stt.transcribe(wav, languages)
     # Another run of this visit (one whose claim was lost) may have saved its reply first: the
     # transcript is made from the first, so keep that one.
-    saved = _load_saved(visit_id, chunk, stt, languages)
+    saved = saved_reply(visit_id, chunk, stt, languages)
     if saved is None:
         saved = SavedReply(
             _chunk_key(chunk),

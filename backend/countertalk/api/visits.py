@@ -1,4 +1,5 @@
-"""/api/visits: create, list and read visits, upload their segments, and complete them."""
+"""/api/visits: create, list and read visits, upload their segments, complete them, and read
+their transcript and audio."""
 
 import logging
 import re
@@ -8,11 +9,13 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, StrictInt
+from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
 
-from countertalk import storage, visits
+from countertalk import storage, transcription, visits
 from countertalk.api.deps import CurrentUser
 from countertalk.db import DbSession
 from countertalk.errors import Invalid, LengthRequired
@@ -45,6 +48,8 @@ class VisitOut(BaseModel):
     status: str
     failure_reason: str | None
     duration_ms: int | None
+    # True while it has a queued, running or retrying job: the visit page polls until it's false.
+    processing: bool
     completed_at: datetime | None
     created_at: datetime
     updated_at: datetime
@@ -61,6 +66,24 @@ class CompleteIn(BaseModel):
     # Strict: JSON true, "1" or 1.0 aren't a segment number.
     last_seq: StrictInt
     ext: str
+
+
+class TurnOut(BaseModel):
+    turn_id: int
+    speaker_label: str
+    start_ms: int
+    end_ms: int
+    text: str
+
+
+class TranscriptOut(BaseModel):
+    id: str
+    visit_id: str
+    provider: str
+    model: str
+    language_code: str | None
+    created_at: datetime
+    turns: list[TurnOut]
 
 
 class SegmentOut(BaseModel):
@@ -114,8 +137,17 @@ async def _staged_segment(
 StagedSegment = Annotated[visits.StagedSegment, Depends(_staged_segment)]
 
 
-def _visit_out(visit: Visit) -> VisitOut:
-    return VisitOut.model_validate(visit, from_attributes=True)
+_VISIT_COLUMNS = [name for name in VisitOut.model_fields if name != "processing"]
+
+
+def _visit_out(visit: Visit, processing: set[str]) -> VisitOut:
+    """`processing` is the set of visit IDs with an active job (visits.processing_visit_ids)."""
+    columns = {name: getattr(visit, name) for name in _VISIT_COLUMNS}
+    return VisitOut(**columns, processing=visit.id in processing)
+
+
+def _one_visit_out(session: Session, visit: Visit) -> VisitOut:
+    return _visit_out(visit, visits.processing_visit_ids(session, [visit.id]))
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -123,18 +155,47 @@ def create_visit(body: VisitIn, user: CurrentUser, session: DbSession) -> VisitO
     visit = visits.create_visit(
         session, user.org_id, user.id, str(body.shop_id), body.kind.value, body.client.value
     )
-    return _visit_out(visit)
+    return _visit_out(visit, set())  # a new visit has no job yet
 
 
 @router.get("")
 def list_visits(user: CurrentUser, session: DbSession, cursor: str | None = None) -> VisitPage:
     page, next_cursor = visits.list_visits(session, user.org_id, cursor)
-    return VisitPage(items=[_visit_out(visit) for visit in page], next_cursor=next_cursor)
+    processing = visits.processing_visit_ids(session, [visit.id for visit in page])
+    return VisitPage(
+        items=[_visit_out(visit, processing) for visit in page], next_cursor=next_cursor
+    )
 
 
 @router.get("/{visit_id}")
 def get_visit(visit_id: UUID, user: CurrentUser, session: DbSession) -> VisitOut:
-    return _visit_out(visits.get_visit(session, user.org_id, str(visit_id)))
+    return _one_visit_out(session, visits.get_visit(session, user.org_id, str(visit_id)))
+
+
+@router.get("/{visit_id}/transcript")
+def get_transcript(visit_id: UUID, user: CurrentUser, session: DbSession) -> TranscriptOut:
+    """404 transcript_not_found until the visit is transcribed."""
+    found = transcription.current_transcript(session, user.org_id, str(visit_id))
+    t = found.transcript
+    return TranscriptOut(
+        id=t.id,
+        visit_id=t.visit_id,
+        provider=t.provider,
+        model=t.model,
+        language_code=t.language_code,
+        created_at=t.created_at,
+        turns=[TurnOut.model_validate(turn, from_attributes=True) for turn in found.turns],
+    )
+
+
+@router.get("/{visit_id}/audio", response_class=FileResponse)
+def get_audio(visit_id: UUID, user: CurrentUser, session: DbSession) -> FileResponse:
+    """playback.m4a, with Range requests so a player can seek (Starlette's FileResponse)."""
+    path = visits.playback_file(session, user.org_id, str(visit_id))
+    # A customer's recording: never kept by a shared cache, and checked again before reuse.
+    return FileResponse(
+        path, media_type="audio/mp4", headers={"Cache-Control": "private, no-cache"}
+    )
 
 
 @router.put("/{visit_id}/segments/{seq}")
@@ -159,4 +220,4 @@ def complete_visit(
     visit_id: UUID, body: CompleteIn, user: CurrentUser, session: DbSession
 ) -> VisitOut:
     visit = visits.complete_visit(session, user.org_id, str(visit_id), body.last_seq, body.ext)
-    return _visit_out(visit)
+    return _one_visit_out(session, visit)

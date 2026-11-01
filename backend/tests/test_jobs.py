@@ -243,6 +243,21 @@ def test_with_nothing_due_there_is_nothing_to_claim() -> None:
     assert claim() is None
 
 
+def test_a_visits_queued_job_can_be_claimed_by_hand_before_its_due(org: Org_) -> None:
+    visit_id = visit_at(org, VisitStatus.UPLOADED)
+    job_id = queued_for(visit_id)
+    set_times(job_id, run_after=-60_000)  # in a backoff
+
+    with session_scope() as session:
+        job = jobs.claim_for_visit(session, WORKER, visit_id, JobKind.TRANSCRIBE)
+    with session_scope() as session:
+        again = jobs.claim_for_visit(session, OTHER_WORKER, visit_id, JobKind.TRANSCRIBE)
+
+    assert job is not None and (job.id, job.attempts) == (job_id, 1)
+    assert job_row(job_id).locked_by == WORKER
+    assert again is None  # it's running
+
+
 def test_a_claim_skips_a_job_another_transaction_has_locked() -> None:
     first = queue()
     second = queue()

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import ColumnElement, func, select, text, update
+from sqlalchemy import ColumnElement, ScalarSelect, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -130,9 +130,30 @@ def claim(session: Session, worker_id: str) -> ClaimedJob | None:
         .with_for_update(skip_locked=True)
         .scalar_subquery()
     )
+    return _take(session, due, worker_id)
+
+
+def claim_for_visit(
+    session: Session, worker_id: str, visit_id: str, kind: str
+) -> ClaimedJob | None:
+    """Takes the visit's queued job of this kind, due or not, for a run by hand
+    (scripts/transcribe_visit.py). None if there's none queued: running, say, so no second
+    copy and no worker can run it at the same time."""
+    queued = (
+        select(Job.id)
+        .where(Job.visit_id == visit_id, Job.kind == kind, Job.state == JobState.QUEUED)
+        .order_by(Job.seq)
+        .limit(1)  # the partial unique index allows one anyway
+        .with_for_update(skip_locked=True)
+        .scalar_subquery()
+    )
+    return _take(session, queued, worker_id)
+
+
+def _take(session: Session, job_id: ScalarSelect[Any], worker_id: str) -> ClaimedJob | None:
     row = session.execute(
         update(Job)
-        .where(Job.id == due)
+        .where(Job.id == job_id)
         .values(
             state=JobState.RUNNING,
             locked_by=worker_id,

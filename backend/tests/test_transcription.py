@@ -34,13 +34,15 @@ def short_chunks(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def open_transactions() -> int:
-    """Transactions open on the test database, from any connection but this one."""
+    """Transactions open on the test database, from any client connection but this one.
+    Clients only: autovacuum's workers show here too, with transactions of their own."""
     engine = create_engine(f"{SERVER_URL}/postgres", isolation_level="AUTOCOMMIT")
     try:
         with engine.connect() as conn:
             return conn.scalar(
                 text(
                     "SELECT count(*) FROM pg_stat_activity WHERE datname = :name"
+                    " AND backend_type = 'client backend'"
                     " AND xact_start IS NOT NULL AND pid <> pg_backend_pid()"
                 ),
                 {"name": TEST_DATABASE},
@@ -83,7 +85,7 @@ class FakeStt:
 
     def __init__(
         self,
-        answers: dict[int, dict[str, Any] | Exception] | None = None,
+        answers: dict[int, dict[str, Any] | BaseException] | None = None,
         during: Callable[[int], None] | None = None,
     ) -> None:
         self.answers = answers or {}
@@ -99,7 +101,7 @@ class FakeStt:
         if self.during is not None:
             self.during(call)
         answer = self.answers.get(call, reply_body(call))
-        if isinstance(answer, Exception):
+        if isinstance(answer, BaseException):
             raise answer
         return Reply(answer, answer.get("sessionId"), wall_ms=1_000 + call)
 

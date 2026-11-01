@@ -824,6 +824,29 @@ def test_fail_processing_leaves_a_visit_that_isnt_processing_alone(org: Org_, st
     assert (after.status, after.failure_reason) == (before.status, before.failure_reason)
 
 
+@pytest.mark.parametrize(
+    ("state", "processing"),
+    [
+        (JobState.QUEUED, True),  # a retry is queued again
+        (JobState.RUNNING, True),
+        (JobState.DONE, False),
+        (JobState.DEAD, False),
+    ],
+)
+def test_a_visit_is_processing_while_it_has_an_active_job(
+    org: Org_, state: str, processing: bool
+) -> None:
+    visit_id, idle_id = visit_at(org, VisitStatus.UPLOADED), new_visit(org)
+    claimed = {"locked_by": "w", "locked_at": utc_now()} if state == JobState.RUNNING else {}
+    with session_scope() as session:
+        session.execute(update(Job).where(Job.visit_id == visit_id).values(state=state, **claimed))
+
+    with session_scope(read_only=True) as session:
+        found = visits.processing_visit_ids(session, [visit_id, idle_id])
+
+    assert found == ({visit_id} if processing else set())
+
+
 def test_fail_processing_of_a_missing_visit_does_nothing() -> None:
     assert fail_processing(new_id()) is False
 

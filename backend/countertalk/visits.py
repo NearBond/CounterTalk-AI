@@ -21,6 +21,8 @@ from countertalk import jobs, storage
 from countertalk.errors import Conflict, Invalid, NotFound, TooLarge
 from countertalk.limits import ABANDONED_UPLOAD_MS, MAX_SEGMENT_BYTES, VISITS_PAGE_SIZE
 from countertalk.models import (
+    ACTIVE_JOB_STATES,
+    Job,
     JobKind,
     Segment,
     Shop,
@@ -384,6 +386,23 @@ def complete_visit(session: Session, org_id: str, visit_id: str, last_seq: int, 
     set_status(visit, S.UPLOADED)
     jobs.enqueue(session, JobKind.TRANSCRIBE, visit_id=visit.id)
     return visit
+
+
+def processing_visit_ids(session: Session, visit_ids: list[str]) -> set[str]:
+    """Those of these visits with a queued, running or retrying job: one query for a page."""
+    query = select(Job.visit_id).where(
+        Job.visit_id.in_(visit_ids), Job.state.in_(ACTIVE_JOB_STATES)
+    )
+    return {str(visit_id) for visit_id in session.scalars(query.distinct())}
+
+
+def playback_file(session: Session, org_id: str, visit_id: str) -> Path:
+    """The visit's playback.m4a, once its audio is prepared (batch 6)."""
+    visit = get_visit(session, org_id, visit_id)
+    path = storage.playback_path(visit.id)
+    if not path.is_file():
+        raise NotFound("audio_not_found", "The recording isn't ready to play yet")
+    return path
 
 
 def list_visits(
