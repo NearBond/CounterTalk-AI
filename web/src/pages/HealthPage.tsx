@@ -28,7 +28,8 @@ async function checkHealth(signal: AbortSignal): Promise<Check> {
   }
 }
 
-export function HomePage() {
+/** `/health`: whether the API and its database answer (batch 2's check, moved off `/` in batch 7). */
+export function HealthPage() {
   const [attempt, setAttempt] = useState(0);
   const [check, setCheck] = useState<Check>({ state: "checking" });
 
@@ -54,7 +55,7 @@ export function HomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-10">
-      <h1 className="text-2xl font-semibold">CounterTalk</h1>
+      <h1 className="text-2xl font-semibold">Server status</h1>
       {/* One live region that stays mounted, so screen readers announce each change. */}
       <p role="status" className={MESSAGE_STYLE[check.state]}>
         {check.state === "checking" && "Checking the API…"}

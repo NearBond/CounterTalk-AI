@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { UploadPanel } from "../components/UploadPanel";
-import { listShops, messageOf } from "../lib/api";
-import { formatDuration } from "../lib/format";
-import { useElapsed, usePolling } from "../lib/hooks";
+import { messageOf } from "../lib/api";
+import { formatDuration, shopLabel } from "../lib/format";
+import { useElapsed, useShops } from "../lib/hooks";
 import { type Recorder, startRecorder } from "../lib/recorder";
 import type { QueueState, UploadQueue } from "../lib/uploadQueue";
 import { finishVisit, openVisit } from "../lib/visits";
@@ -41,7 +41,7 @@ const BUTTON =
 
 export function RecordPage() {
   const navigate = useNavigate();
-  const shops = usePolling((signal) => listShops(signal), { key: "shops", shouldPoll: () => false });
+  const shops = useShops();
   const [shopId, setShopId] = useState("");
   const [phase, setPhase] = useState<Phase>({ name: "idle" });
   const [error, setError] = useState<string | null>(null);
@@ -178,7 +178,7 @@ export function RecordPage() {
           <option value="">{shops.data === undefined ? "Loading shops…" : "Pick a shop"}</option>
           {shopList.map((shop) => (
             <option key={shop.id} value={shop.id} disabled={shop.do_not_record}>
-              {shop.name}, {shop.area}
+              {shopLabel(shop)}
               {shop.do_not_record ? " (said no to recording)" : ""}
             </option>
           ))}

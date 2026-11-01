@@ -5,7 +5,8 @@
  * and an answer that still arrives is ignored.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ABORTED, ApiError } from "./api";
+import type { Page, Shop } from "../types/api";
+import { ABORTED, ApiError, listShops } from "./api";
 import { POLL_MS, READ_ATTEMPTS } from "./limits";
 import { withRetry } from "./retry";
 
@@ -79,6 +80,11 @@ export function usePolling<T>(
 
   const current = loaded.key === key;
   return { data: current ? loaded.data : undefined, error: current ? loaded.error : null, reload };
+}
+
+/** The org's shops, loaded once per page with retries; `reload` after an error. */
+export function useShops(): Polling<Page<Shop>> {
+  return usePolling((signal) => listShops(signal), { key: "shops", shouldPoll: () => false });
 }
 
 /** Milliseconds since `since` (a Date.now() value), ticking every second; 0 while it's null. */

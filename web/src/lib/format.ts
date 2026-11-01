@@ -1,4 +1,11 @@
-/** The only place times and durations are formatted (CODING_GUIDELINES §4.9). Times are IST. */
+/** The only place times, durations and names are formatted (CODING_GUIDELINES §4.9). Times
+ * are IST. */
+import type { Shop } from "../types/api";
+
+/** "Sunrise Kirana, Old Market": a shop as the rep knows it. */
+export function shopLabel(shop: Shop): string {
+  return `${shop.name}, ${shop.area}`;
+}
 
 /** 0:05, 3:16, 1:02:05; a dash for a duration not known yet. */
 export function formatDuration(ms: number | null): string {
