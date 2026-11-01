@@ -118,21 +118,30 @@ def raise_(error: Exception) -> Callable[[httpx.Request], httpx.Response]:
         (raise_(httpx.ReadTimeout("slow")), RetryableError, "stt_timeout"),
     ],
 )
-def test_each_failure_is_classified(
+def test_each_failure_is_classified_and_carries_its_session(
     answer: Callable[[httpx.Request], httpx.Response], kind: type[Exception], code: str
 ) -> None:
     sessions: list[str] = []
+    statuses: list[int] = []
 
     def answer_and_note(request: httpx.Request) -> httpx.Response:
         sessions.append(request.url.params["sessionId"])
-        return answer(request)
+        response = answer(request)
+        statuses.append(response.status_code)
+        return response
 
     with pytest.raises(kind) as error:
         client(answer_and_note).transcribe(WAV, ())
 
-    assert error.value.code == code  # type: ignore[attr-defined]
-    # For Meta's support, when a failure repeats (BRIEF §8).
-    assert sessions[0] in error.value.message  # type: ignore[attr-defined]
+    failure = error.value
+    assert isinstance(failure, PermanentError | RetryableError)
+    assert failure.code == code
+    # For Meta's support, when a failure repeats (BRIEF §8): the handler logs them.
+    found = failure.details or {}
+    assert found["session_id"] == sessions[0]
+    assert found.get("http_status") == (statuses[0] if statuses else None)
+    # A permanent error's message is the visit's failure reason: plain words for the rep.
+    assert sessions[0] not in failure.message and "HTTP" not in failure.message
 
 
 def test_without_a_key_nothing_is_sent() -> None:

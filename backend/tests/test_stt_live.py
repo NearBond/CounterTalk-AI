@@ -7,6 +7,7 @@ visit), so -s may print its words.
 """
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -47,10 +48,15 @@ def test_meta_transcribes_a_two_second_clip(monkeypatch: pytest.MonkeyPatch, cli
     reply = stt.transcribe(clip, transcription.LANGUAGES)
 
     parsed = stt.parse(reply.body, CLIP_MS)
-    print(  # noqa: T201 - for the planner, who runs it with -s
+    line = (
         f"session={reply.session_id} wall_ms={reply.wall_ms} billed_ms={parsed.billed_ms}"
-        f" turns={[(turn.speaker, turn.text) for turn in parsed.turns]}"
+        f" turns={[(turn.speaker, turn.text) for turn in parsed.turns]}\n"
     )
+    # For the planner, who runs it with -s. As UTF-8 bytes: on Windows, output that's piped (as
+    # a tool runs it) is cp1252, and print() can't write Devanagari there.
+    sys.stdout.flush()
+    sys.stdout.buffer.write(line.encode("utf-8"))
+    sys.stdout.buffer.flush()
     assert reply.session_id
     assert parsed.turns and all(turn.text for turn in parsed.turns)
     assert parsed.billed_ms is not None and abs(parsed.billed_ms - CLIP_MS) < 500

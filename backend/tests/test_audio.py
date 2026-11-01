@@ -148,14 +148,18 @@ def test_a_gap_in_the_segments_is_permanent_and_runs_nothing(runs: list[str]) ->
     assert runs == []
 
 
-def test_unreadable_audio_fails_once_permanently(runs: list[str]) -> None:
+def test_unreadable_audio_fails_once_permanently_in_plain_words(
+    runs: list[str], caplog: pytest.LogCaptureFixture
+) -> None:
     visit_id, seqs = store(b"this is not audio at all " * 400)
 
-    with pytest.raises(PermanentError) as error:
+    with caplog.at_level(logging.WARNING), pytest.raises(PermanentError) as error:
         audio.prepare(visit_id, "webm", seqs)
 
-    assert error.value.code == "unreadable_audio"
+    assert (error.value.code, error.value.message) == ("unreadable_audio", audio.UNREADABLE)
     assert runs == ["probe"]
+    # The rep reads the message; ffprobe's own line, which names a server path, goes to the log.
+    assert f"audio unreadable visit={visit_id} tool=ffprobe" in caplog.text
 
 
 @pytest.mark.parametrize(("limit_ms", "refused"), [(10_000, False), (9_999, True)])
@@ -258,8 +262,8 @@ def test_a_tag_that_looks_like_a_measurement_is_ignored() -> None:
     assert error.value.code == "no_speech"
 
 
-def test_metadata_never_reaches_an_error_message(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+def test_metadata_never_reaches_an_error_message_or_the_log(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     # ffmpeg prints the input's tags, indented, and then fails to open its output; errors quote
     # only unindented lines (§1.9, §2.7).
@@ -278,13 +282,13 @@ def test_metadata_never_reaches_an_error_message(
 
     monkeypatch.setattr(subprocess, "run", keep_stderr)
 
-    with pytest.raises(PermanentError) as error:
+    with caplog.at_level(logging.WARNING), pytest.raises(PermanentError) as error:
         audio.prepare(visit_id, "m4a", seqs)
 
     assert FAKE_NAME in "".join(printed)  # ffmpeg did print the tag
     assert error.value.code == "unreadable_audio"
-    assert "Leaky" not in error.value.message
-    assert "Shopkeeper" not in error.value.message
+    assert "Leaky" not in error.value.message + caplog.text
+    assert "Shopkeeper" not in error.value.message + caplog.text
 
 
 # --- a retry reuses finished work (§9.4) --------------------------------------------------------

@@ -34,6 +34,7 @@ from countertalk.errors import Invalid, PermanentError, RetryableError
 
 log = logging.getLogger(__name__)
 
+UNREADABLE = "The recording couldn't be read as audio"
 PLAYBACK_BITRATE = "64k"
 COPY_BLOCK_BYTES = 1024 * 1024
 MANIFEST_VERSION = 2
@@ -66,6 +67,20 @@ def prepare(visit_id: str, ext: str, seqs: Sequence[int]) -> Prepared:
 
     Files and ffmpeg only, no database: call it with no transaction open (§2.4).
     """
+    try:
+        return _prepare(visit_id, ext, seqs)
+    except PermanentError as error:
+        if error.details:  # an unreadable recording: the tool's own lines, for the log only
+            log.warning(
+                "audio unreadable visit=%s tool=%s stderr=%s",
+                visit_id,
+                error.details.get("tool"),
+                error.details.get("stderr"),
+            )
+        raise
+
+
+def _prepare(visit_id: str, ext: str, seqs: Sequence[int]) -> Prepared:
     finished = _finished(visit_id)
     if finished is not None:
         return finished
@@ -415,8 +430,10 @@ def _run(
             raise RetryableError("audio_interrupted", f"{args[0]} was stopped part-way") from None
         if "No space left on device" in (error.stderr or ""):
             raise RetryableError("disk_full", "The server's disk is full") from None
+        # The rep reads the message as the visit's failure reason, so it's fixed words. The tool's
+        # own lines name server paths: prepare() logs them, with the visit.
         raise PermanentError(
-            "unreadable_audio", f"The recording can't be read as audio ({args[0]}: {detail})"
+            "unreadable_audio", UNREADABLE, details={"tool": args[0], "stderr": detail}
         ) from None
     except subprocess.TimeoutExpired:
         raise RetryableError(

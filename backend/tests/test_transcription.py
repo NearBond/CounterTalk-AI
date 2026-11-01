@@ -4,6 +4,7 @@ Audio is made by ffmpeg in each test, with chunks shortened to 10 s so a visit h
 """
 
 import json
+import logging
 import threading
 from collections.abc import Callable
 from typing import Any
@@ -175,11 +176,18 @@ def test_a_visit_is_transcribed_into_turns_shifted_by_each_chunks_offset(org: Or
     assert (reply["chunk"]["start_ms"], reply["chunk"]["end_ms"]) == (offset, second.end_ms)
 
 
-def test_a_retry_sends_only_the_chunks_with_no_saved_reply(org: Org_) -> None:
+def test_a_retry_sends_only_the_chunks_with_no_saved_reply(
+    org: Org_, caplog: pytest.LogCaptureFixture
+) -> None:
     visit_id = uploaded_visit(org, 25)
-    failing = FakeStt({1: RetryableError("stt_server_error", "Speech-to-text failed")})
-    with pytest.raises(RetryableError):
+    failed = RetryableError(
+        "stt_server_error", "Speech-to-text failed", details={"session_id": "failed-session"}
+    )
+    failing = FakeStt({1: failed})
+    with caplog.at_level(logging.WARNING), pytest.raises(RetryableError):
         transcription.transcribe(visit_id, failing)
+    # The failed call's session, with its visit and chunk, for the provider's support.
+    assert f"visit={visit_id} chunk=1 code=stt_server_error session=failed-session" in caplog.text
     assert (load(visit_id).status, load(visit_id).stt_seconds_billed) == (
         VisitStatus.TRANSCRIBING,
         4,  # chunk 0 was paid for; the failed call isn't billed
@@ -322,7 +330,7 @@ def run_job(fake: FakeStt) -> Job:
             "Speech-to-text refused the key",
         ),
         (None, FakeStt({0: NO_WORDS}), "Speech-to-text heard no words in the recording"),
-        (b"not audio at all", FakeStt(), "The recording can't be read as audio"),
+        (b"not audio at all", FakeStt(), audio.UNREADABLE),
     ],
     ids=["stt-refused", "no-words", "unreadable"],
 )
@@ -336,7 +344,7 @@ def test_a_failed_transcription_fails_the_visit_with_a_reason(
     visit = load(visit_id)
     assert job.state == JobState.DEAD
     assert visit.status == VisitStatus.FAILED
-    assert visit.failure_reason is not None and visit.failure_reason.startswith(reason)
+    assert visit.failure_reason == reason
     assert transcripts(visit_id) == []
 
 

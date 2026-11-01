@@ -2,7 +2,8 @@
 
 One synchronous request per chunk: multipart, with a `request` part of settings and an `audio`
 part of WAV. Each request carries a session ID of ours, so a failure can be traced with Meta's
-support even when no reply came back. Retries are the job queue's: this sends once.
+support even when no reply came back: every error carries it in `details`. Retries are the job
+queue's: this sends once.
 """
 
 import json
@@ -74,22 +75,26 @@ class MetaSpeechToText:
         except httpx.TimeoutException:
             seconds = limits.STT_TIMEOUT_MS // 1000
             raise RetryableError(
-                "stt_timeout", f"Speech-to-text took over {seconds} s (session {session_id})"
+                "stt_timeout",
+                f"Speech-to-text took over {seconds} s",
+                details={"session_id": session_id},
             ) from None
         except httpx.HTTPError:
             raise RetryableError(
-                "stt_network_error", f"Speech-to-text couldn't be reached (session {session_id})"
+                "stt_network_error",
+                "Speech-to-text couldn't be reached",
+                details={"session_id": session_id},
             ) from None
         wall_ms = round((time.monotonic() - started) * 1000)
-        _check_status(response.status_code, session_id)
+        found = {"session_id": session_id, "http_status": response.status_code}
+        _check_status(response.status_code, found)
         try:
             body = response.json()
         except ValueError:
             body = None
         if not isinstance(body, dict):
             raise RetryableError(
-                "stt_bad_reply",
-                f"Speech-to-text's reply wasn't a JSON object (session {session_id})",
+                "stt_bad_reply", "Speech-to-text's reply wasn't a JSON object", details=found
             )
         return Reply(body, _text(body.get("sessionId")) or session_id, wall_ms)
 
@@ -97,22 +102,29 @@ class MetaSpeechToText:
         return parse(body, duration_ms)
 
 
-def _check_status(status: int, session_id: str) -> None:
-    """Classifies a refusal (§9.5). Only words of ours: Meta's own message isn't kept."""
+def _check_status(status: int, found: dict[str, Any]) -> None:
+    """Classifies a refusal (§9.5). Only words of ours: Meta's own message isn't kept.
+
+    A permanent error's message becomes the visit's failure reason, which the rep reads, so
+    messages are plain words. The session and the status are in `details`, which the transcribe
+    handler logs with the visit, for Meta's support if a failure repeats (BRIEF §8).
+    """
     if 200 <= status < 300:
         return
-    where = f"HTTP {status}, session {session_id}"
     if status in (401, 403):
         raise PermanentError(
-            "stt_auth_failed", f"Speech-to-text refused the server's key ({where})"
+            "stt_auth_failed",
+            "Speech-to-text refused the server's key",
+            details=found,
         )
     if status == 429:
-        raise RetryableError("stt_rate_limited", f"Speech-to-text is busy ({where})")
+        raise RetryableError("stt_rate_limited", "Speech-to-text is busy", details=found)
     if status >= 500 or status == 408:
-        # One that keeps repeating ends as a dead job, with this session in its last error.
-        raise RetryableError("stt_server_error", f"Speech-to-text failed ({where})")
+        raise RetryableError("stt_server_error", "Speech-to-text failed", details=found)
     why = REFUSALS.get(status, "an answer the app doesn't expect")
-    raise PermanentError("stt_refused", f"Speech-to-text refused the audio: {why} ({where})")
+    raise PermanentError(
+        "stt_refused", f"Speech-to-text refused the recording: {why}", details=found
+    )
 
 
 def parse(body: dict[str, Any], duration_ms: int) -> Parsed:

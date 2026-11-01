@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from countertalk import audio, storage, visits
 from countertalk.db import session_scope
-from countertalk.errors import NotFound, PermanentError, RetryableError
+from countertalk.errors import DomainError, NotFound, PermanentError, RetryableError
 from countertalk.models import Segment, Transcript, Turn, VisitStatus
 from countertalk.stt.base import Reply, SpeechToText
 
@@ -156,7 +156,20 @@ def _reply_for(
         chunk.index,
         chunk.end_ms - chunk.start_ms,
     )
-    reply = stt.transcribe(wav, languages)
+    try:
+        reply = stt.transcribe(wav, languages)
+    except DomainError as error:
+        # With the client's session and status, for its support if a failure repeats.
+        found = error.details or {}
+        log.warning(
+            "stt call failed visit=%s chunk=%d code=%s session=%s http_status=%s",
+            visit_id,
+            chunk.index,
+            error.code,
+            found.get("session_id"),
+            found.get("http_status"),
+        )
+        raise
     # Another run of this visit (one whose claim was lost) may have saved its reply first: the
     # transcript is made from the first, so keep that one.
     saved = saved_reply(visit_id, chunk, stt, languages)
