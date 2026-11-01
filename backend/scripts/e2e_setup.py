@@ -18,14 +18,12 @@ from alembic.config import Config
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 
-from countertalk import storage
+from countertalk import storage, transcription
 from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import session_scope
 from countertalk.logs import configure_logging
 from countertalk.models import (
     Shop,
-    Transcript,
-    Turn,
     Visit,
     VisitClient,
     VisitKind,
@@ -103,27 +101,11 @@ def main() -> int:
         recording = Visit(**common, client=VisitClient.WEB)
         session.add_all([transcribed, recording])
         session.flush()
-        transcript = Transcript(
-            visit_id=transcribed.id,
-            provider="e2e",
-            model="seeded",
-            language_code="hi,en",
-            raw_dir=storage.relative_to_data_dir(storage.stt_dir(transcribed.id)),
-        )
-        session.add(transcript)
-        session.flush()
-        session.add_all(
-            Turn(
-                transcript_id=transcript.id,
-                turn_id=n,
-                speaker_label=label,
-                start_ms=start,
-                end_ms=end,
-                text=words,
-            )
+        turns = [
+            {"turn_id": n, "speaker_label": label, "start_ms": start, "end_ms": end, "text": words}
             for n, (label, start, end, words) in enumerate(TURNS)
-        )
-        transcribed.transcript_id = transcript.id
+        ]
+        transcription.add_transcript(session, transcribed, "e2e", "seeded", "hi,en", turns)
     make_playback(transcribed.id)
     print(json.dumps({"transcribed": transcribed.id, "recording": recording.id}))
     return 0

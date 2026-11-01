@@ -34,6 +34,7 @@ BAD_INPUTS = {
     "show_quotes.py": ([UNKNOWN], {}),
     "compare_extraction.py": ([UNKNOWN, "no-such.expected.yaml"], {}),
     "export_eval_case.py": ([UNKNOWN, "rp99"], {}),
+    "run_eval.py": (["--cases", "no-such-folder"], {}),
 }
 
 

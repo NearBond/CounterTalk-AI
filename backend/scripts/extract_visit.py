@@ -42,7 +42,7 @@ from countertalk.models import (
     parse_id,
 )
 from countertalk.playbooks import ORG_PACKS_DIR, PLAYBOOKS_DIR
-from scripts._paid import estimate, model_llm, run_extract_job, show_paid
+from scripts._paid import Stopped, estimate, model_llm, paid_run, run_extract_job
 
 # A dry run's estimate of the answer's tokens: a summary, a few insights with quotes, a task or
 # two. Reasoning is added on top (pricing).
@@ -103,17 +103,15 @@ def show_result(visit_id: str) -> None:
 
 
 def run(visit: Visit, again: bool, llm: StructuredLlm, folders: dict[str, Path]) -> int:
-    before = llm_calls.latest_seq(visit.id)
-    done = run_extract_job(visit, again, llm, folders)
-    if done is None:
-        print(f"visit {visit.id} not extracted: it has no queued job", file=sys.stderr)
-        return 1
-    if done.stopped:
-        show_paid(visit.id, before)
-        print(f"stopped: the job is {done.state}", file=sys.stderr)
-        return 130
-    show_result(visit.id)
-    show_paid(visit.id, before)
+    with paid_run({visit.id: llm_calls.latest_seq(visit.id)}):
+        done = run_extract_job(visit, again, llm, folders)
+        if done is None:
+            print(f"visit {visit.id} not extracted: it has no queued job", file=sys.stderr)
+            return 1
+        if done.stopped:
+            print(f"stopped: the job is {done.state}", file=sys.stderr)
+            return 130
+        show_result(visit.id)
     if done.state == JobState.DONE:
         return 0
     # Queued again after a backoff: a worker would retry it, and pay again.
@@ -174,6 +172,9 @@ def main(argv: list[str], llm: StructuredLlm | None = None) -> int:
     except DomainError as error:  # a pack that doesn't check out, or a visit it can't redo
         print(f"failed: {describe(error)}", file=sys.stderr)
         return 1
+    except Stopped:
+        print("stopped", file=sys.stderr)
+        return 130
 
 
 if __name__ == "__main__":

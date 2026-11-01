@@ -4,8 +4,9 @@ calls actually sent. A module, not a script (the leading underscore): it has no 
 """
 
 import sys
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,7 @@ from sqlalchemy import select
 
 from countertalk import extraction, jobs, llm_calls, visits, worker
 from countertalk.config import get_settings
-from countertalk.db import session_scope
+from countertalk.db import SETUP_ERRORS, session_scope
 from countertalk.errors import RetryableError
 from countertalk.llm import pricing
 from countertalk.llm.base import CallDetails, Message, StructuredLlm
@@ -64,10 +65,44 @@ def paid_since(visit_id: str, seq: int, purpose: LlmPurpose | None = None) -> li
     return [call for _, call in llm_calls.since(visit_id, seq, purpose)]
 
 
-def show_paid(visit_id: str, seq: int) -> None:
-    """The visit's calls logged after `seq`, each with its purpose, and their cost."""
-    paid = llm_calls.since(visit_id, seq)
-    show_calls([call for _, call in paid], [purpose for purpose, _ in paid])
+class Stopped(Exception):
+    """Ctrl+C during a paid run, once what was paid is printed: exit 130."""
+
+
+@dataclass
+class Paid:
+    """What a paid run's visits logged, filled in on its way out: {visit: [(purpose, call)]}."""
+
+    calls: dict[str, list[tuple[str, CallDetails]]] = field(default_factory=dict)
+
+    def usd(self, visit_id: str) -> float:
+        return sum(pricing.call_cost(call) for _, call in self.calls.get(visit_id, []))
+
+
+@contextmanager
+def paid_run(since: dict[str, int], heading: str | None = None) -> Iterator[Paid]:
+    """Around a paid run (the R8 guard): on every way out, done, failed or stopped, it prints
+    each call the visits logged after their seq in `since`, and the cost. Ctrl+C anywhere
+    inside becomes Stopped. If the database doesn't answer, it says so in one line: llm_calls
+    has the calls."""
+    paid = Paid()
+    try:
+        yield paid
+    except KeyboardInterrupt:
+        raise Stopped from None
+    finally:
+        try:
+            paid.calls = {visit: llm_calls.since(visit, seq) for visit, seq in since.items()}
+        except SETUP_ERRORS:
+            print(
+                "what was paid can't be read: the database didn't answer (llm_calls has it)",
+                file=sys.stderr,
+            )
+        else:
+            every = [call for calls in paid.calls.values() for call in calls]
+            if heading:
+                print(heading)
+            show_calls([call for _, call in every], [purpose for purpose, _ in every])
 
 
 @dataclass(frozen=True)

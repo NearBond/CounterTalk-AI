@@ -259,9 +259,14 @@ def _model[T: BaseModel](model: type[T], data: dict[str, Any], path: Path) -> T:
     try:
         return model.model_validate(data)
     except ValidationError as error:
-        first = error.errors()[0]
-        field = ".".join(str(part) for part in first["loc"]) or "(file)"
-        raise PackError(path, field, first["msg"]) from None
+        raise PackError(path, *first_problem(error)) from None
+
+
+def first_problem(error: ValidationError) -> tuple[str, str]:
+    """Where, as a dotted path ("(file)" for the whole), and what, of the first problem pydantic
+    found: one line for a person, for every strictly read file (R1)."""
+    first = error.errors()[0]
+    return ".".join(str(part) for part in first["loc"]) or "(file)", first["msg"]
 
 
 def _folder(root: Path, folder_id: str, version: int, path_for_errors: Path) -> Path:

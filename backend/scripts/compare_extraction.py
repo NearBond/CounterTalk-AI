@@ -53,7 +53,7 @@ from countertalk.models import (
     Visit,
     parse_id,
 )
-from countertalk.playbooks import read_yaml
+from countertalk.playbooks import first_problem, read_yaml
 from countertalk.reporting import buckets, share
 from scripts.compare_transcript import BadReference, Span, load_reference
 
@@ -161,14 +161,18 @@ class K2File(BaseModel):
     insights: list[K2Insight]
 
 
-def load_expected(path: Path, script: Sequence[Span]) -> list[Expected]:
-    """The expected insights, each with its phrase's turn in the mix. Raises BadReference."""
+def load_expected(
+    path: Path, script: Sequence[Span], recording: str | None = None
+) -> list[Expected]:
+    """The expected insights, each with its phrase's turn in the mix; with `recording`, only an
+    answer key for that one. Raises BadReference."""
     try:
         file = K2File.model_validate(read_yaml(path))
     except ValidationError as error:
-        first = error.errors()[0]
-        where = ".".join(str(part) for part in first["loc"])
-        raise BadReference(f"{where}: {first['msg']}") from None
+        where, what = first_problem(error)
+        raise BadReference(f"{where}: {what}") from None
+    if recording is not None and file.recording != recording:
+        raise BadReference(f"it's {file.recording}'s answer key")
     found = []
     for number, item in enumerate(file.insights, start=1):
         phrase = nfc(item.phrase)

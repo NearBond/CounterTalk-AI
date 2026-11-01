@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 from countertalk import audio, catalog, errors, jobs, storage, visits
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, NotFound, PermanentError
-from countertalk.models import JobKind, Segment, Transcript, Turn, VisitStatus
+from countertalk.models import JobKind, Segment, Transcript, Turn, Visit, VisitStatus
 from countertalk.stt.base import Reply, SpeechToText
 
 log = logging.getLogger(__name__)
@@ -236,6 +236,31 @@ def _count_paid_call(visit_id: str, chunk: audio.Chunk, stt: SpeechToText, reply
         visits.add_stt_cost(session, visit_id, billed_s, reply.wall_ms)
 
 
+def add_transcript(
+    session: Session,
+    visit: Visit,
+    provider: str,
+    model: str,
+    languages: str,
+    turns: Sequence[dict[str, Any]],
+) -> str:
+    """A new transcript of these turns (turn_id, speaker_label, start_ms, end_ms, text), made
+    the visit's current one. The transcribe job's; scripts and tests that need a transcript
+    without speech-to-text use it too (R1). Its ID."""
+    transcript = Transcript(
+        visit_id=visit.id,
+        provider=provider,
+        model=model,
+        language_code=languages or None,
+        raw_dir=storage.relative_to_data_dir(storage.stt_dir(visit.id)),
+    )
+    session.add(transcript)
+    session.flush()
+    session.execute(insert(Turn), [{"transcript_id": transcript.id, **t} for t in turns])
+    visit.transcript_id = transcript.id
+    return transcript.id
+
+
 def _finish(
     visit_id: str,
     stt: SpeechToText,
@@ -264,17 +289,7 @@ def _finish(
             status = None if visit is None else visit.status
             log.info("transcript not saved visit=%s status=%s", visit_id, status)
             return
-        transcript = Transcript(
-            visit_id=visit_id,
-            provider=stt.provider,
-            model=stt.model,
-            language_code=",".join(languages) or None,
-            raw_dir=storage.relative_to_data_dir(storage.stt_dir(visit_id)),
-        )
-        session.add(transcript)
-        session.flush()
-        session.execute(insert(Turn), [{"transcript_id": transcript.id, **t} for t in turns])
-        visit.transcript_id = transcript.id
+        add_transcript(session, visit, stt.provider, stt.model, ",".join(languages), turns)
         visit.duration_ms = prepared.duration_ms
         visits.set_status(visit, VisitStatus.TRANSCRIBED)
         # In the same transaction: a transcribed visit is never left without its next step.

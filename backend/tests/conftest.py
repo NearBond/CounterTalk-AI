@@ -20,10 +20,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.exc import OperationalError
 
+from countertalk import transcription
 from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import get_engine, session_scope
 from countertalk.main import create_app
-from countertalk.models import Org, Transcript, Turn, Visit
+from countertalk.models import Org, Visit
 
 # 127.0.0.1, not localhost: on Windows, localhost tries ::1 first and waits for it to time out.
 # CI's job container reaches its Postgres service by name instead (TEST_POSTGRES_HOST).
@@ -128,25 +129,19 @@ TWO_TURNS = (("c0:A", 0, "Namaste ji."), ("c0:B", 1, "Haan bolo."))
 def give_transcript(visit_id: str, lines: Sequence[tuple[str, int, str]] = TWO_TURNS) -> str:
     """Gives the visit a transcript of these turns (label, start_ms, text), as the transcribe
     job would, each turn 1 ms long. Its ID."""
+    turns = [
+        {
+            "turn_id": index,
+            "speaker_label": label,
+            "start_ms": start_ms,
+            "end_ms": start_ms + 1,
+            "text": text,
+        }
+        for index, (label, start_ms, text) in enumerate(lines)
+    ]
     with session_scope() as session:
-        transcript = Transcript(
-            visit_id=visit_id, provider="fake", model="fake-1", language_code="hi,en", raw_dir="x"
-        )
-        session.add(transcript)
-        session.flush()
-        session.add_all(
-            Turn(
-                transcript_id=transcript.id,
-                turn_id=index,
-                speaker_label=label,
-                start_ms=start_ms,
-                end_ms=start_ms + 1,
-                text=text,
-            )
-            for index, (label, start_ms, text) in enumerate(lines)
-        )
-        session.get_one(Visit, visit_id).transcript_id = transcript.id
-        return transcript.id
+        visit = session.get_one(Visit, visit_id)
+        return transcription.add_transcript(session, visit, "fake", "fake-1", "hi,en", turns)
 
 
 def org_count() -> int:
