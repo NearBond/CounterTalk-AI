@@ -259,6 +259,7 @@ ORG_ROW_BY_ID_ALLOWED = {
     ("extraction.py", "wait_for_key"),  # the extract job's own visit
     ("review.py", "add_insight"),  # a client's ID, matched to the visit locked just before
     ("review.py", "add_note"),  # a client's ID, matched to the visit locked just before
+    ("summary_jobs.py", "run"),  # the summary job's own summary
 }
 
 
@@ -552,6 +553,54 @@ def files_written_only_by_storage(sources: list[Source]) -> list[str]:
     return found
 
 
+def literal_values(node: ast.AST) -> list[str] | None:
+    """The strings of a Literal["a", "b"], or None for anything else."""
+    if not (
+        isinstance(node, ast.Subscript) and dotted(node.value) in {"Literal", "typing.Literal"}
+    ):
+        return None
+    items = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+    if not all(isinstance(i, ast.Constant) and isinstance(i.value, str) for i in items):
+        return None
+    return [i.value for i in items if isinstance(i, ast.Constant)]
+
+
+def domain_choices() -> dict[frozenset[str], str]:
+    """The values of the app's StrEnums and Literal aliases outside api/, and where each is."""
+    found = {}
+    for path, tree in app_sources():
+        if path.startswith("api/"):
+            continue
+        for node in tree.body:
+            values = None
+            if isinstance(node, ast.ClassDef) and any(dotted(b) == "StrEnum" for b in node.bases):
+                values, name = [], node.name
+                for item in node.body:
+                    if isinstance(item, ast.Assign) and isinstance(item.value, ast.Constant):
+                        values.append(str(item.value.value))
+            elif isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
+                values, name = literal_values(node.value), node.targets[0].id
+            if values and len(values) >= 2:
+                found[frozenset(values)] = f"{path} {name}"
+    return found
+
+
+def api_literals_copy_no_domain_choice(sources: list[Source]) -> list[str]:
+    """R1, added in batch 15b-3, when it came up in a third part running (an API Literal copying
+    summaries.PeriodKind and SummaryScope): an API Literal with exactly the values of one of the
+    app's StrEnums or Literal aliases is a copy that drifts from it. Use that type instead."""
+    choices = domain_choices()
+    found = []
+    for path, tree in sources:
+        if not path.startswith("api/"):
+            continue
+        for node in ast.walk(tree):
+            values = literal_values(node)
+            if values and frozenset(values) in choices:
+                found.append(f"{path}:{node.lineno} copies {choices[frozenset(values)]}")
+    return found
+
+
 RULES: dict[str, Callable[[list[Source]], list[str]]] = {
     rule.__name__: rule
     for rule in [
@@ -572,10 +621,16 @@ RULES: dict[str, Callable[[list[Source]], list[str]]] = {
         clients_import_only_the_allowlist,
         jobs_imports_no_domain_module,
         files_written_only_by_storage,
+        api_literals_copy_no_domain_choice,
     ]
 }
 
 BAD_EXAMPLES = [
+    (
+        "api_literals_copy_no_domain_choice",
+        "api/summaries.py",
+        "Scope = Literal['team', 'org']\n",
+    ),
     (
         "files_written_only_by_storage",
         "audio.py",

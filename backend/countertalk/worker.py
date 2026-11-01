@@ -26,7 +26,7 @@ from pathlib import Path
 from types import FrameType
 
 # limits as a module, so a test or a manual run can shorten a limit for everything here.
-from countertalk import extraction, jobs, limits, storage, transcription, visits
+from countertalk import extraction, jobs, limits, storage, summary_jobs, transcription, visits
 from countertalk.config import get_settings
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, PermanentError, RetryableError
@@ -102,10 +102,22 @@ def _extract(ctx: JobContext) -> None:
     extract_with(MetaLlm(key))(ctx)
 
 
+def summarise_with(**packs: Path) -> Handler:
+    """The summary handler (and, for tests, other pack folders)."""
+
+    def handler(ctx: JobContext) -> None:
+        if ctx.job.summary_id is None:
+            raise PermanentError("no_summary", "A summary job needs a summary")
+        summary_jobs.run(ctx.job.summary_id, **packs)
+
+    return handler
+
+
 # Each kind's handler. Its max attempts are in jobs.KINDS; a kind with no handler is retried.
 HANDLERS: dict[str, Handler] = {
     JobKind.TRANSCRIBE: _transcribe,
     JobKind.EXTRACT: _extract,
+    JobKind.SUMMARY: summarise_with(),
     JobKind.PING: _ping,
     JobKind.SLEEP: _sleep,
 }

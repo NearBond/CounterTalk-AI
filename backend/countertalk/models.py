@@ -402,6 +402,8 @@ class LlmPurpose(StrEnum):
     ROLES = "roles"
     EXTRACTION = "extraction"
     QUOTE_REPAIR = "quote_repair"
+    # Batch 15b's narrative: about a summary, never a visit.
+    SUMMARY = "summary"
 
 
 class LlmCall(Base):
@@ -413,6 +415,12 @@ class LlmCall(Base):
         CheckConstraint(_one_of("purpose", LlmPurpose), name="purpose"),
         # An answered call has no error, and a failed one has its code.
         CheckConstraint("ok = (error IS NULL)", name="ok_or_error"),
+        # A summary's call, and only that, names its summary, and no visit: its cost stays
+        # countable (batch 15c's --patterns reports it).
+        CheckConstraint(
+            f"(purpose = '{LlmPurpose.SUMMARY}') = (summary_id IS NOT NULL)", name="summary"
+        ),
+        CheckConstraint("summary_id IS NULL OR visit_id IS NULL", name="visit_or_summary"),
     )
     __mapper_args__ = {"eager_defaults": True}
 
@@ -423,6 +431,10 @@ class LlmCall(Base):
     # deleted: what it cost stays counted.
     visit_id: Mapped[str | None] = mapped_column(
         Uuid(as_uuid=False), ForeignKey("visits.id", ondelete="SET NULL"), index=True
+    )
+    # Summaries are never deleted, so nothing happens on delete.
+    summary_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("summaries.id"), index=True
     )
     purpose: Mapped[str] = mapped_column(String)
     provider: Mapped[str] = mapped_column(String)
@@ -489,6 +501,17 @@ class Job(Base):
             unique=True,
             postgresql_where=text(ACTIVE_JOB),
         ),
+        # A summary, likewise, has at most one active job (batch 15b).
+        Index(
+            "uq_jobs_active_summary_id_kind",
+            "summary_id",
+            "kind",
+            unique=True,
+            postgresql_where=text(ACTIVE_JOB),
+        ),
+        # A summary job, and only that, is about a summary, and never a visit.
+        CheckConstraint(f"(kind = '{JobKind.SUMMARY}') = (summary_id IS NOT NULL)", name="summary"),
+        CheckConstraint("summary_id IS NULL OR visit_id IS NULL", name="visit_or_summary"),
         # The claim's order, over queued jobs only.
         Index(
             "ix_jobs_queued_created_at_seq",
@@ -504,6 +527,11 @@ class Job(Base):
     # None for work that isn't about one visit: the test jobs, and batch 15b's summaries.
     visit_id: Mapped[str | None] = mapped_column(
         Uuid(as_uuid=False), ForeignKey("visits.id", ondelete="CASCADE"), index=True
+    )
+    # A summary job's summary (batch 15b). Summaries are never deleted; if one were, so would
+    # be its jobs, like a visit's.
+    summary_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("summaries.id", ondelete="CASCADE"), index=True
     )
     kind: Mapped[str] = mapped_column(String)
     state: Mapped[str] = mapped_column(String, default=JobState.QUEUED.value)
@@ -1138,3 +1166,70 @@ class IssueEvent(Base):
     to_value: Mapped[str | None] = mapped_column(String)
     note: Mapped[str | None] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class SummaryScope(StrEnum):
+    TEAM = "team"
+    ORG = "org"
+
+
+class SummaryStatus(StrEnum):
+    # Its job is queued or running.
+    WRITING = "writing"
+    READY = "ready"
+    # Its job died: failure_reason says why, and Try again queues a new one.
+    FAILED = "failed"
+
+
+class Summary(Base):
+    """A team's or the org's summary of one week or month (batch 15b; BRIEF D16): the numbers
+    its job counted (summaries.py) and the narrative written from them. Asked for once per
+    scope, team and period (the unique constraint): asking again finds it. Never deleted, so
+    its LLM calls stay counted."""
+
+    __tablename__ = "summaries"
+    __table_args__ = (
+        CheckConstraint(_one_of("scope", SummaryScope), name="scope"),
+        CheckConstraint(_one_of("status", SummaryStatus), name="status"),
+        # A team's, and only then, names its team.
+        CheckConstraint(f"(scope = '{SummaryScope.TEAM}') = (team_id IS NOT NULL)", name="team"),
+        CheckConstraint("period_end > period_start", name="period"),
+        # Ready with its numbers and when they were counted; failed, and only then, with why.
+        CheckConstraint(
+            f"status <> '{SummaryStatus.READY}'"
+            " OR (numbers IS NOT NULL AND counted_at IS NOT NULL)",
+            name="ready",
+        ),
+        CheckConstraint(
+            f"(status = '{SummaryStatus.FAILED}') = (failure_reason IS NOT NULL)", name="failed"
+        ),
+        UniqueConstraint(
+            "org_id",
+            "scope",
+            "team_id",
+            "period_start",
+            "period_end",
+            postgresql_nulls_not_distinct=True,
+        ),
+        # Its team is its own org's. Teams are never deleted, so nothing happens on delete.
+        ForeignKeyConstraint(["org_id", "team_id"], ["teams.org_id", "teams.id"]),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    scope: Mapped[str] = mapped_column(String)
+    team_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    # [start, end): a week from Monday or a calendar month, in IST (summaries.Period).
+    period_start: Mapped[datetime] = mapped_column(UtcDateTime)
+    period_end: Mapped[datetime] = mapped_column(UtcDateTime)
+    status: Mapped[str] = mapped_column(String, default=SummaryStatus.WRITING.value)
+    # As the job counted them, and when, for the narrative to be checked against
+    # (summary_jobs.py).
+    numbers: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
+    counted_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    narrative: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
+    # The LLM that wrote the narrative; None without one.
+    model: Mapped[str | None] = mapped_column(String)
+    failure_reason: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now, onupdate=utc_now)

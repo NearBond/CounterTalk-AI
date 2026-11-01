@@ -8,7 +8,8 @@
   If the claim was lost (recovered as stale, and perhaps taken again), they change nothing, so
   a newer claim is never overwritten.
 - Lock order: a visit, then its job, and never one job while waiting for another's visit. An API
-  request locks its visit, then queues a job, and any other order deadlocks with it.
+  request locks its visit, then queues a job, and any other order deadlocks with it. A summary
+  (batch 15b) is like a visit: the summary, then its job.
 """
 
 import logging
@@ -28,7 +29,7 @@ from sqlalchemy.orm import Session
 from countertalk import limits
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, RetryableError, describe
-from countertalk.models import ACTIVE_JOB, Job, JobKind, JobState, new_id
+from countertalk.models import ACTIVE_JOB, Job, JobKind, JobState, Summary, SummaryStatus, new_id
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +77,8 @@ class ClaimedJob:
     # Claims so far, this one included.
     attempts: int
     max_attempts: int
+    # A summary job's summary (batch 15b).
+    summary_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -89,11 +92,11 @@ class _ClaimLost(Exception):
     """Rolls back the savepoint of a step whose job had moved on."""
 
 
-def enqueue(session: Session, kind: str, *, visit_id: str | None = None) -> str | None:
-    """Queues a job, due now: its ID, or None if the visit has an active one of this kind.
-
-    Jobs without a visit are never merged; a kind that needs one at a time (15b's summaries)
-    dedupes on its own column.
+def enqueue(
+    session: Session, kind: str, *, visit_id: str | None = None, summary_id: str | None = None
+) -> str | None:
+    """Queues a job, due now: its ID, or None if the visit, or the summary, has an active one
+    of this kind. The test jobs, with neither, are never merged.
     """
     max_attempts = KINDS[JobKind(kind)]  # ValueError for a kind that doesn't exist
     table = Job.__table__
@@ -102,18 +105,23 @@ def enqueue(session: Session, kind: str, *, visit_id: str | None = None) -> str 
         .values(
             id=new_id(),
             visit_id=visit_id,
+            summary_id=summary_id,
             kind=kind,
             state=JobState.QUEUED,
             attempts=0,
             max_attempts=max_attempts,
         )
-        .on_conflict_do_nothing(index_elements=["visit_id", "kind"], index_where=text(ACTIVE_JOB))
+        .on_conflict_do_nothing(
+            index_elements=["summary_id" if summary_id else "visit_id", "kind"],
+            index_where=text(ACTIVE_JOB),
+        )
         .returning(table.c.id)
     ).first()
+    about = f"visit={visit_id}" + (f" summary={summary_id}" if summary_id else "")
     if row is None:
-        log.info("job already active kind=%s visit=%s", kind, visit_id)
+        log.info("job already active kind=%s %s", kind, about)
         return None
-    log.info("job queued job=%s kind=%s visit=%s attempt=0", row.id, kind, visit_id)
+    log.info("job queued job=%s kind=%s %s attempt=0", row.id, kind, about)
     return row.id
 
 
@@ -162,7 +170,7 @@ def _take(session: Session, job_id: ScalarSelect[Any], worker_id: str) -> Claime
             attempts=Job.attempts + 1,
             updated_at=func.now(),
         )
-        .returning(Job.id, Job.kind, Job.visit_id, Job.attempts, Job.max_attempts)
+        .returning(Job.id, Job.kind, Job.visit_id, Job.attempts, Job.max_attempts, Job.summary_id)
         .execution_options(synchronize_session=False)
     ).first()
     return None if row is None else ClaimedJob(*row)
@@ -226,13 +234,21 @@ def recover_stale(fail_visit: FailVisit) -> list[Recovered]:
     stale_before = func.now() - timedelta(milliseconds=limits.STALE_JOB_MS)
     with session_scope(read_only=True) as session:
         rows = session.execute(
-            select(Job.id, Job.kind, Job.visit_id, Job.attempts, Job.max_attempts, Job.locked_by)
+            select(
+                Job.id,
+                Job.kind,
+                Job.visit_id,
+                Job.attempts,
+                Job.max_attempts,
+                Job.locked_by,
+                Job.summary_id,
+            )
             .where(Job.state == JobState.RUNNING, Job.locked_at < stale_before)
             .order_by(Job.seq)
         ).all()
     recovered = []
-    for job_id, kind, visit_id, attempts, max_attempts, locked_by in rows:
-        job = ClaimedJob(job_id, kind, visit_id, attempts, max_attempts)
+    for job_id, kind, visit_id, attempts, max_attempts, locked_by, summary_id in rows:
+        job = ClaimedJob(job_id, kind, visit_id, attempts, max_attempts, summary_id)
         dead = attempts >= max_attempts
         values = _released(
             JobState.DEAD if dead else JobState.QUEUED,
@@ -328,20 +344,35 @@ def _finish(
     job: ClaimedJob,
     where: tuple[ColumnElement[bool], ...],
     values: dict,
-    fail_visit_reason: str | None,
+    reason: str | None,
     fail_visit: FailVisit,
 ) -> bool:
-    """Changes the job and, if it died, fails its visit: both, or neither if the job moved on."""
+    """Changes the job and, if it died, fails its visit or its summary: both, or neither if the
+    job moved on."""
     try:
         with session.begin_nested():
-            # The visit first (the lock order above); the savepoint undoes it if the job moved on.
-            if fail_visit_reason is not None and job.visit_id is not None:
-                fail_visit(session, job.visit_id, fail_visit_reason)
+            # The visit or summary first (the lock order above); the savepoint undoes it if the
+            # job moved on.
+            if reason is not None and job.visit_id is not None:
+                fail_visit(session, job.visit_id, reason)
+            if reason is not None and job.summary_id is not None:
+                _fail_summary(session, job.summary_id, reason)
             if not _change(session, where, values):
                 raise _ClaimLost
     except _ClaimLost:
         return False
     return True
+
+
+def _fail_summary(session: Session, summary_id: str, reason: str) -> None:
+    """A summary whose job died: failed with why, its numbers still shown and Try again
+    offered (§9.1). Only while it's being written: a retry has queued a new job by then."""
+    session.execute(
+        update(Summary)
+        .where(Summary.id == summary_id, Summary.status == SummaryStatus.WRITING)
+        .values(status=SummaryStatus.FAILED, failure_reason=reason, updated_at=func.now())
+        .execution_options(synchronize_session=False)
+    )
 
 
 def _log_lost(job: ClaimedJob, worker_id: str, step: str) -> None:
@@ -351,5 +382,7 @@ def _log_lost(job: ClaimedJob, worker_id: str, step: str) -> None:
 
 
 def log_fields(job: ClaimedJob) -> str:
-    """job=, kind=, visit= and attempt=: every log line about a job has them."""
-    return f"job={job.id} kind={job.kind} visit={job.visit_id} attempt={job.attempts}"
+    """job=, kind=, visit= and attempt=: every log line about a job has them, and a summary
+    job's summary=."""
+    about = f" summary={job.summary_id}" if job.summary_id else ""
+    return f"job={job.id} kind={job.kind} visit={job.visit_id}{about} attempt={job.attempts}"

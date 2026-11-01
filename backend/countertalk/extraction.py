@@ -125,9 +125,7 @@ def pack_for(
     org = session.get_one(Org, org_id)
     pack_id, version = org.org_pack_id, org.org_pack_version
     if pack_id is None or version is None:
-        raise PermanentError(
-            "no_org_pack", "The visit's organisation isn't set up with an org pack"
-        )
+        raise PermanentError("no_org_pack", "The organisation isn't set up with an org pack")
     return load_org_pack(pack_id, version, packs, playbooks)
 
 

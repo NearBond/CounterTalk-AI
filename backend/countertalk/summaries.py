@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from functools import cache
 from math import exp, factorial
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from sqlalchemy import Select, distinct, exists, func, select
 from sqlalchemy.orm import Session
@@ -96,6 +96,15 @@ def previous(period: Period) -> Period:
 def last_complete(kind: PeriodKind, now: datetime) -> Period:
     """Last week or last month: the latest one that has ended."""
     return previous(period_of(kind, ist_date(now)))
+
+
+def period_from(start: datetime, end: datetime) -> Period:
+    """The week or month that is [start, end): a summary's, as stored."""
+    for kind in get_args(PeriodKind):
+        found = period_of(kind, ist_date(start))
+        if (found.start, found.end) == (start, end):
+            return found
+    raise ValueError("not a week or a month")
 
 
 def week_start(moment: datetime) -> datetime:
