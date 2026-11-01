@@ -28,6 +28,8 @@ jobs:
     env:
       # From inside the job's container, the service is reached by its name.
       TEST_POSTGRES_HOST: postgres
+      # The container's cache and venv are on different filesystems: uv copies, quietly.
+      UV_LINK_MODE: copy
     defaults:
       run:
         working-directory: backend

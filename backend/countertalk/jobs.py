@@ -25,12 +25,17 @@ from sqlalchemy.orm import Session
 
 # limits as a module, so a test or a manual run can shorten the stale limit or the backoff for
 # everything here. Max attempts are per kind, in KINDS.
-from countertalk import limits, visits
+from countertalk import limits
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, RetryableError, describe
 from countertalk.models import ACTIVE_JOB, Job, JobKind, JobState, new_id
 
 log = logging.getLogger(__name__)
+
+# What fails a dead job's visit, with a reason the rep can read: visits.fail_processing, passed in
+# by the worker. Required, so no caller can leave a visit stuck. jobs.py imports no domain module:
+# from batch 6, visits.complete queues a job, so that would be a cycle.
+FailVisit = Callable[[Session, str, str], object]
 
 # Each kind's max attempts, fixed into a job when it's queued, so a change applies to new jobs.
 KINDS: dict[JobKind, int] = {
@@ -155,7 +160,11 @@ def mark_done(session: Session, job: ClaimedJob, worker_id: str) -> bool:
 
 
 def mark_failed(
-    session: Session, job: ClaimedJob, worker_id: str, error: BaseException
+    session: Session,
+    job: ClaimedJob,
+    worker_id: str,
+    error: BaseException,
+    fail_visit: FailVisit,
 ) -> str | None:
     """Queues the job again after a backoff, or marks it dead and fails its visit (§9.1, §9.5).
 
@@ -172,7 +181,7 @@ def mark_failed(
         # A permanent error of ours says what's wrong in words the rep can read, if it has any.
         words = error.message if permanent and isinstance(error, DomainError) else ""
         reason = words or gave_up(job.attempts)
-    if not _finish(session, job, _held_by(job, worker_id), values, reason):
+    if not _finish(session, job, _held_by(job, worker_id), values, reason, fail_visit):
         _log_lost(job, worker_id, "mark_failed")
         return None
     level, outcome = (logging.ERROR, "dead") if dead else (logging.WARNING, "retrying")
@@ -180,7 +189,7 @@ def mark_failed(
     return values["state"]
 
 
-def recover_stale() -> list[Recovered]:
+def recover_stale(fail_visit: FailVisit) -> list[Recovered]:
     """Releases jobs whose worker stopped refreshing its claim (§9.1, §9.2).
 
     One with attempts left is queued again, due at once. One on its last try dies, and fails its
@@ -205,9 +214,8 @@ def recover_stale() -> list[Recovered]:
         still_stale = (*_held_by(job, locked_by), Job.locked_at < stale_before)
         try:
             with session_scope() as session:
-                found = _finish(
-                    session, job, still_stale, values, interrupted(attempts) if dead else None
-                )
+                reason = interrupted(attempts) if dead else None
+                found = _finish(session, job, still_stale, values, reason, fail_visit)
         except (SQLAlchemyError, DomainError) as error:
             # Still running and stale, so the next housekeeping tries it again.
             log.warning("stale job not recovered %s error=%s", log_fields(job), error_text(error))
@@ -286,13 +294,14 @@ def _finish(
     where: tuple[ColumnElement[bool], ...],
     values: dict,
     fail_visit_reason: str | None,
+    fail_visit: FailVisit,
 ) -> bool:
     """Changes the job and, if it died, fails its visit: both, or neither if the job moved on."""
     try:
         with session.begin_nested():
             # The visit first (the lock order above); the savepoint undoes it if the job moved on.
             if fail_visit_reason is not None and job.visit_id is not None:
-                visits.fail_processing(session, job.visit_id, fail_visit_reason)
+                fail_visit(session, job.visit_id, fail_visit_reason)
             if not _change(session, where, values):
                 raise _ClaimLost
     except _ClaimLost:

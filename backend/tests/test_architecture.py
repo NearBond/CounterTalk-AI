@@ -7,6 +7,7 @@ Every rule also runs on small examples, so a rule that stops finding anything fa
 
 import ast
 import re
+import sys
 from collections.abc import Callable, Iterator
 
 import pytest
@@ -115,11 +116,13 @@ def settings_only_through_get_settings(sources: list[Source]) -> list[str]:
     ]
 
 
+# The SDKs that reach outside services: only stt/ and llm/ may import them.
+EXTERNAL_SDKS = {"openai", "httpx", "websockets"}
+
+
 def external_sdks_only_in_clients(sources: list[Source]) -> list[str]:
     """§2.4: Meta is called only from the client modules in stt/ and llm/."""
-    return banned_names(
-        sources, {"openai", "httpx", "websockets"}, lambda path: path.startswith(("stt/", "llm/"))
-    )
+    return banned_names(sources, EXTERNAL_SDKS, lambda path: path.startswith(("stt/", "llm/")))
 
 
 def subprocesses_only_in_audio(sources: list[Source]) -> list[str]:
@@ -280,6 +283,65 @@ def routers_carry_their_own_prefix(sources: list[Source]) -> list[str]:
     return found
 
 
+CLIENT_MODULES = {
+    "countertalk.config",
+    "countertalk.errors",
+    "countertalk.limits",
+    "countertalk.logs",
+}
+
+
+def imported_modules(path: str, tree: ast.Module) -> Iterator[tuple[int, str]]:
+    """Each module an import names, in full: `from countertalk import errors` and, in jobs.py,
+    `from . import errors` both name countertalk.errors."""
+    package = ["countertalk", *path.split("/")[:-1]]
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            yield from ((node.lineno, alias.name) for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            base = node.module or ""
+            if node.level:  # relative: up from this file's package
+                parent = package[: len(package) - node.level + 1]
+                base = ".".join(parent + ([base] if base else []))
+            if base in ("countertalk", ".".join(package)) or not node.module:
+                yield from ((node.lineno, f"{base}.{alias.name}") for alias in node.names)
+            else:
+                yield node.lineno, base
+
+
+def clients_import_only_the_allowlist(sources: list[Source]) -> list[str]:
+    """§2.1: stt/ and llm/ import only the standard library, their SDK, and config, errors,
+    limits and logs. An allowlist, so a module added later is covered too."""
+    found = []
+    for path, tree in sources:
+        if not path.startswith(("stt/", "llm/")):
+            continue
+        for line, module in imported_modules(path, tree):
+            top = module.split(".")[0]
+            if top in sys.stdlib_module_names or top in EXTERNAL_SDKS:
+                continue
+            if module in CLIENT_MODULES or matches(module, {"countertalk.stt", "countertalk.llm"}):
+                continue
+            found.append(f"{path}:{line} {module}")
+    return found
+
+
+JOBS_MAY_IMPORT = {"countertalk", "countertalk.db", "countertalk.errors", "countertalk.limits"}
+JOBS_MAY_IMPORT |= {"countertalk.models"}
+
+
+def jobs_imports_no_domain_module(sources: list[Source]) -> list[str]:
+    """jobs.py imports no domain module: from batch 6, visits.complete queues a job, so that
+    would be a cycle. The worker passes fail_processing in instead."""
+    return [
+        f"{path}:{line} {module}"
+        for path, tree in sources
+        if path == "jobs.py"
+        for line, module in imported_modules(path, tree)
+        if matches(module, {"countertalk"}) and module not in JOBS_MAY_IMPORT
+    ]
+
+
 def job_times_come_from_postgres(sources: list[Source]) -> list[str]:
     """jobs.py compares and sets job times with Postgres's now(), never Python's clock.
 
@@ -311,10 +373,30 @@ RULES: dict[str, Callable[[list[Source]], list[str]]] = {
         visit_status_only_through_set_status,
         routers_carry_their_own_prefix,
         job_times_come_from_postgres,
+        clients_import_only_the_allowlist,
+        jobs_imports_no_domain_module,
     ]
 }
 
 BAD_EXAMPLES = [
+    ("clients_import_only_the_allowlist", "stt/meta.py", "from countertalk import visits\n"),
+    (
+        "clients_import_only_the_allowlist",
+        "stt/meta.py",
+        "from countertalk.db import session_scope\n",
+    ),
+    ("clients_import_only_the_allowlist", "llm/client.py", "import sqlalchemy\n"),
+    ("clients_import_only_the_allowlist", "stt/meta.py", "from countertalk import storage\n"),
+    ("clients_import_only_the_allowlist", "stt/meta.py", "from .. import db\n"),
+    ("clients_import_only_the_allowlist", "llm/client.py", "from countertalk.llm_calls import x\n"),
+    ("jobs_imports_no_domain_module", "jobs.py", "from . import visits\n"),
+    ("jobs_imports_no_domain_module", "jobs.py", "from .visits import fail_processing\n"),
+    ("jobs_imports_no_domain_module", "jobs.py", "from countertalk import limits, visits\n"),
+    (
+        "jobs_imports_no_domain_module",
+        "jobs.py",
+        "from countertalk.visits import fail_processing\n",
+    ),
     ("job_times_come_from_postgres", "jobs.py", "from countertalk.models import utc_now\n"),
     ("job_times_come_from_postgres", "jobs.py", "from datetime import datetime\ndatetime.now()\n"),
     ("job_times_come_from_postgres", "jobs.py", "import time\ntime.time()\n"),
@@ -371,6 +453,22 @@ BAD_EXAMPLES = [
 ]
 
 ALLOWED_EXAMPLES = [
+    ("clients_import_only_the_allowlist", "stt/meta.py", "import json\nimport httpx\n"),
+    (
+        "clients_import_only_the_allowlist",
+        "stt/meta.py",
+        "from countertalk import limits\nfrom countertalk.errors import PermanentError\n",
+    ),
+    (
+        "clients_import_only_the_allowlist",
+        "stt/meta.py",
+        "from countertalk.stt.base import Reply\n",
+    ),
+    ("clients_import_only_the_allowlist", "visits.py", "from countertalk import storage\n"),
+    ("clients_import_only_the_allowlist", "stt/meta.py", "from .base import Reply\n"),
+    ("clients_import_only_the_allowlist", "stt/meta.py", "import websockets\n"),
+    ("jobs_imports_no_domain_module", "jobs.py", "from countertalk import limits\n"),
+    ("jobs_imports_no_domain_module", "worker.py", "from countertalk import visits\n"),
     ("job_times_come_from_postgres", "jobs.py", "from sqlalchemy import func\nfunc.now()\n"),
     ("job_times_come_from_postgres", "visits.py", "from countertalk.models import utc_now\n"),
     ("routers_carry_their_own_prefix", "main.py", "app.include_router(visits.router)\n"),

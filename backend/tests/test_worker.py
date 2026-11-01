@@ -23,7 +23,7 @@ from countertalk.models import Job, JobKind, JobState, VisitStatus
 from tests.conftest import PINNED_SETTINGS
 from tests.test_jobs import OTHER_WORKER, claimed, job_row, make_stale, queue
 from tests.test_storage import OLD_MS, file_aged
-from tests.test_visits import Org_, load, make_org, new_visit, quiet_for
+from tests.test_visits import Org_, load, make_org, new_visit, quiet_for, visit_at
 
 WORKER_ID = "test-host:1:cccccc"
 RUN_TIMEOUT_S = 30
@@ -35,7 +35,7 @@ def org() -> Org_:
 
 
 def raising(error: BaseException) -> worker.Handler:
-    def handler(job: jobs.ClaimedJob) -> None:
+    def handler(ctx: worker.JobContext) -> None:
         raise error
 
     return handler
@@ -60,7 +60,7 @@ def test_a_turn_runs_the_oldest_job_and_marks_it_done() -> None:
     job_id = queue()
 
     assert worker.Worker(
-        WORKER_ID, handlers={JobKind.PING: lambda job: ran.append(job.id)}
+        WORKER_ID, handlers={JobKind.PING: lambda ctx: ran.append(ctx.job.id)}
     ).run_once()
 
     assert ran == [job_id]
@@ -101,15 +101,41 @@ def test_a_handlers_error_is_retried_or_kills_the_job(
     assert "someone" not in caplog.text
 
 
-def test_a_kind_with_no_handler_dies_at_once() -> None:
+def test_a_job_that_dies_in_the_worker_fails_its_visit(org: Org_) -> None:
+    visit_id = visit_at(org, VisitStatus.TRANSCRIBING)
+    queue(JobKind.TRANSCRIBE, visit_id)
+    unreadable = PermanentError("unreadable_audio", "The recording can't be read.")
+
+    worker.Worker(WORKER_ID, handlers={JobKind.TRANSCRIBE: raising(unreadable)}).run_once()
+
+    visit = load(visit_id)
+    assert (visit.status, visit.failure_reason) == ("failed", "The recording can't be read.")
+
+
+def test_housekeeping_fails_the_visit_of_a_job_stale_on_its_last_try(
+    org: Org_, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(jobs.KINDS, JobKind.TRANSCRIBE, 1)
+    visit_id = visit_at(org, VisitStatus.TRANSCRIBING)
+    queue(JobKind.TRANSCRIBE, visit_id)
+    make_stale(claimed(OTHER_WORKER).id)
+
+    worker.Worker(WORKER_ID).housekeep()
+
+    assert load(visit_id).failure_reason == jobs.interrupted(1)
+
+
+def test_a_kind_with_no_handler_is_left_for_another_worker() -> None:
+    # During an overlapping deploy, an old worker can claim a kind only the new one knows: it
+    # retries later instead of failing the rep's visit, and still dies after its attempts.
     job_id = queue()
 
     worker.Worker(WORKER_ID, handlers={}).run_once()
 
     row = job_row(job_id)
-    assert row.state == JobState.DEAD
+    assert row.state == JobState.QUEUED
     assert row.last_error is not None
-    assert row.last_error.startswith("PermanentError: unknown_job_kind")
+    assert row.last_error.startswith("RetryableError: unknown_job_kind")
 
 
 def test_every_job_log_line_names_the_job(caplog: pytest.LogCaptureFixture) -> None:
@@ -200,9 +226,9 @@ def test_the_heartbeat_keeps_a_long_job_claimed(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(limits, "STALE_JOB_MS", 400)
     found: list[list[jobs.Recovered]] = []
 
-    def long_job(job: jobs.ClaimedJob) -> None:
+    def long_job(ctx: worker.JobContext) -> None:
         time.sleep(3 * limits.STALE_JOB_MS / 1000)
-        found.append(jobs.recover_stale())  # another worker's housekeeping, mid-job
+        found.append(jobs.recover_stale(visits.fail_processing))  # another worker, mid-job
 
     job_id = queue()
 
@@ -216,7 +242,7 @@ def test_the_heartbeat_stops_with_its_job(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(limits, "JOB_HEARTBEAT_MS", 20)
     queue()
 
-    worker.Worker(WORKER_ID, handlers={JobKind.PING: lambda job: time.sleep(0.1)}).run_once()
+    worker.Worker(WORKER_ID, handlers={JobKind.PING: lambda ctx: time.sleep(0.1)}).run_once()
 
     assert not [t for t in threading.enumerate() if t.name.startswith("heartbeat")]
 
@@ -234,16 +260,45 @@ def test_a_heartbeat_that_finds_its_claim_lost_stops_beating(
 
     monkeypatch.setattr(jobs, "heartbeat", counted)
 
-    def lose_the_claim(job: jobs.ClaimedJob) -> None:
+    told: list[bool] = []
+
+    def lose_the_claim(ctx: worker.JobContext) -> None:
         with session_scope() as session:
-            session.execute(update(Job).where(Job.id == job.id).values(locked_by=OTHER_WORKER))
+            session.execute(update(Job).where(Job.id == ctx.job.id).values(locked_by=OTHER_WORKER))
         time.sleep(0.3)
+        told.append(ctx.claim_lost.is_set())  # what a paid handler checks before each call
 
     queue()
     worker.Worker(WORKER_ID, handlers={JobKind.PING: lose_the_claim}).run_once()
 
     assert beats.count(False) == 1  # it stopped at the first lost beat
+    assert told == [True]
     assert "claim lost" in caplog.text
+
+
+def test_a_claim_is_taken_as_lost_once_heartbeats_have_failed_for_the_stale_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # If beats keep failing, another worker may already have recovered the job: a paid handler
+    # must stop then too, not only when a beat finds the claim gone.
+    monkeypatch.setattr(limits, "JOB_HEARTBEAT_MS", 20)
+    monkeypatch.setattr(limits, "STALE_JOB_MS", 150)
+
+    def broken(*args: object) -> bool:
+        raise OperationalError("UPDATE jobs ...", None, Exception("connection lost"))
+
+    monkeypatch.setattr(jobs, "heartbeat", broken)
+    told: list[bool] = []
+
+    def slow(ctx: worker.JobContext) -> None:
+        told.append(ctx.claim_lost.is_set())
+        time.sleep(0.4)
+        told.append(ctx.claim_lost.is_set())
+
+    queue()
+    worker.Worker(WORKER_ID, handlers={JobKind.PING: slow}).run_once()
+
+    assert told == [False, True]
 
 
 # --- housekeeping ------------------------------------------------------------------------------
@@ -253,7 +308,7 @@ def test_housekeeping_runs_at_start_and_then_every_interval(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runs: list[int] = []
-    monkeypatch.setattr(jobs, "recover_stale", lambda: runs.append(1) or [])
+    monkeypatch.setattr(jobs, "recover_stale", lambda fail_visit: runs.append(1) or [])
     now = [1_000.0]
     turn = worker.Worker(WORKER_ID, clock=lambda: now[0])
 
@@ -313,7 +368,7 @@ def test_a_housekeeping_step_that_fails_doesnt_stop_the_others(
 def test_a_stop_during_a_job_lets_it_finish_then_stops() -> None:
     first, second = queue(), queue()
     the_worker = worker.Worker(WORKER_ID)
-    the_worker.handlers = {JobKind.PING: lambda job: the_worker.request_stop(signal.SIGTERM)}
+    the_worker.handlers = {JobKind.PING: lambda ctx: the_worker.request_stop(signal.SIGTERM)}
 
     the_worker.run()
 

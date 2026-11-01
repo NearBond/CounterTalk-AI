@@ -62,11 +62,11 @@ def running(kind: str = JobKind.PING) -> jobs.ClaimedJob:
 
 def fail(job: jobs.ClaimedJob, error: BaseException, worker: str = WORKER) -> str | None:
     with session_scope() as session:
-        return jobs.mark_failed(session, job, worker, error)
+        return jobs.mark_failed(session, job, worker, error, visits.fail_processing)
 
 
 def recover() -> list[jobs.Recovered]:
-    return jobs.recover_stale()
+    return jobs.recover_stale(visits.fail_processing)
 
 
 def job_row(job_id: str) -> Job:
@@ -164,7 +164,7 @@ def test_a_finished_job_doesnt_block_a_new_one(org: Org_, error: BaseException |
         if error is None:
             jobs.mark_done(session, job, WORKER)
         else:
-            jobs.mark_failed(session, job, WORKER, error)
+            jobs.mark_failed(session, job, WORKER, error, visits.fail_processing)
 
     second = queue(JobKind.TRANSCRIBE, visit_id)
 

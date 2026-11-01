@@ -19,31 +19,43 @@ import sys
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from types import FrameType
 
 # limits as a module, so a test or a manual run can shorten a limit for everything here.
 from countertalk import jobs, limits, storage, visits
 from countertalk.db import session_scope
-from countertalk.errors import DomainError, PermanentError
+from countertalk.errors import DomainError, RetryableError
 from countertalk.logs import configure_logging, install_frames_only_excepthook
 from countertalk.models import JobKind, JobState
 
 # By name: run as `python -m countertalk.worker`, __name__ is "__main__".
 log = logging.getLogger("countertalk.worker")
 
-Handler = Callable[[jobs.ClaimedJob], None]
+
+@dataclass(frozen=True)
+class JobContext:
+    """What a handler gets: its job, and whether its claim was lost."""
+
+    job: jobs.ClaimedJob
+    # Set by the heartbeat thread when the claim is lost (recovered as stale, perhaps taken by
+    # another worker). A handler that pays per call checks it before each call, and stops.
+    claim_lost: threading.Event
 
 
-def _ping(job: jobs.ClaimedJob) -> None:
-    log.info("ping %s", jobs.log_fields(job))
+Handler = Callable[[JobContext], None]
 
 
-def _sleep(job: jobs.ClaimedJob) -> None:
+def _ping(ctx: JobContext) -> None:
+    log.info("ping %s", jobs.log_fields(ctx.job))
+
+
+def _sleep(ctx: JobContext) -> None:
     # Long work to stop a worker in the middle of (batch 4's manual test).
     time.sleep(limits.SLEEP_JOB_MS / 1000)
 
 
-# Each kind's handler. Its max attempts are in jobs.KINDS; a kind with no handler dies at once.
+# Each kind's handler. Its max attempts are in jobs.KINDS; a kind with no handler is retried.
 HANDLERS: dict[str, Handler] = {JobKind.PING: _ping, JobKind.SLEEP: _sleep}
 
 
@@ -97,10 +109,11 @@ class Worker:
 
     def run_job(self, job: jobs.ClaimedJob) -> None:
         log.info("job started %s worker=%s", jobs.log_fields(job), self.id)
-        heartbeat = _Heartbeat(job, self.id)
+        ctx = JobContext(job, threading.Event())
+        heartbeat = _Heartbeat(ctx, self.id)
         heartbeat.start()
         try:
-            error = self._run_handler(job)
+            error = self._run_handler(ctx)
         finally:
             heartbeat.stop()
         try:
@@ -108,17 +121,20 @@ class Worker:
                 if error is None:
                     jobs.mark_done(session, job, self.id)
                 else:
-                    jobs.mark_failed(session, job, self.id, error)
+                    jobs.mark_failed(session, job, self.id, error, visits.fail_processing)
         except Exception:
             # The claim is still held, so once it's stale the job is recovered and runs again.
             log.exception("job not marked %s worker=%s", jobs.log_fields(job), self.id)
 
-    def _run_handler(self, job: jobs.ClaimedJob) -> Exception | None:
+    def _run_handler(self, ctx: JobContext) -> Exception | None:
+        job = ctx.job
         handler = self.handlers.get(job.kind)
         if handler is None:
-            return PermanentError("unknown_job_kind", f"There's no handler for {job.kind} jobs")
+            # During an overlapping deploy, an old worker can claim a kind only the new one knows:
+            # left for it, not failed. It still dies after its attempts.
+            return RetryableError("unknown_job_kind", f"This worker has no handler for {job.kind}")
         try:
-            handler(job)
+            handler(ctx)
         except DomainError as error:
             return error  # mark_failed logs it, in our own words
         except Exception as error:
@@ -148,7 +164,7 @@ class Worker:
 
 
 def _recover_stale_jobs() -> dict[str, int]:
-    recovered = jobs.recover_stale()
+    recovered = jobs.recover_stale(visits.fail_processing)
     dead = sum(1 for r in recovered if r.state == JobState.DEAD)
     return {"stale_queued": len(recovered) - dead, "stale_dead": dead}
 
@@ -172,12 +188,14 @@ _HOUSEKEEPING: list[tuple[str, Callable[[], dict[str, int]]]] = [
 class _Heartbeat:
     """Refreshes a running job's claim every JOB_HEARTBEAT_MS, on its own connection (§9.2)."""
 
-    def __init__(self, job: jobs.ClaimedJob, worker_id: str) -> None:
-        self._job = job
+    def __init__(self, ctx: JobContext, worker_id: str) -> None:
+        self._job = ctx.job
+        self._claim_lost = ctx.claim_lost
         self._worker_id = worker_id
         self._done = threading.Event()
         # A daemon, so a second Ctrl+C never waits for it.
-        self._thread = threading.Thread(target=self._beat, name=f"heartbeat-{job.id}", daemon=True)
+        name = f"heartbeat-{ctx.job.id}"
+        self._thread = threading.Thread(target=self._beat, name=name, daemon=True)
 
     def start(self) -> None:
         self._thread.start()
@@ -187,16 +205,23 @@ class _Heartbeat:
         self._thread.join()
 
     def _beat(self) -> None:
+        last_ok = time.monotonic()
         while not self._done.wait(limits.JOB_HEARTBEAT_MS / 1000):
             try:
                 with session_scope() as session:
                     if not jobs.heartbeat(session, self._job, self._worker_id):
-                        return  # the claim was lost (jobs logged it), so its result is dropped
+                        # The claim was lost (jobs logged it): its result will be dropped.
+                        self._claim_lost.set()
+                        return
+                last_ok = time.monotonic()
             except Exception:
                 # The next beat tries again; the stale limit allows for a few missed ones.
                 log.exception(
                     "heartbeat failed %s worker=%s", jobs.log_fields(self._job), self._worker_id
                 )
+                if time.monotonic() - last_ok >= limits.STALE_JOB_MS / 1000:
+                    # Unrefreshed this long, the job may already be another worker's.
+                    self._claim_lost.set()
 
 
 def main() -> int:
