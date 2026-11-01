@@ -263,6 +263,9 @@ def test_an_added_finding_quotes_its_turn_exactly_and_is_routed_by_the_table(
     ("changes", "code"),
     [
         ({"turn_id": 99}, "turn_not_found"),
+        # Only the shopkeeper's words become insights: the rep's line, and a customer's.
+        ({"turn_id": 0}, "not_shopkeeper_turn"),
+        ({"turn_id": 2}, "not_shopkeeper_turn"),
         ({"kind": "gossip"}, "invalid_kind"),
         ({"category": "nonsense"}, "invalid_category"),
         ({"summary_en": ""}, "summary_empty"),

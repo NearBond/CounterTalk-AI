@@ -222,6 +222,10 @@ def add_insight(
     turn = session.get(Turn, (visit.transcript_id, turn_id)) if visit.transcript_id else None
     if turn is None:
         raise NotFound("turn_not_found", "That line isn't in this visit's transcript")
+    # Only the shopkeeper's words become insights (the playbook's roles).
+    role = roles.saved_roles(session, turn.transcript_id).get(turn.speaker_label, (None,))[0]
+    if role != roles.SHOPKEEPER:
+        raise Invalid("not_shopkeeper_turn", "Pick a line the shopkeeper said")
     insight = Insight(
         id=insight_id,
         org_id=org_id,
@@ -236,7 +240,6 @@ def add_insight(
     )
     session.add(insight)
     session.flush()
-    role = roles.saved_roles(session, turn.transcript_id).get(turn.speaker_label, (None,))[0]
     session.add(
         Evidence(
             insight_id=insight.id,

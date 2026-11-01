@@ -937,6 +937,30 @@ def test_a_copied_helper_is_found_but_not_one_calling_another_import() -> None:
     assert copied_functions(two_scripts) == []
 
 
+# A rule's tell-tale code, and the one file it's written in (R1): added in batch 15b, when R1
+# came up twice in one part. Another file needs it? Call that one.
+WRITTEN_ONCE = {
+    # The org's teams by key: routing.team_ids.
+    "select(Team.key, Team.id)": "countertalk/routing.py",
+    # The playbook's severities in order: issues.severity_rank.
+    "list(pack.playbook.severities)": "countertalk/issues.py",
+}
+
+
+def written_in(snippet: str, folders: tuple[str, ...] = ("countertalk", "scripts")) -> list[str]:
+    return sorted(
+        path.relative_to(BACKEND_DIR).as_posix()
+        for folder in folders
+        for path in (BACKEND_DIR / folder).rglob("*.py")
+        if snippet in path.read_text(encoding="utf-8")
+    )
+
+
+@pytest.mark.parametrize(("snippet", "home"), WRITTEN_ONCE.items())
+def test_each_rule_is_written_in_one_place(snippet: str, home: str) -> None:
+    assert written_in(snippet) == [home]
+
+
 # --- R10: every share names what it's a share of ---------------------------------------------
 
 

@@ -143,8 +143,9 @@ def cards(
         query = query.where(_has_shop(Shop.area == filters.area))
     if filters.distributor_id is not None:
         query = query.where(_has_shop(Shop.distributor_id == filters.distributor_id))
-    order = list(pack_for().playbook.severities)
-    rank = case({key: n for n, key in enumerate(order)}, value=Issue.severity, else_=len(order))
+    pack = pack_for()
+    ranks = {key: issues.severity_rank(pack, key) for key in pack.playbook.severities}
+    rank = case(ranks, value=Issue.severity, else_=len(ranks))
     query = query.order_by(rank, counts.c.shops.desc(), Issue.last_seen_at.desc(), Issue.seq.desc())
     return [_card(row) for row in session.execute(query)]
 

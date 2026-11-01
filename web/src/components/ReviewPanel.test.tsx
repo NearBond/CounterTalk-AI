@@ -283,8 +283,24 @@ describe("ReviewPanel", () => {
         body: { id: UUID, turn_id: 1, kind: "praise", category: "payments", severity: "high", summary_en: "Asked for a stand." },
       },
     ]);
-    // The picker names each line's speaker by its role.
-    expect(screen.getByRole("option", { name: /0:04 · shopkeeper · Payment abhi tak nahi aaya/ })).toBeInTheDocument();
+    // The shopkeeper's lines only: the rep's "Namaste" isn't offered.
+    const picker = screen.getByLabelText("Where the shopkeeper said it");
+    expect(within(picker).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Pick a line of the transcript",
+      "0:04 · Payment abhi tak nahi aaya",
+    ]);
+  });
+
+  it("says so when no line is the shopkeeper's, so there's none to quote", async () => {
+    fakeApi({
+      "GET /api/visits/v1/review": () =>
+        json(200, { ...reviewOf("review"), speaker_roles: { "c0:A": "rep", "c0:B": "other" } }),
+    });
+    show();
+    await screen.findByText("A routine order.");
+
+    expect(screen.getByText(/No line here is marked as the shopkeeper's/)).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Where the shopkeeper said it")).getAllByRole("option")).toHaveLength(1);
   });
 
   it("adds a note, and says notes go to no team", async () => {

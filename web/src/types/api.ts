@@ -220,7 +220,8 @@ export interface InsightChange {
 
 /**
  * POST /api/visits/{id}/insights: NewInsight. 400 `invalid_kind`, `invalid_category`,
- * `invalid_severity`, `summary_empty`, `summary_too_long`; 404 `turn_not_found`; 409 as PATCH.
+ * `invalid_severity`, `summary_empty`, `summary_too_long`, `not_shopkeeper_turn` (only the
+ * shopkeeper's lines); 404 `turn_not_found`; 409 as PATCH.
  */
 export interface NewInsight {
   /** Made by the client (a UUID): sending the same one again adds nothing. */

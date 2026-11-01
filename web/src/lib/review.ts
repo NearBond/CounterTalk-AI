@@ -7,6 +7,10 @@ import { postConfirm } from "./api";
 import { COMPLETE_ATTEMPTS, SAVE_ATTEMPTS } from "./limits";
 import { withRetry } from "./retry";
 
+/** The playbook's role whose words become insights: an added finding quotes one of its lines
+ * (the server refuses any other with 400 `not_shopkeeper_turn`). */
+export const SHOPKEEPER = "shopkeeper";
+
 /** What a card's edit form holds. */
 export interface Draft {
   summary_en: string;

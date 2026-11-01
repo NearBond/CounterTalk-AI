@@ -1,0 +1,60 @@
+# K6's expected results (BUILD_PLAN K6, frozen 1 Nov 2026), for world.yaml. Scores are severity
+# weight (high 3, medium 2, low 1) x open shops x (1 + age in weeks).
+
+# As K6 wrote them. P1's figures count shop E, whose issue joins P1's only with batch 15c's merge:
+# 15c's tests check them.
+written:
+  P1:
+    issues: 2  # one for A-D, a separate one for E (its scheme isn't linked)
+    after_merge: {shops: 5, insights: 6, reps: 2, raised_again: 1}
+    W5: new
+    W6: growing
+    W6_shops: 4
+    W6_baseline: 0.5
+    W6_finance: {rank: 1, score: 30}
+  P2:
+    issues: 1
+    W5: steady  # 2 shops, under the minimum of 3
+    W6: growing  # 4 shops against a baseline of 1.0
+    W6_baseline: 1.0
+    W6_distribution: {rank: 1, score: 64}  # 2 x 8 x (1 + 3)
+  P3:
+    issues: 1  # it reopens; no new issue
+    W5: recurring
+    W6: recurring
+    W6_finance: {rank: 2, score: 15}  # 3 x 1 x (1 + 4)
+  P4:
+    most_shops_in_an_issue: 2
+    growing_in_any_week: false
+    highest_finance_score: 12  # 1 x 2 x 6, under P3's 15
+    highest_other_score: 24  # 2 x 2 x 6, under P2's 64
+  P5:
+    teams: [finance, area_manager]
+    W6_each_team: {insights: 1, shops: 1}
+    W6_org: {insights: 1, shops: 1, causes: 1, teams: [area_manager, finance]}
+    W6_score: 3  # 3 x 1 x 1: no expected rank
+
+# Derived 2 Nov from K6, before 15c's merge (checked by the planner): P1 is A-D alone, and E is
+# an issue of its own. 15b's tests check these.
+before_merge:
+  P1:
+    W5: {label: new, shops_in_week: 2}
+    W6:
+      label: growing
+      shops_in_week: 3  # A, C and D
+      insights_in_week: 3  # C, D and A again
+      reps_in_week: 2
+      baseline: 0.5  # W2-W5: 0, 0, 0, 2
+      open_shops: 4  # A-D
+      raised_again: 1  # A, on two visits
+      age_weeks: 1
+      score: 24  # 3 x 4 x (1 + 1)
+      finance_rank: 1
+  P1_E:
+    W6: {label: new, open_shops: 1, age_weeks: 0, score: 3}  # 3 x 1 x (1 + 0): first seen in W6
+  P2:
+    W5: {label: steady, shops_in_week: 2}
+    W6: {label: growing, shops_in_week: 4, baseline: 1.0, open_shops: 8, age_weeks: 3, score: 64, distribution_rank: 1}
+  P3:
+    W5: {label: recurring}
+    W6: {label: recurring, open_shops: 1, age_weeks: 4, score: 15, finance_rank: 2}

@@ -273,6 +273,7 @@ def _reopen(
             field=IssueEventField.STATUS,
             from_value=IssueStatus.RESOLVED.value,
             to_value=IssueStatus.OPEN.value,
+            created_at=now,
         )
     )
     issue.status = IssueStatus.OPEN.value
@@ -291,15 +292,16 @@ def _join(issue: Issue, member: Member, pack: OrgPack, now: datetime, *, fresh: 
         issue.due_at = now + _due(pack, severity)
         issue.first_seen_at = issue.last_seen_at = member.seen_at
         return
-    if _rank(pack, severity) < _rank(pack, issue.severity):
+    if severity_rank(pack, severity) < severity_rank(pack, issue.severity):
         issue.severity = severity
         issue.due_at = min(issue.due_at, now + _due(pack, severity))
     issue.first_seen_at = min(issue.first_seen_at, member.seen_at)
     issue.last_seen_at = max(issue.last_seen_at, member.seen_at)
 
 
-def _rank(pack: OrgPack, severity: str) -> int:
-    """Highest first; a severity the playbook no longer has ranks last."""
+def severity_rank(pack: OrgPack, severity: str) -> int:
+    """The playbook's severities, highest first from 0: the one ordering (R1). One it no longer
+    has ranks last."""
     order = list(pack.playbook.severities)
     return order.index(severity) if severity in order else len(order)
 
@@ -381,7 +383,9 @@ def _refresh(session: Session, pack: OrgPack, issue: Issue) -> None:
         .where(InsightRoute.issue_id == issue.id)
     ).all()
     if rows:
-        issue.severity = min((severity for severity, _ in rows), key=lambda s: _rank(pack, s))
+        issue.severity = min(
+            (severity for severity, _ in rows), key=lambda s: severity_rank(pack, s)
+        )
         issue.first_seen_at = min(seen for _, seen in rows)
         issue.last_seen_at = max(seen for _, seen in rows)
     issue.version += 1
@@ -427,7 +431,9 @@ def change(
         raise Invalid("status_invalid", f"The status must be one of {', '.join(SETTABLE)}")
     if note is not None and status != IssueStatus.RESOLVED:
         raise Invalid("note_only_when_resolving", "A note goes with resolving it")
-    # Every check first: a refused change writes nothing, whatever the caller does next.
+    # Every check first: a refused change writes nothing, whatever the caller does next. One
+    # moment for all it writes: its events' and its resolve's (summaries read them, batch 15b).
+    now = utc_now()
     owner = actor if assign_to_me else issue.owner_id
     move_due = due_at is not None and _due_change(issue, owner, actor, due_at)
     move_status = status is not None and status != issue.status
@@ -442,7 +448,7 @@ def change(
     if move_status and status is not None:
         events.append((IssueEventField.STATUS, issue.status, status, resolution))
         issue.status = status
-        issue.resolved_at = utc_now() if resolution is not None else None
+        issue.resolved_at = now if resolution is not None else None
         issue.resolution_note = resolution
     if not events:
         return issue
@@ -455,6 +461,7 @@ def change(
             from_value=before,
             to_value=after,
             note=text_note,
+            created_at=now,
         )
         for field, before, after, text_note in events
     )

@@ -270,6 +270,10 @@ def _placed(
     return placed, ignored
 
 
+# The playbook's role whose words become insights: a rep's added finding quotes one of its lines.
+SHOPKEEPER = "shopkeeper"
+
+
 def saved_roles(session: Session, transcript_id: str) -> dict[str, tuple[str, float]]:
     """A transcript's saved roles, label: (role, confidence), in the order their labels are
     first heard, as a first run gives them. Empty if none are saved."""

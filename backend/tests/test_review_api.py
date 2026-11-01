@@ -177,6 +177,23 @@ def test_an_added_finding_quotes_its_turn_and_is_routed(client: TestClient, demo
     assert len(the_review(client, visit_id)["insights"]) == 2
 
 
+def test_an_added_finding_quoting_the_rep_s_line_is_refused(client: TestClient, demo: Org_) -> None:
+    visit_id = in_review(demo)
+    body = {
+        "id": new_id(),
+        "turn_id": 0,  # the rep's "Namaste Asha ji, aaj kya order hai?"
+        "kind": "problem",
+        "category": "payments",
+        "severity": "high",
+        "summary_en": "A payout is late.",
+    }
+
+    response = client.post(f"/api/visits/{visit_id}/insights", json=body)
+
+    assert error_of(response) == (400, "not_shopkeeper_turn")
+    assert len(the_review(client, visit_id)["insights"]) == 1
+
+
 def test_a_note_is_added_for_the_record(client: TestClient, demo: Org_) -> None:
     visit_id = in_review(demo)
 

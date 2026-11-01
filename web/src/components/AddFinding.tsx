@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { addInsight } from "../lib/api";
 import { formatDuration } from "../lib/format";
 import { useSave } from "../lib/hooks";
-import { newId, saveWithRetry } from "../lib/review";
+import { newId, SHOPKEEPER, saveWithRetry } from "../lib/review";
 import { type Insight, SUMMARY_MAX_CHARS, type Turn } from "../types/api";
 import { ChoiceSelect } from "./ChoiceSelect";
 import type { Codebook } from "./InsightCard";
@@ -61,6 +61,8 @@ export function AddFinding({ visitId, turns, speakerRoles, codebook, onAdded, on
     );
   };
   const ready = form.turn !== "" && form.summary.trim() !== "";
+  // Only the shopkeeper's lines: theirs are the words that become insights.
+  const lines = turns.filter((turn) => speakerRoles[turn.speaker_label] === SHOPKEEPER);
 
   return (
     <section aria-labelledby="add-heading" className="flex flex-col gap-2">
@@ -83,14 +85,20 @@ export function AddFinding({ visitId, turns, speakerRoles, codebook, onAdded, on
             className="rounded-md border border-gray-300 p-2"
           >
             <option value="">Pick a line of the transcript</option>
-            {turns.map((turn) => (
-              <option key={turn.turn_id} value={String(turn.turn_id)}>
-                {formatDuration(turn.start_ms)} · {speakerRoles[turn.speaker_label] ?? turn.speaker_label} ·{" "}
-                {turn.text.length > SNIPPET_CHARS ? `${turn.text.slice(0, SNIPPET_CHARS)}…` : turn.text}
-              </option>
-            ))}
+            {lines.map((turn) => (
+                <option key={turn.turn_id} value={String(turn.turn_id)}>
+                  {formatDuration(turn.start_ms)} ·{" "}
+                  {turn.text.length > SNIPPET_CHARS ? `${turn.text.slice(0, SNIPPET_CHARS)}…` : turn.text}
+                </option>
+              ))}
           </select>
         </label>
+        {lines.length === 0 && (
+          <p className="text-sm text-gray-600">
+            No line here is marked as the shopkeeper's, so there's none to quote. If the speakers
+            look wrong, the visit can be processed again.
+          </p>
+        )}
         <ChoiceSelect
           label="Kind"
           choices={codebook.kinds}

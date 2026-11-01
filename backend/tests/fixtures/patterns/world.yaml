@@ -1,0 +1,248 @@
+# K6, the planted patterns (BUILD_PLAN, frozen 1 Nov 2026): a synthetic six-week world, made-up
+# example data, no real names. Every insight here is confirmed and verified; each is its own visit.
+# P1, P2, P3 and P5 are written by hand; P4's noise was drawn once with a fixed seed and checked
+# against K6's rules (no noise issue reaches 3 shops; finance noise is low severity).
+org_pack: {id: pepsico-india-demo, version: 1}
+# W1 to W6 are the weeks from this Monday, in IST; a visit is at 11:00 on its day (0 = Monday).
+w1_start: 2026-09-21
+reps: [rep1, rep2, rep3]
+# The pack's distributors: d1 and d2 are in Old Market, d3 in Station Road.
+distributors: {D1: d1, D2: d2, D3: d3}
+# K6's lettered shops are these.
+letters: {A: S13, B: S14, C: S15, D: S16, E: S17, F: S01, G: S23}
+shops:
+  S01: D1
+  S02: D1
+  S03: D1
+  S04: D1
+  S05: D1
+  S06: D1
+  S07: D1
+  S08: D1
+  S09: D1
+  S10: D1
+  S11: D1
+  S12: D1
+  S13: D2
+  S14: D2
+  S15: D2
+  S16: D2
+  S17: D2
+  S18: D2
+  S19: D2
+  S20: D2
+  S21: D2
+  S22: D2
+  S23: D3
+  S24: D3
+  S25: D3
+  S26: D3
+  S27: D3
+  S28: D3
+  S29: D3
+  S30: D3
+# P3's credit note, resolved by finance in W3 (Wednesday, 15:00).
+resolves:
+  - {pattern: P3, team: finance, week: W3, day: 2, note: "Credit note for Rs 4,500 issued."}
+visits:
+  - {week: W1, day: 0, shop: S02, rep: rep3, pattern: P4, kind: problem, category: quality, severity: low, sku: nimbooz_lemon,
+     summary: "Some nimbooz lemon packs were stale.",
+     quote: "Nimbooz lemon ke kuch packet purane nikle."}
+  - {week: W1, day: 0, shop: S30, rep: rep3, pattern: P4, kind: problem, category: damage, severity: low, sku: lays_tomato_tango,
+     summary: "A few lays tomato tango packs came torn.",
+     quote: "Lays tomato tango ke do packet phate the."}
+  - {week: W1, day: 1, shop: S11, rep: rep2, pattern: P4, kind: problem, category: pricing, severity: low, competitor: bingo_tedhe_medhe,
+     summary: "Bingo tedhe medhe gives the shop a better margin.",
+     quote: "Bingo tedhe medhe wale zyada margin dete hain."}
+  - {week: W1, day: 1, shop: S03, rep: rep3, pattern: P4, kind: problem, category: schemes, severity: low, scheme: uncle_chipps_ten_plus_one,
+     summary: "The shop asks about the uncle chipps ten plus one scheme's terms.",
+     quote: "Uncle chipps ten plus one scheme ke baare mein batao."}
+  - {week: W1, day: 1, shop: S30, rep: rep2, pattern: P4, kind: problem, category: servicing, severity: low,
+     summary: "The salesman skipped the beat last week.",
+     quote: "Salesman pichle hafte aaya hi nahi."}
+  - {week: W1, day: 3, shop: S01, rep: rep1, pattern: P4, kind: problem, category: supply, severity: medium, sku: uncle_chipps_spicy_treat,
+     summary: "Uncle chipps spicy treat was short in the last delivery.",
+     quote: "Uncle chipps spicy treat ka maal kam aaya."}
+  - {week: W2, day: 0, shop: S21, rep: rep3, pattern: P4, kind: problem, category: damage, severity: low, sku: cheetos_cheez_puffs,
+     summary: "A few cheetos cheez puffs packs came torn.",
+     quote: "Cheetos cheez puffs ke do packet phate the."}
+  - {week: W2, day: 1, shop: S01, rep: rep1, pattern: P3, kind: problem, category: payments, severity: high,
+     summary: "A credit note of about Rs 4,500 for returned damaged stock is pending.",
+     quote: "Damaged maal ka credit note abhi tak nahi aaya, saadhe chaar hazaar ka."}
+  - {week: W2, day: 1, shop: S21, rep: rep2, pattern: P4, kind: problem, category: servicing, severity: medium,
+     summary: "The salesman skipped the beat last week.",
+     quote: "Salesman pichle hafte aaya hi nahi."}
+  - {week: W2, day: 2, shop: S26, rep: rep2, pattern: P4, kind: problem, category: demand, severity: low, sku: lays_chile_limon,
+     summary: "Customers keep asking for lays chile limon.",
+     quote: "Customer lays chile limon maangte rehte hain."}
+  - {week: W2, day: 3, shop: S25, rep: rep2, pattern: P4, kind: problem, category: supply, severity: low, sku: doritos_nacho_cheese,
+     summary: "Doritos nacho cheese was short in the last delivery.",
+     quote: "Doritos nacho cheese ka maal kam aaya."}
+  - {week: W2, day: 3, shop: S08, rep: rep3, pattern: P4, kind: problem, category: servicing, severity: medium,
+     summary: "The salesman skipped the beat last week.",
+     quote: "Salesman pichle hafte aaya hi nahi."}
+  - {week: W2, day: 3, shop: S02, rep: rep1, pattern: P4, kind: problem, category: supply, severity: medium, sku: pepsi,
+     summary: "Pepsi was short in the last delivery.",
+     quote: "Pepsi ka maal kam aaya."}
+  - {week: W2, day: 3, shop: S05, rep: rep2, pattern: P4, kind: problem, category: demand, severity: medium, sku: aquafina,
+     summary: "Customers keep asking for aquafina.",
+     quote: "Customer aquafina maangte rehte hain."}
+  - {week: W2, day: 4, shop: S13, rep: rep2, pattern: P4, kind: problem, category: damage, severity: low, sku: lays_tomato_tango,
+     summary: "A few lays tomato tango packs came torn.",
+     quote: "Lays tomato tango ke do packet phate the."}
+  - {week: W3, day: 0, shop: S29, rep: rep3, pattern: P4, kind: problem, category: visibility, severity: medium,
+     summary: "The display rack is broken.",
+     quote: "Rack toot gaya hai."}
+  - {week: W3, day: 0, shop: S17, rep: rep1, pattern: P4, kind: problem, category: schemes, severity: low, scheme: pepsi_winter_volume,
+     summary: "The shop asks about the pepsi winter volume scheme's terms.",
+     quote: "Pepsi winter volume scheme ke baare mein batao."}
+  - {week: W3, day: 0, shop: S21, rep: rep3, pattern: P4, kind: problem, category: schemes, severity: low, scheme: lays_display_rack,
+     summary: "The shop asks about the lays display rack scheme's terms.",
+     quote: "Lays display rack scheme ke baare mein batao."}
+  - {week: W3, day: 1, shop: S02, rep: rep3, pattern: P2, kind: problem, category: damage, severity: medium, sku: kurkure_masala_munch,
+     summary: "Kurkure Masala Munch cartons arrived crushed.",
+     quote: "Kurkure ka carton pichka hua aaya."}
+  - {week: W3, day: 1, shop: S02, rep: rep2, pattern: P4, kind: praise, category: praise, severity: low, sku: pepsi,
+     summary: "Pepsi is selling well.",
+     quote: "Pepsi achha chal raha hai."}
+  - {week: W3, day: 2, shop: S30, rep: rep1, pattern: P4, kind: problem, category: visibility, severity: medium,
+     summary: "The display rack is broken.",
+     quote: "Rack toot gaya hai."}
+  - {week: W3, day: 3, shop: S12, rep: rep2, pattern: P4, kind: problem, category: visibility, severity: medium,
+     summary: "The display rack is broken.",
+     quote: "Rack toot gaya hai."}
+  - {week: W3, day: 3, shop: S03, rep: rep3, pattern: P4, kind: problem, category: schemes, severity: low, scheme: pepsi_winter_volume,
+     summary: "The shop asks about the pepsi winter volume scheme's terms.",
+     quote: "Pepsi winter volume scheme ke baare mein batao."}
+  - {week: W3, day: 4, shop: S13, rep: rep3, pattern: P4, kind: problem, category: demand, severity: medium, sku: doritos_sweet_chilli,
+     summary: "Customers keep asking for doritos sweet chilli.",
+     quote: "Customer doritos sweet chilli maangte rehte hain."}
+  - {week: W3, day: 4, shop: S15, rep: rep3, pattern: P4, kind: praise, category: praise, severity: low, sku: kurkure_chilli_chatka,
+     summary: "Kurkure chilli chatka is selling well.",
+     quote: "Kurkure chilli chatka achha chal raha hai."}
+  - {week: W3, day: 4, shop: S23, rep: rep1, pattern: P4, kind: problem, category: damage, severity: low, sku: cheetos_cheez_puffs,
+     summary: "A few cheetos cheez puffs packs came torn.",
+     quote: "Cheetos cheez puffs ke do packet phate the."}
+  - {week: W4, day: 0, shop: S29, rep: rep3, pattern: P4, kind: problem, category: other, severity: medium,
+     summary: "Road work outside keeps customers away.",
+     quote: "Bahar road ka kaam chal raha hai."}
+  - {week: W4, day: 0, shop: S13, rep: rep1, pattern: P4, kind: problem, category: quality, severity: low, sku: quaker,
+     summary: "Some quaker packs were stale.",
+     quote: "Quaker ke kuch packet purane nikle."}
+  - {week: W4, day: 0, shop: S16, rep: rep1, pattern: P4, kind: problem, category: payments, severity: low,
+     summary: "A small bill difference needs checking.",
+     quote: "Bill mein thoda farak hai, check karo."}
+  - {week: W4, day: 1, shop: S13, rep: rep1, pattern: P4, kind: problem, category: supply, severity: medium, sku: slice_mango,
+     summary: "Slice mango was short in the last delivery.",
+     quote: "Slice mango ka maal kam aaya."}
+  - {week: W4, day: 1, shop: S16, rep: rep1, pattern: P4, kind: problem, category: damage, severity: low, sku: doritos_dinamita,
+     summary: "A few doritos dinamita packs came torn.",
+     quote: "Doritos dinamita ke do packet phate the."}
+  - {week: W4, day: 2, shop: S03, rep: rep3, pattern: P2, kind: problem, category: damage, severity: medium, sku: kurkure_masala_munch,
+     summary: "Masala Munch packets were damaged in the carton.",
+     quote: "Masala Munch ke packet phate hue the."}
+  - {week: W4, day: 2, shop: S16, rep: rep2, pattern: P4, kind: problem, category: payments, severity: low,
+     summary: "A small bill difference needs checking.",
+     quote: "Bill mein thoda farak hai, check karo."}
+  - {week: W4, day: 3, shop: S02, rep: rep1, pattern: P4, kind: problem, category: other, severity: low,
+     summary: "Road work outside keeps customers away.",
+     quote: "Bahar road ka kaam chal raha hai."}
+  - {week: W4, day: 4, shop: S17, rep: rep2, pattern: P4, kind: problem, category: payments, severity: low,
+     summary: "A small bill difference needs checking.",
+     quote: "Bill mein thoda farak hai, check karo."}
+  - {week: W4, day: 4, shop: S02, rep: rep3, pattern: P4, kind: problem, category: supply, severity: low, sku: cheetos_masala_balls,
+     summary: "Cheetos masala balls was short in the last delivery.",
+     quote: "Cheetos masala balls ka maal kam aaya."}
+  - {week: W4, day: 4, shop: S05, rep: rep2, pattern: P4, kind: problem, category: damage, severity: medium, sku: lays_tomato_tango,
+     summary: "A few lays tomato tango packs came torn.",
+     quote: "Lays tomato tango ke do packet phate the."}
+  - {week: W5, day: 0, shop: S04, rep: rep3, pattern: P2, kind: problem, category: damage, severity: medium, sku: kurkure_masala_munch,
+     summary: "A Kurkure carton came wet and damaged.",
+     quote: "Carton geela tha, saare packet kharab."}
+  - {week: W5, day: 0, shop: S10, rep: rep1, pattern: P4, kind: problem, category: schemes, severity: low, scheme: uncle_chipps_ten_plus_one,
+     summary: "The shop asks about the uncle chipps ten plus one scheme's terms.",
+     quote: "Uncle chipps ten plus one scheme ke baare mein batao."}
+  - {week: W5, day: 1, shop: S13, rep: rep1, pattern: P1, kind: problem, category: schemes, severity: high, scheme: kurkure_diwali_payout,
+     summary: "The Kurkure Diwali scheme payout hasn't reached the shop.",
+     quote: "Scheme ka paisa abhi tak nahi aaya, Diwali wala."}
+  - {week: W5, day: 1, shop: S28, rep: rep2, pattern: P4, kind: problem, category: other, severity: medium,
+     summary: "Road work outside keeps customers away.",
+     quote: "Bahar road ka kaam chal raha hai."}
+  - {week: W5, day: 2, shop: S14, rep: rep1, pattern: P1, kind: problem, category: schemes, severity: high, scheme: kurkure_diwali_payout,
+     summary: "The Diwali scheme payout has been pending for two months.",
+     quote: "Diwali scheme payout pending hai, do mahine ho gaye."}
+  - {week: W5, day: 3, shop: S05, rep: rep2, pattern: P2, kind: problem, category: damage, severity: medium, sku: kurkure_masala_munch,
+     summary: "Several Masala Munch packets in the last carton were torn.",
+     quote: "Last carton mein kaafi packet fate the."}
+  - {week: W5, day: 3, shop: S24, rep: rep2, pattern: P4, kind: problem, category: supply, severity: low, sku: doritos_nacho_cheese,
+     summary: "Doritos nacho cheese was short in the last delivery.",
+     quote: "Doritos nacho cheese ka maal kam aaya."}
+  - {week: W5, day: 3, shop: S06, rep: rep2, pattern: P4, kind: problem, category: servicing, severity: low,
+     summary: "The salesman skipped the beat last week.",
+     quote: "Salesman pichle hafte aaya hi nahi."}
+  - {week: W5, day: 3, shop: S12, rep: rep3, pattern: P4, kind: suggestion, category: demand, severity: low, sku: gatorade,
+     summary: "Customers keep asking for gatorade.",
+     quote: "Customer gatorade maangte rehte hain."}
+  - {week: W5, day: 4, shop: S01, rep: rep1, pattern: P3, kind: problem, category: payments, severity: high,
+     summary: "The Rs 4,500 credit note was promised but still hasn't been adjusted.",
+     quote: "Credit note ka bola tha, abhi tak adjust nahi hua."}
+  - {week: W5, day: 4, shop: S01, rep: rep1, pattern: P4, kind: praise, category: praise, severity: medium, sku: uncle_chipps_plain_salted,
+     summary: "Uncle chipps plain salted is selling well.",
+     quote: "Uncle chipps plain salted achha chal raha hai."}
+  - {week: W5, day: 4, shop: S02, rep: rep1, pattern: P4, kind: problem, category: supply, severity: low, sku: pepsi,
+     summary: "Pepsi was short in the last delivery.",
+     quote: "Pepsi ka maal kam aaya."}
+  - {week: W6, day: 0, shop: S15, rep: rep2, pattern: P1, kind: problem, category: schemes, severity: high, scheme: kurkure_diwali_payout,
+     summary: "The shop asks when the Kurkure scheme payment will come.",
+     quote: "Kurkure scheme ka payment kab aayega?"}
+  - {week: W6, day: 0, shop: S06, rep: rep3, pattern: P2, kind: problem, category: damage, severity: medium, sku: kurkure_masala_munch,
+     summary: "The Kurkure carton was crushed again.",
+     quote: "Is baar bhi carton dabba hua tha."}
+  - {week: W6, day: 0, shop: S03, rep: rep1, pattern: P4, kind: problem, category: visibility, severity: medium,
+     summary: "The display rack is broken.",
+     quote: "Rack toot gaya hai."}
+  - {week: W6, day: 0, shop: S19, rep: rep3, pattern: P4, kind: problem, category: demand, severity: medium, sku: gatorade,
+     summary: "Customers keep asking for gatorade.",
+     quote: "Customer gatorade maangte rehte hain."}
+  - {week: W6, day: 0, shop: S12, rep: rep1, pattern: P4, kind: problem, category: supply, severity: medium, sku: slice_mango,
+     summary: "Slice mango was short in the last delivery.",
+     quote: "Slice mango ka maal kam aaya."}
+  - {week: W6, day: 1, shop: S16, rep: rep2, pattern: P1, kind: problem, category: schemes, severity: high, scheme: kurkure_diwali_payout,
+     summary: "The distributor and the company each say the other pays the Diwali scheme.",
+     quote: "Distributor bolta hai scheme ka paisa company dega, company bolti hai distributor."}
+  - {week: W6, day: 1, shop: S07, rep: rep3, pattern: P2, kind: problem, category: damage, severity: medium, sku: kurkure_masala_munch,
+     summary: "Masala Munch packets came damaged.",
+     quote: "Masala Munch damaged aaya hai."}
+  - {week: W6, day: 1, shop: S14, rep: rep3, pattern: P4, kind: praise, category: praise, severity: medium, sku: uncle_chipps_plain_salted,
+     summary: "Uncle chipps plain salted is selling well.",
+     quote: "Uncle chipps plain salted achha chal raha hai."}
+  - {week: W6, day: 1, shop: S17, rep: rep2, pattern: P4, kind: product_request, category: demand, severity: low, sku: doritos_sweet_chilli,
+     summary: "Customers keep asking for doritos sweet chilli.",
+     quote: "Customer doritos sweet chilli maangte rehte hain."}
+  - {week: W6, day: 2, shop: S17, rep: rep2, pattern: P1, kind: problem, category: schemes, severity: high,
+     summary: "A scheme's money hasn't come; the shop didn't say which scheme.",
+     quote: "Woh wala scheme, uska paisa nahi mila abhi tak."}
+  - {week: W6, day: 2, shop: S08, rep: rep2, pattern: P2, kind: problem, category: damage, severity: medium, sku: kurkure_masala_munch,
+     summary: "Half the Kurkure carton was unsellable.",
+     quote: "Aadha carton bechne layak nahi tha."}
+  - {week: W6, day: 2, shop: S23, rep: rep3, pattern: P5, kind: problem, category: payments, severity: high,
+     summary: "The shop disputes a payment the distributor says it made.",
+     quote: "Distributor bolta hai paisa diya, humein mila hi nahi."}
+  - {week: W6, day: 2, shop: S14, rep: rep1, pattern: P4, kind: problem, category: damage, severity: medium, sku: cheetos_cheez_puffs,
+     summary: "A few cheetos cheez puffs packs came torn.",
+     quote: "Cheetos cheez puffs ke do packet phate the."}
+  - {week: W6, day: 2, shop: S13, rep: rep2, pattern: P4, kind: product_request, category: demand, severity: medium, sku: doritos_sweet_chilli,
+     summary: "Customers keep asking for doritos sweet chilli.",
+     quote: "Customer doritos sweet chilli maangte rehte hain."}
+  - {week: W6, day: 3, shop: S13, rep: rep1, pattern: P1, kind: problem, category: schemes, severity: high, scheme: kurkure_diwali_payout,
+     summary: "The shop says again that the Diwali payout is still pending.",
+     quote: "Phir se bol raha hoon, Diwali wala payout abhi bhi pending hai."}
+  - {week: W6, day: 3, shop: S06, rep: rep2, pattern: P4, kind: problem, category: servicing, severity: medium,
+     summary: "The salesman skipped the beat last week.",
+     quote: "Salesman pichle hafte aaya hi nahi."}
+  - {week: W6, day: 4, shop: S09, rep: rep3, pattern: P2, kind: problem, category: damage, severity: medium, sku: kurkure_masala_munch,
+     summary: "Kurkure packets arrived torn in the carton.",
+     quote: "Kurkure ke packet carton mein hi phat gaye."}
+  - {week: W6, day: 4, shop: S15, rep: rep2, pattern: P4, kind: problem, category: other, severity: medium,
+     summary: "Road work outside keeps customers away.",
+     quote: "Bahar road ka kaam chal raha hai."}

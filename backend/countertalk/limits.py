@@ -124,6 +124,16 @@ REOPEN_WINDOW_DAYS = 30
 # What a team member writes when resolving an issue: the rep reads it back to the shop.
 RESOLUTION_NOTE_MAX_CHARS = 2_000
 
+# Summaries' trend labels (batch 15b; BRIEF D16). An issue is `growing` with this many shops in
+# the period or more, and a Poisson chance under GROWING_MAX_P of that many at its baseline: the
+# mean of shops per period over the previous BASELINE_PERIODS, floored at BASELINE_FLOOR. It's
+# `recurring` if seen in RECURRING_MIN_PERIODS of those periods.
+GROWING_MIN_SHOPS = 3
+GROWING_MAX_P = 0.05
+BASELINE_PERIODS = 4
+BASELINE_FLOOR = 0.5
+RECURRING_MIN_PERIODS = 3
+
 # Linking (batch 12): a fuzzy match needs this rapidfuzz ratio or more on the linking key. From
 # the tests and K1 (1 Nov): misspellings of the right item scored 87 and up, and "Crunchy", in
 # no pepsico pack, scored 80 against Balaji's "crunchem". No two pepsico names of different
