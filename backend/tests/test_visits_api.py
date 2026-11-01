@@ -21,9 +21,10 @@ from sqlalchemy import delete, select
 from countertalk import storage, visits
 from countertalk.db import session_scope
 from countertalk.limits import LOCK_TIMEOUT_MS, MAX_SEGMENT_BYTES, MAX_SEGMENTS_PER_VISIT
-from countertalk.models import Org, Role, Shop, Transcript, Turn, User, Visit
+from countertalk.models import Org, Role, Shop, User, Visit
 from countertalk.playbooks import load_org_pack
 from scripts.seed_dev import DEMO_PACK, seed
+from tests.conftest import give_transcript
 
 RACE_TIMEOUT_S = 2 * LOCK_TIMEOUT_MS / 1000
 
@@ -157,34 +158,9 @@ def test_complete_returns_the_visit_uploaded(client: TestClient) -> None:
     assert [(v["id"], v["processing"]) for v in listed] == [(visit_id, True)]
 
 
-def with_transcript(visit_id: str) -> str:
-    """Gives the visit a transcript of two turns, as the transcribe job would."""
-    with session_scope() as session:
-        transcript = Transcript(
-            visit_id=visit_id, provider="fake", model="fake-1", language_code="hi,en", raw_dir="x"
-        )
-        session.add(transcript)
-        session.flush()
-        session.add_all(
-            Turn(
-                transcript_id=transcript.id,
-                turn_id=n,
-                speaker_label=f"c0:{who}",
-                start_ms=n,
-                end_ms=n + 1,
-                text=words,
-            )
-            for n, (who, words) in enumerate([("A", "Namaste ji."), ("B", "Haan bolo.")])
-        )
-        visit = session.get(Visit, visit_id)
-        assert visit is not None
-        visit.transcript_id = transcript.id
-        return transcript.id
-
-
 def test_a_visits_transcript_is_returned_with_its_turns(client: TestClient) -> None:
     visit_id = new_visit(client)
-    transcript_id = with_transcript(visit_id)
+    transcript_id = give_transcript(visit_id)
 
     response = client.get(f"/api/visits/{visit_id}/transcript")
 

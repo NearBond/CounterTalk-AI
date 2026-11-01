@@ -23,6 +23,7 @@ from countertalk.models import (
     new_id,
     utc_now,
 )
+from tests.conftest import give_transcript
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -280,13 +281,7 @@ def add_transcript(visit: Visit | None = None) -> tuple[str, str]:
     visit = visit or visit_row()
     with session_scope() as session:
         session.add(visit)
-        session.flush()
-        transcript = Transcript(visit_id=visit.id, provider="fake", model="fake-1", raw_dir="x")
-        session.add(transcript)
-        session.flush()
-        session.add(turn_row(transcript_id=transcript.id))
-        visit.transcript_id = transcript.id
-        return visit.id, transcript.id
+    return visit.id, give_transcript(visit.id, [("c0:A", 0, "Namaste ji.")])
 
 
 def turn_row(**overrides: object) -> Turn:

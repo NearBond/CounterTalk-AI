@@ -17,8 +17,8 @@ teams:
     name: Finance
     contact: finance@example.com
     handles: >-
-      Credit notes, disputed bills, unpaid claims and credit terms with shops and distributors,
-      and the payouts of schemes and display payments.
+      Credit notes, disputed bills, unpaid claims and credit terms; trade scheme benefits that
+      didn't reach the shop, scheme payouts and display payments.
   distribution:
     name: Distribution
     contact: distribution@example.com
@@ -29,20 +29,20 @@ teams:
     name: Trade marketing
     contact: trade.marketing@example.com
     handles: >-
-      Telling shops about trade schemes; visibility, coolers, racks and display material; and
-      requests for new flavours and packs.
+      Visibility, coolers, racks and display material; new flavours and products customers ask
+      for.
   sales_ops:
     name: Sales operations
     contact: sales.ops@example.com
     handles: >-
-      Distributor coverage, the salesmen's beats and visits, shops asking for another distributor,
-      and pricing, margins and channel conflict.
+      Distributor coverage, the salesmen's beats and visits, shops wanting another distributor;
+      pricing, price points and pack sizes, margins and channel conflict.
   area_manager:
     name: Area manager
     contact: area.manager@example.com
     handles: >-
-      Serious problems that put a shop at risk in the area, such as a high-severity payment
-      dispute, and praise worth passing up.
+      Serious problems that put a shop at risk, such as a high-severity payment dispute; and the
+      shopkeeper's praise.
 
 # Each playbook category's team, as the user decided on 1 Nov: Appendix A's "team that usually
 # acts" where it's one of these five (schemes go to finance, which pays them out: K6 P1), and the

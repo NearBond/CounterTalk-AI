@@ -84,9 +84,16 @@ STT_KEYWORD_MAX_CHARS = 30
 PROVIDER_ERROR_TEXT_MAX = 200
 
 # Muse Spark (batch 9): one request's timeout. Roles answer in seconds; extraction writes a few
-# thousand tokens. The worker's heartbeat keeps a job claimed however long a call takes.
-LLM_TIMEOUT_MS = 120_000
+# thousand tokens. Long, as for speech-to-text: a request that times out may still be billed, and
+# the SDK sends it again (LLM_MAX_RETRIES), so a timeout should mean Meta is stuck, not slow. The
+# worker's heartbeat keeps a job claimed however long a call takes.
+LLM_TIMEOUT_MS = 300_000
 # The SDK's own retries of a request: 408, 409, 429, 5xx and network errors, a timeout included.
 # An answer takes up to three requests (the first, one asked again, one repair), each tried up to
 # 1 + LLM_MAX_RETRIES times.
 LLM_MAX_RETRIES = 2
+
+# Speaker roles (BRIEF §12): the turns sent are the first ROLES_FIRST_TURNS, ROLES_SAMPLED_TURNS
+# spread over the rest, and one more for any label not in those.
+ROLES_FIRST_TURNS = 60
+ROLES_SAMPLED_TURNS = 20

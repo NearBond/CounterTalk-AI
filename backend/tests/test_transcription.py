@@ -10,7 +10,7 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine, select, text, update
+from sqlalchemy import select, update
 
 from countertalk import audio, catalog, limits, storage, transcription, worker
 from countertalk.db import session_scope
@@ -28,7 +28,7 @@ from countertalk.models import (
 from countertalk.playbooks import load_org_pack
 from countertalk.stt import meta
 from countertalk.stt.base import Reply
-from tests.conftest import ORG_PACK_FIXTURES, SERVER_URL, TEST_DATABASE
+from tests.conftest import ORG_PACK_FIXTURES, open_transactions
 from tests.test_audio import TALK_WITH_PAUSES, wav_file
 from tests.test_visits import Org_, complete, fail_processing, load, make_org, new_visit, upload
 
@@ -42,24 +42,6 @@ def org() -> Org_:
 def short_chunks(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(limits, "STT_CHUNK_MS", 10_000)
     monkeypatch.setattr(limits, "PAUSE_SEARCH_MS", 2_000)
-
-
-def open_transactions() -> int:
-    """Transactions open on the test database, from any client connection but this one.
-    Clients only: autovacuum's workers show here too, with transactions of their own."""
-    engine = create_engine(f"{SERVER_URL}/postgres", isolation_level="AUTOCOMMIT")
-    try:
-        with engine.connect() as conn:
-            return conn.scalar(
-                text(
-                    "SELECT count(*) FROM pg_stat_activity WHERE datname = :name"
-                    " AND backend_type = 'client backend'"
-                    " AND xact_start IS NOT NULL AND pid <> pg_backend_pid()"
-                ),
-                {"name": TEST_DATABASE},
-            )
-    finally:
-        engine.dispose()
 
 
 def reply_body(call: int) -> dict[str, Any]:

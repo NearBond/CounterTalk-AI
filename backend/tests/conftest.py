@@ -9,7 +9,7 @@
 import os
 import shutil
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 import pytest
@@ -23,7 +23,7 @@ from sqlalchemy.exc import OperationalError
 from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import get_engine, session_scope
 from countertalk.main import create_app
-from countertalk.models import Org
+from countertalk.models import Org, Transcript, Turn, Visit
 
 # 127.0.0.1, not localhost: on Windows, localhost tries ::1 first and waits for it to time out.
 # CI's job container reaches its Postgres service by name instead (TEST_POSTGRES_HOST).
@@ -85,6 +85,68 @@ def terminate_backends(pid: int | None = None) -> None:
             )
     finally:
         engine.dispose()
+
+
+def open_transactions() -> int:
+    """Transactions open on the test database, from any client connection but this one.
+    Clients only: autovacuum's workers show here too, with transactions of their own."""
+    engine = create_engine(f"{SERVER_URL}/postgres", isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as conn:
+            return conn.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity WHERE datname = :name"
+                    " AND backend_type = 'client backend'"
+                    " AND xact_start IS NOT NULL AND pid <> pg_backend_pid()"
+                ),
+                {"name": TEST_DATABASE},
+            )
+    finally:
+        engine.dispose()
+
+
+def lock_waiters() -> int:
+    """Connections to the test database waiting for a lock: a race test waits for its other
+    side to block before letting it go on."""
+    engine = create_engine(f"{SERVER_URL}/postgres", isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as conn:
+            return conn.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity WHERE datname = :name"
+                    " AND wait_event_type = 'Lock'"
+                ),
+                {"name": TEST_DATABASE},
+            )
+    finally:
+        engine.dispose()
+
+
+TWO_TURNS = (("c0:A", 0, "Namaste ji."), ("c0:B", 1, "Haan bolo."))
+
+
+def give_transcript(visit_id: str, lines: Sequence[tuple[str, int, str]] = TWO_TURNS) -> str:
+    """Gives the visit a transcript of these turns (label, start_ms, text), as the transcribe
+    job would, each turn 1 ms long. Its ID."""
+    with session_scope() as session:
+        transcript = Transcript(
+            visit_id=visit_id, provider="fake", model="fake-1", language_code="hi,en", raw_dir="x"
+        )
+        session.add(transcript)
+        session.flush()
+        session.add_all(
+            Turn(
+                transcript_id=transcript.id,
+                turn_id=index,
+                speaker_label=label,
+                start_ms=start_ms,
+                end_ms=start_ms + 1,
+                text=text,
+            )
+            for index, (label, start_ms, text) in enumerate(lines)
+        )
+        session.get_one(Visit, visit_id).transcript_id = transcript.id
+        return transcript.id
 
 
 def org_count() -> int:

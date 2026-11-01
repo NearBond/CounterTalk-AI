@@ -356,6 +356,69 @@ class Turn(Base):
     text: Mapped[str] = mapped_column(String)
 
 
+class SpeakerRole(Base):
+    """Who one of a transcript's speaker labels is (batch 9): one of its playbook's roles. Saved
+    once, for every label, and never asked for again (§9.4)."""
+
+    __tablename__ = "speaker_roles"
+    __table_args__ = (
+        CheckConstraint("confidence >= 0 AND confidence <= 1", name="confidence"),
+        CheckConstraint("playbook_version >= 1", name="playbook_version"),
+    )
+
+    transcript_id: Mapped[str] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("transcripts.id", ondelete="CASCADE"), primary_key=True
+    )
+    # As on its turns: c0:A, c1:?.
+    speaker_label: Mapped[str] = mapped_column(String, primary_key=True)
+    role: Mapped[str] = mapped_column(String)
+    # The model's own, 0 to 1; 0 for a label it didn't place.
+    confidence: Mapped[float]
+    playbook_id: Mapped[str] = mapped_column(String)
+    playbook_version: Mapped[int]
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class LlmPurpose(StrEnum):
+    ROLES = "roles"
+
+
+class LlmCall(Base):
+    """One request to the LLM (batch 9), failed ones too, for what it cost (§9.3; BRIEF §8).
+    Never the prompt or the answer (§1.9): a hash of the request instead."""
+
+    __tablename__ = "llm_calls"
+    __table_args__ = (
+        CheckConstraint(_one_of("purpose", LlmPurpose), name="purpose"),
+        # An answered call has no error, and a failed one has its code.
+        CheckConstraint("ok = (error IS NULL)", name="ok_or_error"),
+    )
+    __mapper_args__ = {"eager_defaults": True}
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    # Breaks created_at ties: one answer's requests are written together.
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(), unique=True)
+    # None for a call that isn't about one visit (batch 15b's summaries), or whose visit was
+    # deleted: what it cost stays counted.
+    visit_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("visits.id", ondelete="SET NULL"), index=True
+    )
+    purpose: Mapped[str] = mapped_column(String)
+    provider: Mapped[str] = mapped_column(String)
+    model: Mapped[str] = mapped_column(String)
+    prompt_hash: Mapped[str] = mapped_column(String)
+    # None where the reply didn't say. Reasoning tokens are billed as output.
+    input_tokens: Mapped[int | None]
+    cached_input_tokens: Mapped[int | None]
+    output_tokens: Mapped[int | None]
+    reasoning_tokens: Mapped[int | None]
+    latency_ms: Mapped[int]
+    request_id: Mapped[str | None] = mapped_column(String)
+    ok: Mapped[bool]
+    error: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
 class JobState(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
