@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
-from countertalk import routing
+from countertalk import review, routing
 from countertalk.db import session_scope
 from countertalk.models import Insight, Team
 from scripts.compare_extraction import (
@@ -29,7 +29,7 @@ from scripts.compare_extraction import (
     script_beside,
 )
 from tests.test_extraction import answer, insight, run, transcribed
-from tests.test_roles import ALL_PLACED, tiny_org
+from tests.test_roles import ALL_PLACED, tiny, tiny_org
 
 
 def want(number: int, window: tuple[int, int] | None, *, optional: bool = False) -> Expected:
@@ -328,3 +328,21 @@ def test_a_quote_never_checked_is_counted_apart_from_one_that_failed() -> None:
 )
 def test_the_script_and_name_of_an_answer_key(expected: str, script: str, name: str) -> None:
     assert (script_beside(Path(expected)), recording_of(Path(expected))) == (Path(script), name)
+
+
+def test_a_visit_the_rep_has_edited_isnt_compared(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    org = tiny_org()
+    visit_id = transcribed(org)
+    run(visit_id, ALL_PLACED, answer())
+    with session_scope() as session:
+        [insight_id] = session.scalars(select(Insight.id).where(Insight.visit_id == visit_id))
+        review.edit_insight(session, tiny(), org.org_id, org.rep_id, insight_id, category="supply")
+
+    assert main([visit_id, k2_file(tmp_path, "teams: [field]")]) == 1
+
+    assert capsys.readouterr().err == (
+        f"visit {visit_id} has 1 rep edits, so its insights aren't all the AI's: compare a"
+        " visit before its review\n"
+    )

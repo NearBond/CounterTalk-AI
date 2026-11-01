@@ -113,6 +113,9 @@ QUOTE_FUZZY_MIN_CHARS = 10
 # Playback starts this long before the quote, into the turn before if need be (D1, 1 Nov).
 QUOTE_LEAD_IN_MS = 1_500
 
+# A rep's note on a visit (batch 14): free text for the record, never sent to teams.
+NOTE_MAX_CHARS = 2_000
+
 # Linking (batch 12): a fuzzy match needs this rapidfuzz ratio or more on the linking key. From
 # the tests and K1 (1 Nov): misspellings of the right item scored 87 and up, and "Crunchy", in
 # no pepsico pack, scored 80 against Balaji's "crunchem". No two pepsico names of different

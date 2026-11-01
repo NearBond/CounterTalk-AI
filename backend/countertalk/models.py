@@ -4,6 +4,7 @@ import uuid
 from collections.abc import Iterable
 from datetime import UTC, date, datetime, timedelta, timezone
 from enum import StrEnum
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -24,6 +25,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from countertalk import limits
 
 # Constraint names are fixed, so migrations can refer to them and errors can be matched on them.
 NAMING_CONVENTION = {
@@ -841,8 +844,13 @@ class RoutingDecision(Base):
             f" AND (team_id IS NULL) = COALESCE(rule = '{TRIAGE_RULE}', false)",
             name="triage",
         ),
-        # Decided by the rule, or by a person: one or the other.
-        CheckConstraint("(rule IS NULL) <> (decided_by IS NULL)", name="rule_or_person"),
+        # Decided by the rule or by a person, one or the other; a rep's re-route (batch 14) by
+        # both: the rule decide() applied to the rep's change, and the rep.
+        CheckConstraint(
+            "CASE WHEN action = 'reroute' THEN rule IS NOT NULL AND decided_by IS NOT NULL"
+            " ELSE (rule IS NULL) <> (decided_by IS NULL) END",
+            name="rule_or_person",
+        ),
         # Its team and its person are its org's. Neither is ever deleted while it has history
         # (an UPDATE to null would be refused anyway), so nothing happens on delete.
         ForeignKeyConstraint(["org_id", "team_id"], ["teams.org_id", "teams.id"]),
@@ -856,12 +864,85 @@ class RoutingDecision(Base):
     team_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
     action: Mapped[str] = mapped_column(String)
     # agreed, table_only, ai_filled_gap, disagreed, override:<category> or triage; None for a
-    # person's.
+    # person's own choice (also_send).
     rule: Mapped[str | None] = mapped_column(String)
+    # None for the rule alone; the person who acted (also_send, or a re-routing edit).
     decided_by: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
     # The model's team key when it isn't one of the org's teams: on the slot 1 or triage row.
     ai_team_key_unknown: Mapped[str | None] = mapped_column(String)
     extraction_id: Mapped[str | None] = mapped_column(
         Uuid(as_uuid=False), ForeignKey("extractions.id", ondelete="CASCADE"), index=True
     )
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class EditObject(StrEnum):
+    INSIGHT = "insight"
+    VISIT = "visit"
+
+
+# The field of an insight's Edit row when the whole insight was added or deleted.
+CREATED, DELETED = "created", "deleted"
+
+
+class Edit(Base):
+    """Every change a rep makes during review (batch 14; BRIEF §6): a row per insight field
+    changed, one for an insight added (`created`) or deleted (`deleted`, before holding what it
+    was), and one for the confirm (the visit's status).
+
+    Append-only: refuse_change() refuses UPDATE and DELETE, but for a cascade with its visit.
+    object_id is a plain UUID, by design: the row outlives a deleted insight. Its actor is never
+    deleted while it has history (an UPDATE to null would be refused), so nothing happens on
+    delete."""
+
+    __tablename__ = "edits"
+    __table_args__ = (
+        CheckConstraint(_one_of("object", EditObject), name="object"),
+        # Nothing before an insight was added, nothing after one was deleted; values otherwise.
+        CheckConstraint(f"(before IS NULL) = (field = '{CREATED}')", name="before"),
+        CheckConstraint(f"(after IS NULL) = (field = '{DELETED}')", name="after"),
+        # A visit's own row is its status, about itself.
+        CheckConstraint(
+            f"object <> '{EditObject.VISIT}' OR (object_id = visit_id AND field = 'status')",
+            name="visit_status",
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "visit_id"], ["visits.org_id", "visits.id"], ondelete="CASCADE"
+        ),
+        ForeignKeyConstraint(["org_id", "actor_id"], ["users.org_id", "users.id"]),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    visit_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    actor_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    object: Mapped[str] = mapped_column(String)
+    object_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    field: Mapped[str] = mapped_column(String)
+    # JSON values; SQL NULL where there was nothing (before a `created`, after a `deleted`).
+    # Any: inside this class, `object` is the column above.
+    before: Mapped[Any] = mapped_column(JSONB(none_as_null=True), nullable=True)
+    after: Mapped[Any] = mapped_column(JSONB(none_as_null=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class VisitNote(Base):
+    """A rep's note for the visit's record (batch 14): never routed, never shown to teams.
+    Added only, for now. It goes with its visit."""
+
+    __tablename__ = "visit_notes"
+    __table_args__ = (
+        CheckConstraint(f"char_length(text) BETWEEN 1 AND {limits.NOTE_MAX_CHARS}", name="length"),
+        ForeignKeyConstraint(
+            ["org_id", "visit_id"], ["visits.org_id", "visits.id"], ondelete="CASCADE"
+        ),
+        # Its author is never deleted while it has notes, so nothing happens on delete.
+        ForeignKeyConstraint(["org_id", "author_id"], ["users.org_id", "users.id"]),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    visit_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    author_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    text: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)

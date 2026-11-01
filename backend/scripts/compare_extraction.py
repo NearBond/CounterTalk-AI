@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, ValidationError
-from sqlalchemy import select, tuple_
+from sqlalchemy import func, select, tuple_
 
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.errors import DomainError, describe
@@ -45,6 +45,8 @@ from countertalk.logs import configure_logging
 from countertalk.models import (
     AliasReview,
     CatalogItem,
+    Edit,
+    EditObject,
     Evidence,
     Insight,
     RoutingDecision,
@@ -479,6 +481,16 @@ class Totals:
         ]
 
 
+def rep_edits(visit_id: str) -> int:
+    """The rep's changes to the visit's insights (batch 14): an edited, added or deleted insight
+    would be scored as the AI's (R10), so such a visit isn't compared."""
+    with session_scope(read_only=True) as session:
+        query = select(func.count()).where(
+            Edit.visit_id == visit_id, Edit.object == EditObject.INSIGHT
+        )
+        return session.scalar(query) or 0
+
+
 def script_beside(path: Path) -> Path:
     """rpNN.turns.json beside rpNN.expected.yaml, or an eval case's script_turns.json beside its
     expected.yaml (batch 13)."""
@@ -511,6 +523,14 @@ def main(argv: list[str]) -> int:
                 parser.error(f"{raw_id} isn't a visit ID")
             path = Path(expected_path)
             turns_path = args.turns or script_beside(path)
+            edits = rep_edits(visit_id)
+            if edits:
+                print(
+                    f"visit {visit_id} has {edits} rep edits, so its insights aren't all the AI's:"
+                    " compare a visit before its review",
+                    file=sys.stderr,
+                )
+                return 1
             loaded = load_extracted(visit_id)
             if loaded is None:
                 print(f"visit {visit_id} has no transcript", file=sys.stderr)

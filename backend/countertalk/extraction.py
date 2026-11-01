@@ -26,9 +26,19 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, select, text
 
-from countertalk import entities, jobs, limits, llm_calls, quotes, roles, routing, visits
+from countertalk import (
+    entities,
+    jobs,
+    limits,
+    llm_calls,
+    quotes,
+    review,
+    roles,
+    routing,
+    visits,
+)
 from countertalk.db import session_scope
 from countertalk.errors import NotFound, PermanentError, RetryableError
 from countertalk.llm import pricing
@@ -46,7 +56,6 @@ from countertalk.models import (
     Org,
     Report,
     Task,
-    Team,
     Visit,
     VisitKind,
     VisitStatus,
@@ -315,8 +324,7 @@ def _save(
             status = None if visit is None else visit.status
             log.info("extraction not saved visit=%s status=%s", visit_id, status)
             return
-        query = select(Team.key, Team.id).where(Team.org_id == visit.org_id)
-        teams = {key: team_id for key, team_id in session.execute(query)}
+        teams = routing.team_ids(session, visit.org_id)
         routes = routing.table_of(pack)
         extraction = Extraction(
             id=new_id(),
@@ -338,8 +346,7 @@ def _save(
         # evidence goes with it.
         extracted = Insight.extraction_id.is_not(None)
         session.execute(delete(Insight).where(Insight.visit_id == visit_id, extracted))
-        kept = select(func.max(Insight.seq)).where(Insight.visit_id == visit_id)
-        first_seq = (session.scalar(kept) or -1) + 1
+        first_seq = review.next_seq(session, visit_id)  # after a rep's insights, kept
         report_fields = {k: v for k, v in answer.items() if k not in ("insights", "tasks")}
         session.add(
             Report(

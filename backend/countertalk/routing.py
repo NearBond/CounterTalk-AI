@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from itertools import count
 from typing import Literal
 
-from sqlalchemy import exists, select
+from sqlalchemy import delete, exists, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -128,17 +128,76 @@ def route_new(
             "routing skipped, already routed visit=%s insight=%s", insight.visit_id, insight.id
         )
         return "already"
+    return _write(session, insight, decision, team_ids, None)
+
+
+def team_ids(session: Session, org_id: str) -> dict[str, str]:
+    """The org's teams, key: id: what decide() and the route writers take (R1)."""
+    query = select(Team.key, Team.id).where(Team.org_id == org_id)
+    return {key: team_id for key, team_id in session.execute(query)}
+
+
+def ai_team_key(session: Session, insight: Insight, teams: dict[str, str]) -> str | None:
+    """The AI's team for an insight being routed again: its ai_team_id's key, or the unknown
+    key its first routing recorded, so a re-route records it again."""
+    for key, team_id in teams.items():
+        if team_id == insight.ai_team_id:
+            return key
+    query = (
+        select(RoutingDecision.ai_team_key_unknown)
+        .where(
+            RoutingDecision.insight_id == insight.id,
+            RoutingDecision.ai_team_key_unknown.is_not(None),
+        )
+        .order_by(RoutingDecision.created_at)
+        .limit(1)
+    )
+    return session.scalar(query)
+
+
+def reroute(
+    session: Session, insight: Insight, decision: Decision, team_ids: dict[str, str], actor: str
+) -> Routed:
+    """A rep's category or severity change (batch 14): the insight's routes are replaced by the
+    rule's for its new values, each with a `reroute` history row naming the rep as well as the
+    rule decide() applied. Under the insight's lock, in the caller's transaction. An unverified
+    insight is never routed (D9).
+
+    Only the rule's routes are ever replaced: edits happen in review, before a team member can
+    route an insight by hand (batch 15's inbox shows confirmed visits), and one routed by hand
+    is refused rather than lose its route without a trace."""
+    insight = _lock(session, insight.org_id, insight.id)
+    if not insight.verified:
+        return "unverified"
+    by_hand = select(InsightRoute.id).where(
+        InsightRoute.insight_id == insight.id, InsightRoute.routed_by == RoutedBy.PERSON
+    )
+    if session.scalar(by_hand.limit(1)) is not None:
+        raise Conflict("routed_by_hand", "A team member has routed it by hand: change it there")
+    session.execute(delete(InsightRoute).where(InsightRoute.insight_id == insight.id))
+    return _write(session, insight, decision, team_ids, actor)
+
+
+def _write(
+    session: Session,
+    insight: Insight,
+    decision: Decision,
+    team_ids: dict[str, str],
+    rerouted_by: str | None,
+) -> Routed:
+    """The decided routes, each with its history row, or a triage row: the rule's (`route`,
+    `override`), or a rep's re-route (`reroute`, decided_by the rep)."""
     history = {
         "org_id": insight.org_id,
         "insight_id": insight.id,
         "extraction_id": insight.extraction_id,
+        "decided_by": rerouted_by,
     }
     unknown = decision.ai_team_key_unknown
     if not decision.routes:
+        action = RoutingAction.REROUTE if rerouted_by else RoutingAction.ROUTE
         session.add(
-            RoutingDecision(
-                **history, action=RoutingAction.ROUTE, rule=TRIAGE_RULE, ai_team_key_unknown=unknown
-            )
+            RoutingDecision(**history, action=action, rule=TRIAGE_RULE, ai_team_key_unknown=unknown)
         )
         return "triage"
     for choice in decision.routes:
@@ -152,13 +211,18 @@ def route_new(
                 routed_by=choice.routed_by,
             )
         )
-        overriding = choice.routed_by == RoutedBy.OVERRIDE
+        if rerouted_by is not None:
+            action = RoutingAction.REROUTE
+        elif choice.routed_by == RoutedBy.OVERRIDE:
+            action = RoutingAction.OVERRIDE
+        else:
+            action = RoutingAction.ROUTE
         session.add(
             RoutingDecision(
                 **history,
                 slot=choice.slot,
                 team_id=team_id,
-                action=RoutingAction.OVERRIDE if overriding else RoutingAction.ROUTE,
+                action=action,
                 rule=choice.rule,
                 ai_team_key_unknown=unknown if choice.slot == 1 else None,
             )

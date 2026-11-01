@@ -3,12 +3,24 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import Executable, delete, select, text, update
+from sqlalchemy import (
+    Column,
+    Executable,
+    ForeignKey,
+    Integer,
+    MetaData,
+    Table,
+    delete,
+    select,
+    text,
+    update,
+)
 from sqlalchemy.exc import IntegrityError, StatementError
 
 from countertalk.db import constraint_name, session_scope
 from countertalk.models import (
     IST,
+    Base,
     Distributor,
     Evidence,
     Extraction,
@@ -545,3 +557,37 @@ def test_rows_never_point_at_another_visits_extraction_or_transcript() -> None:
         session.execute(delete(Report).where(Report.visit_id == mine))
     assert refused(report) == "fk_reports_visit_id_extractions"
     assert refused(quote) == "fk_evidence_visit_id_transcripts"
+
+
+def foreign_keys_across_orgs(metadata: MetaData) -> list[str]:
+    """R9: a foreign key from a table with org_id to another table with org_id must include
+    org_id, so the database refuses a row that points into another org. Added in batch 14, when
+    R9 came up twice in one part."""
+    found = []
+    for table in metadata.sorted_tables:
+        if "org_id" not in table.c:
+            continue
+        for key in table.foreign_key_constraints:
+            target = key.referred_table
+            if target.name != "orgs" and "org_id" in target.c and "org_id" not in key.column_keys:
+                found.append(f"{table.name} ({', '.join(key.column_keys)}) -> {target.name}")
+    return found
+
+
+def test_every_org_scoped_row_points_only_at_its_own_org_s_rows() -> None:
+    assert foreign_keys_across_orgs(Base.metadata) == []
+
+
+def test_the_check_finds_a_key_without_its_org() -> None:
+    metadata = MetaData()
+    Table("orgs", metadata, Column("id", Integer, primary_key=True))
+    Table("teams", metadata, Column("id", Integer, primary_key=True), Column("org_id", Integer))
+    Table(
+        "notes",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("org_id", Integer, ForeignKey("orgs.id")),
+        Column("team_id", Integer, ForeignKey("teams.id")),
+    )
+
+    assert foreign_keys_across_orgs(metadata) == ["notes (team_id) -> teams"]

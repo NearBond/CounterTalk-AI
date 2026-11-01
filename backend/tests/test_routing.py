@@ -4,10 +4,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from sqlalchemy import delete, select, text, update
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from countertalk import routing
-from countertalk.db import session_scope
+from countertalk.db import constraint_name, session_scope
 from countertalk.errors import Conflict, NotFound
 from countertalk.models import (
     Extraction,
@@ -376,3 +376,46 @@ def test_the_cap_is_the_one_constraint_routing_knows() -> None:
         )
 
     assert check == "CHECK (((slot >= 1) AND (slot <= 2)))"
+
+
+@pytest.mark.parametrize(
+    ("action", "rule", "by_rep"),
+    [
+        ("route", "agreed", True),  # the rule's own, naming a person
+        ("also_send", "agreed", True),  # a person's, naming a rule
+        ("reroute", "agreed", False),  # a re-route without its rep
+        ("reroute", None, True),  # a re-route without its rule
+    ],
+)
+def test_who_decided_is_checked_by_action(
+    org: Org_, action: str, rule: str | None, by_rep: bool
+) -> None:
+    insight_id = an_insight(org)
+
+    with pytest.raises(IntegrityError) as refused, session_scope() as session:
+        session.add(
+            RoutingDecision(
+                org_id=org.org_id,
+                insight_id=insight_id,
+                slot=1,
+                team_id=team_ids(org.org_id)["money"],
+                action=action,
+                rule=rule,
+                decided_by=org.rep_id if by_rep else None,
+            )
+        )
+
+    assert constraint_name(refused.value) == "ck_routing_decisions_rule_or_person"
+
+
+def test_a_route_made_by_hand_isnt_replaced_by_a_re_route(org: Org_) -> None:
+    insight_id = routed_to_money(org)
+    send(org, insight_id, team_ids(org.org_id)["field"])
+
+    with pytest.raises(Conflict) as refused, session_scope() as session:
+        insight = session.get_one(Insight, insight_id)
+        teams = team_ids(org.org_id)
+        routing.reroute(session, insight, Decision((), None), teams, org.rep_id)
+
+    assert refused.value.code == "routed_by_hand"
+    assert routes_of(insight_id) == [(1, "money", "table"), (2, "field", "person")]

@@ -393,6 +393,14 @@ def _widened(text: str, start: int, end: int) -> tuple[int, int]:
     return start, end
 
 
+def playback_start(turn_start_ms: int, into_ms: float) -> int:
+    """When to start playing a quote that begins into_ms into its turn: QUOTE_LEAD_IN_MS
+    before it, into the turn before if need be (decided 1 Nov, D1): a speech-to-text turn can
+    start a little after the speech, and a second of the other speaker is harmless context.
+    Batch 14's rep-added finding uses it too (R1)."""
+    return max(0, round(turn_start_ms + into_ms - limits.QUOTE_LEAD_IN_MS))
+
+
 def _found(
     match: Literal["exact", "fuzzy"],
     i: int,
@@ -406,9 +414,7 @@ def _found(
     char_start, char_end = normalised.spans[start][0], normalised.spans[end - 1][1]
     length = max(len(turn.text), 1)
     into = char_start / length * (turn.end_ms - turn.start_ms)
-    # Into the turn before if need be (decided 1 Nov, D1): a speech-to-text turn can start a
-    # little after the speech, and a second of the other speaker is harmless context.
-    start_ms = max(0, round(turn.start_ms + into - limits.QUOTE_LEAD_IN_MS))
+    start_ms = playback_start(turn.start_ms, into)
     return Verified(
         match=match,
         turn_id=turn.turn_id,
