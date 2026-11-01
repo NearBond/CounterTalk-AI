@@ -11,8 +11,16 @@ give or take SLACK_MS. They're paired one to one, the biggest overlap first.
 
 - An expected insight left unmatched is a miss, unless it's `optional: true`.
 - An extracted one left unmatched is invented. One matched to an optional insight is neither.
-- For each pair: kind, category, severity, the AI's suggested team against the expected
-  team(s), and the scheme. Product and competitor links wait for batch 12.
+- For each pair: kind, category, severity, and the AI's suggested team against the expected
+  team(s).
+- Its links (batch 12): the SKU, the competitor and the scheme, each agree, missing, extra or
+  wrong. An insight holds one link of each kind, so it agrees when it's one of K2's, or both are
+  empty. And its teams as the rule routed them at extraction (slots 1 and 2, from its
+  routing_decisions; never a person's later change) against K2's, in any order: agree or
+  differ. An unverified insight is never routed (D9): "not routed: unverified", counted apart.
+  An insight extracted before batch 12 was never linked or routed: "unchecked", apart too. (One
+  whose run routed nothing, every insight unverified, shows its links as unchecked as well.)
+- The names linking sent to review (AliasReview), with their kind.
 - Quotes: how each was matched when it was checked (batch 11: exact, fuzzy or none), and the
   share of insights verified, with a matched quote. The target is 95% or more.
 
@@ -24,7 +32,7 @@ import argparse
 import sys
 import unicodedata
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -34,8 +42,19 @@ from sqlalchemy import select, tuple_
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.errors import DomainError, describe
 from countertalk.logs import configure_logging
-from countertalk.models import Evidence, Insight, Team, Turn, Visit, parse_id
+from countertalk.models import (
+    AliasReview,
+    CatalogItem,
+    Evidence,
+    Insight,
+    RoutingDecision,
+    Team,
+    Turn,
+    Visit,
+    parse_id,
+)
 from countertalk.playbooks import read_yaml
+from countertalk.reporting import buckets, share
 from scripts.compare_transcript import BadReference, Span, load_reference
 
 SLACK_MS = 2_000
@@ -53,6 +72,9 @@ class Expected:
     phrase: str
     # The phrase's turn in the mix, or None if no turn of the script has it.
     window: tuple[int, int] | None
+    # Catalog keys.
+    skus: tuple[str, ...] = ()
+    competitors: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -69,6 +91,13 @@ class Extracted:
     # Each quote's match, as stored when it was checked.
     matches: tuple[str | None, ...]
     verified: bool
+    # Its links' catalog keys (batch 12).
+    sku: str | None = None
+    competitor: str | None = None
+    # Its teams' keys by slot as the rule routed it, () for triage; None if the rule never did.
+    routes: tuple[str, ...] | None = None
+    # Linking ran on its extraction (batch 12 on).
+    linked: bool = True
 
 
 @dataclass
@@ -158,18 +187,44 @@ def load_expected(path: Path, script: Sequence[Span]) -> list[Expected]:
                 optional=item.optional,
                 phrase=item.phrase,
                 window=(turns[0].start_ms, turns[0].end_ms) if turns else None,
+                skus=tuple(item.skus),
+                competitors=tuple(item.competitors),
             )
         )
     return found
 
 
-def load_extracted(visit_id: str) -> list[Extracted] | None:
-    """The visit's extracted insights, each quote's turn read from the transcript it cites."""
+Review = tuple[str, str]  # an AliasReview's kind, and the name as written
+
+
+def load_extracted(visit_id: str) -> tuple[list[Extracted], list[Review]] | None:
+    """The visit's extracted insights, each quote's turn read from the transcript it cites, and
+    the names linking sent to review. One snapshot."""
     with session_scope(read_only=True) as session:
         visit = session.get(Visit, visit_id)
         if visit is None or visit.transcript_id is None:
             return None
         teams = {team_id: key for key, team_id in session.execute(select(Team.key, Team.id))}
+        items = select(CatalogItem.id, CatalogItem.key).where(CatalogItem.org_id == visit.org_id)
+        keys = {item_id: key for item_id, key in session.execute(items)}
+        decided: dict[str, list[str]] = {}
+        runs: set[str] = set()
+        by_rule = (
+            select(RoutingDecision.insight_id, RoutingDecision.team_id)
+            .add_columns(RoutingDecision.extraction_id)
+            .join(Insight, Insight.id == RoutingDecision.insight_id)
+            .where(
+                Insight.visit_id == visit_id,
+                RoutingDecision.extraction_id == Insight.extraction_id,
+                RoutingDecision.decided_by.is_(None),
+            )
+            .order_by(RoutingDecision.slot)
+        )
+        for insight_id, team_id, extraction_id in session.execute(by_rule):
+            routes = decided.setdefault(insight_id, [])
+            if team_id is not None:  # a triage row has none
+                routes.append(teams[team_id])
+            runs.add(extraction_id)
         cited = dict(
             ((row.transcript_id, row.turn_id), row)
             for row in session.scalars(
@@ -205,16 +260,88 @@ def load_extracted(visit_id: str) -> list[Extracted] | None:
                     spans=tuple((t.start_ms, t.end_ms) for _, t in own if t is not None),
                     matches=tuple(q.match for q, _ in own),
                     verified=row.verified,
+                    sku=keys.get(row.sku_id) if row.sku_id else None,
+                    competitor=keys.get(row.competitor_id) if row.competitor_id else None,
+                    routes=tuple(decided[row.id]) if row.id in decided else None,
+                    linked=row.extraction_id in runs,
                 )
             )
-        return found
+        reviewed = select(AliasReview.kind, AliasReview.text).where(
+            AliasReview.visit_id == visit_id
+        )
+        reviews = [
+            (kind, text) for kind, text in session.execute(reviewed.order_by(AliasReview.text))
+        ]
+        return found, reviews
 
 
-def matched(matches: Sequence[str]) -> str:
-    """The counts of each match; a quote never checked (extracted before batch 11) apart."""
-    counts = Counter(matches)
-    shown = f"exact {counts['exact']}, fuzzy {counts['fuzzy']}, none {counts['none']}"
-    return shown + (f", unchecked {counts['unchecked']}" if counts["unchecked"] else "")
+UNCHECKED = "unchecked"
+UNVERIFIED = "not routed: unverified"
+LINKS = ("sku", "competitor", "scheme")
+# Unchecked, if any, follows (reporting.buckets never drops a bucket).
+LINK_OUTCOMES = ("agree", "missing", "extra", "wrong")
+ROUTING_OUTCOMES = ("agree", "differ", UNVERIFIED)
+
+
+def link_outcome(wanted: Sequence[str], got: str | None) -> str:
+    if got is None:
+        return "agree" if not wanted else "missing"
+    if not wanted:
+        return "extra"
+    return "agree" if got in wanted else "wrong"
+
+
+def routing_outcome(want: Expected, got: Extracted) -> str:
+    if not got.verified:
+        return UNVERIFIED
+    if got.routes is None:
+        return UNCHECKED
+    return "agree" if set(got.routes) == set(want.teams) else "differ"
+
+
+def outcomes(want: Expected, got: Extracted) -> dict[str, str]:
+    scheme = (want.scheme,) if want.scheme else ()
+    links = {
+        "sku": link_outcome(want.skus, got.sku),
+        "competitor": link_outcome(want.competitors, got.competitor),
+        "scheme": link_outcome(scheme, got.scheme),
+    }
+    if not got.linked:
+        links = dict.fromkeys(links, UNCHECKED)
+    return links | {"routed": routing_outcome(want, got)}
+
+
+@dataclass
+class Scores:
+    """Each pair's links and routed teams, counted by outcome."""
+
+    links: dict[str, Counter[str]] = field(default_factory=lambda: {k: Counter() for k in LINKS})
+    routing: Counter[str] = field(default_factory=Counter)
+
+    def add(self, pairs: Sequence[tuple[Expected, Extracted]]) -> None:
+        for want, got in pairs:
+            found = outcomes(want, got)
+            for kind, counts in self.links.items():
+                counts[found[kind]] += 1
+            self.routing[found["routed"]] += 1
+
+    def lines(self, pairs: int) -> list[str]:
+        return [
+            *(
+                f"{kind} link, of {pairs} matched: {buckets(counts, LINK_OUTCOMES)}"
+                for kind, counts in self.links.items()
+            ),
+            f"routed teams, of {pairs} matched: {buckets(self.routing, ROUTING_OUTCOMES)}",
+        ]
+
+
+def routes_shown(routes: tuple[str, ...] | None) -> str:
+    return "-" if routes is None else "+".join(routes) or "triage"
+
+
+def quotes_shown(matches: Iterable[str | None]) -> str:
+    """The count of each match; a quote never checked (extracted before batch 11) apart."""
+    return buckets(Counter(match or UNCHECKED for match in matches), ("exact", "fuzzy", "none"))
 
 
 def mark(same: bool) -> str:
@@ -225,21 +352,30 @@ def team_agrees(want: Expected, got: Extracted) -> bool:
     return got.team in want.teams if want.teams else got.team is None
 
 
-def report(name: str, result: Result, extracted: Sequence[Extracted]) -> None:
+def report(
+    name: str, result: Result, extracted: Sequence[Extracted], reviews: Sequence[Review]
+) -> None:
     print(
         f"\n{name}: {len(result.pairs)} matched, {len(result.missed)} missed,"
         f" {len(result.invented)} invented, of {len(extracted)} extracted"
     )
     for want, got in sorted(result.pairs, key=lambda p: p[0].number):
         optional = " (optional)" if want.optional else ""
+        found = outcomes(want, got)
         print(
             f"  #{want.number}{optional} {want.kind}/{want.category}/{want.severity}"
             f" -> {got.kind}/{got.category}/{got.severity}:"
             f" kind {mark(want.kind == got.kind)}, category {mark(want.category == got.category)},"
             f" severity {mark(want.severity == got.severity)},"
             f" team {got.team or '-'} {mark(team_agrees(want, got))},"
-            f" scheme {got.scheme or '-'} {mark(want.scheme == got.scheme)},"
-            f" quotes {matched([match or 'unchecked' for match in got.matches])}"
+            f" quotes {quotes_shown(got.matches)}"
+        )
+        print(
+            f"      links: sku {got.sku or '-'} {found['sku']},"
+            f" competitor {got.competitor or '-'} {found['competitor']},"
+            f" scheme {got.scheme or '-'} {found['scheme']};"
+            f" routed {routes_shown(got.routes)} {found['routed']}"
+            f" (expected {routes_shown(want.teams)})"
         )
         print(f"      expected: {want.phrase}")
         print(f"      got: {got.summary}")
@@ -247,6 +383,12 @@ def report(name: str, result: Result, extracted: Sequence[Extracted]) -> None:
         print(f"  MISSED #{want.number} {want.kind}/{want.category}/{want.severity}: {want.phrase}")
     for got in result.invented:
         print(f"  INVENTED {got.kind}/{got.category}/{got.severity}: {got.summary}")
+    scores = Scores()
+    scores.add(result.pairs)
+    for line in scores.lines(len(result.pairs)):
+        print(f"  {line}")
+    shown = "; ".join(f"{kind} {text!r}" for kind, text in reviews)
+    print(f"  alias reviews: {len(reviews)}" + (f" ({shown})" if reviews else ""))
 
 
 @dataclass
@@ -262,9 +404,15 @@ class Totals:
     matches: Counter[str] = field(default_factory=Counter)
     verified: int = 0
     invented_where_none_expected: int = 0
+    scores: Scores = field(default_factory=Scores)
+    reviews: Counter[str] = field(default_factory=Counter)
 
     def add(
-        self, expected: Sequence[Expected], extracted: Sequence[Extracted], result: Result
+        self,
+        expected: Sequence[Expected],
+        extracted: Sequence[Extracted],
+        result: Result,
+        reviews: Sequence[Review] = (),
     ) -> None:
         self.required += sum(1 for w in expected if not w.optional)
         self.matched_required += sum(1 for w, _ in result.pairs if not w.optional)
@@ -278,21 +426,26 @@ class Totals:
         self.verified += sum(g.verified for g in extracted)
         if not expected:
             self.invented_where_none_expected += len(extracted)
+        self.scores.add(result.pairs)
+        self.reviews.update(kind for kind, _ in reviews)
 
     def lines(self) -> list[str]:
-        def share(part: int, whole: int) -> str:
-            return f"{part}/{whole} ({part / whole:.0%})" if whole else f"{part}/0"
-
-        counted = self.extracted - self.matched_optional  # an optional match is never invented
+        scored = self.extracted - self.matched_optional  # an optional match is never invented
+        decided = self.scores.routing["agree"] + self.scores.routing["differ"]
         return [
-            f"recall: {share(self.matched_required, self.required)}",
-            f"precision: {share(self.matched_required, counted)}",
-            f"category agrees: {share(self.categories, self.pairs)}",
-            f"severity agrees: {share(self.severities, self.pairs)}",
-            f"team suggestion agrees: {share(self.teams, self.pairs)}",
-            f"quotes: {matched(tuple(self.matches.elements()))}",
-            f"insights verified: {share(self.verified, self.extracted)}",
+            f"recall: {share(self.matched_required, self.required, 'expected (optional aside)')}",
+            f"precision: {share(self.matched_required, scored, 'extracted (optional aside)')}",
+            f"category agrees: {share(self.categories, self.pairs, 'matched')}",
+            f"severity agrees: {share(self.severities, self.pairs, 'matched')}",
+            f"team suggestion agrees: {share(self.teams, self.pairs, 'matched')}",
+            f"quotes: {quotes_shown(self.matches.elements())}",
+            f"insights verified: {share(self.verified, self.extracted, 'extracted')}",
             f"invented where nothing was expected: {self.invented_where_none_expected}",
+            *self.scores.lines(self.pairs),
+            "routed teams agree:"
+            f" {share(self.scores.routing['agree'], decided, 'those the rule routed or triaged')}",
+            f"alias reviews: {self.reviews.total()}"
+            f" ({buckets(self.reviews, ('own', 'competitor'))})",
         ]
 
 
@@ -317,10 +470,11 @@ def main(argv: list[str]) -> int:
             turns_path = args.turns or path.with_name(
                 path.name.replace(".expected.yaml", ".turns.json")
             )
-            extracted = load_extracted(visit_id)
-            if extracted is None:
+            loaded = load_extracted(visit_id)
+            if loaded is None:
                 print(f"visit {visit_id} has no transcript", file=sys.stderr)
                 return 1
+            extracted, reviews = loaded
             try:
                 script = load_reference(turns_path, args.offset_ms)
                 expected = load_expected(path, script)
@@ -328,8 +482,8 @@ def main(argv: list[str]) -> int:
                 print(f"can't use {path.name} or {turns_path.name}: {why}", file=sys.stderr)
                 return 1
             result = match_insights(expected, extracted)
-            report(f"{path.name.split('.')[0]} ({visit_id})", result, extracted)
-            totals.add(expected, extracted, result)
+            report(f"{path.name.split('.')[0]} ({visit_id})", result, extracted, reviews)
+            totals.add(expected, extracted, result, reviews)
     except SETUP_ERRORS as error:
         print(f"failed: {setup_trouble(error)}", file=sys.stderr)
         return 1

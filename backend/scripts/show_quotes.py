@@ -32,6 +32,7 @@ from sqlalchemy import select
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.logs import configure_logging
 from countertalk.models import Evidence, Insight, Visit, parse_id
+from countertalk.reporting import share
 from countertalk.verify import Normalised, normalise
 from scripts.compare_transcript import BadReference, Span, clock, load_reference
 
@@ -189,9 +190,7 @@ def main(argv: list[str]) -> int:
     print(f"\nTotals: {totals.matched} of {totals.quotes} quotes matched")
     if args.turns:
         within, late = HEARD_WITHIN_MS / 1000, LATE_MS / 1000
-        heard = f"{totals.heard}/{totals.placed}"
-        if totals.placed:
-            heard += f" ({totals.heard / totals.placed:.0%})"
+        heard = share(totals.heard, totals.placed, "placed quotes")
         print(f"  placed in the script (fit {PLACE_MIN_FIT} or more): {totals.placed}")
         print(f"  heard within {within:g} s (gap 0 to {within:g} s): {heard}")
         print(f"  playback after the quote began (gap under -{late:g} s): {len(totals.late)}")

@@ -11,13 +11,15 @@ The request, in an order that lets its start be cached across visits:
 The `extract` job (handler in worker.py): lock the visit and set `extracting`; check it fits
 Muse Spark's context; roles, reusing saved ones (§9.4); extraction; every quote checked and the
 unmatched repaired once (quotes.py, batch 11); then, in one transaction
-under the visit's lock, an Extraction row, the derived rows replaced, and `review`. Only while
-the visit is still `extracting`: a run that finds it moved on (failed, say) writes nothing.
+under the visit's lock, an Extraction row, the derived rows replaced, each insight linked to the
+org's catalog (entities.py) and each verified one routed (routing.py, batch 12), and `review`.
+Only while the visit is still `extracting`: a run that finds it moved on (failed, say) writes
+nothing.
 """
 
 import logging
 import threading
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -27,7 +29,7 @@ from typing import Any
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
-from countertalk import jobs, limits, llm_calls, quotes, roles, visits
+from countertalk import entities, jobs, limits, llm_calls, quotes, roles, routing, visits
 from countertalk.db import session_scope
 from countertalk.errors import Conflict, NotFound, PermanentError, RetryableError
 from countertalk.llm import pricing
@@ -54,6 +56,7 @@ from countertalk.models import (
 )
 from countertalk.playbooks import (
     ISO_DATE,
+    KEY,
     ORG_PACKS_DIR,
     PLAYBOOKS_DIR,
     OrgPack,
@@ -231,9 +234,38 @@ def extract(
     # Every quote checked, and the unmatched repaired, before the write (batch 11).
     transcript = _transcript(request, assigned.roles)
     checked = quotes.check_quotes(visit_id, answer, transcript, llm, claim_lost=claim_lost)
+    linked = _link(request, pack, answer)
     # The request's hash: a repair's includes the answer it repaired.
     prompt_hash = outcome.calls[0].prompt_hash
-    _save(request, pack, llm.model, prompt_hash, answer, checked)
+    _save(request, pack, llm.model, prompt_hash, answer, checked, linked)
+
+
+@dataclass(frozen=True)
+class Linked:
+    """Each insight's links and kept scheme, in the answer's order, and what linking found."""
+
+    links: tuple[entities.Links, ...]
+    schemes: tuple[str | None, ...]
+    tally: Counter[str]
+
+
+def _link(request: Request, pack: OrgPack, answer: dict[str, Any]) -> Linked:
+    """Linking, before the save takes the visit's lock: matching names never holds it (§2.3).
+    A scheme key dropped is logged, as a key, never other text (§1.9)."""
+    with session_scope(read_only=True) as session:
+        catalog = entities.load_catalog(session, request.org_id)
+    schemes = entities.scheme_names(pack.schemes)
+    tally: Counter[str] = Counter()
+    links, kept = [], []
+    for number, found in enumerate(answer["insights"]):
+        mentioned = (found["sku_mentions"], found["competitor_mentions"])
+        links.append(entities.link_mentions(catalog, *mentioned, tally))
+        given = found["scheme_key"]
+        kept.append(entities.link_scheme(schemes, given, tally))
+        if given is not None and kept[-1] is None:
+            shown = given if KEY.fullmatch(given) else "(not a key)"
+            log.info("scheme dropped visit=%s insight=%d key=%s", request.visit_id, number, shown)
+    return Linked(tuple(links), tuple(kept), tally)
 
 
 def _transcript(request: Request, speaker_roles: dict[str, tuple[str, float]]) -> Transcript:
@@ -272,9 +304,11 @@ def _save(
     prompt_hash: str,
     answer: dict[str, Any],
     checked: quotes.Checked,
+    linked: Linked,
 ) -> None:
     """One transaction under the visit's lock: only while it's still `extracting` (§2.3). Each
-    quote is written with what checking it found; an insight with a matched quote is verified."""
+    quote is written with what checking it found; an insight with a matched quote is verified,
+    and only a verified one is routed (D9). Its links and routes are written with it."""
     visit_id = request.visit_id
     with session_scope() as session:
         visit = visits.lock_for_work(session, visit_id)
@@ -284,6 +318,7 @@ def _save(
             return
         query = select(Team.key, Team.id).where(Team.org_id == visit.org_id)
         teams = {key: team_id for key, team_id in session.execute(query)}
+        routes = routing.table_of(pack)
         extraction = Extraction(
             id=new_id(),
             visit_id=visit_id,
@@ -329,11 +364,13 @@ def _save(
         )
         unknown = {"turns": 0, "teams": 0}
         evidence: list[Evidence] = []
+        to_route: list[tuple[Insight, routing.Decision]] = []
         for number, found in enumerate(answer["insights"]):
             seq = first_seq + number
             results = [checked.results[(number, j)] for j in range(len(found["evidence"]))]
             team = found["suggested_team"]
             unknown["teams"] += team is not None and team not in teams
+            links = linked.links[number]
             insight = Insight(
                 id=new_id(),
                 org_id=visit.org_id,
@@ -347,13 +384,17 @@ def _save(
                 sku_mentions=found["sku_mentions"],
                 competitor_mentions=found["competitor_mentions"],
                 competitor_reason=found["competitor_reason"],
-                scheme_key=found["scheme_key"],
+                sku_id=links.sku_id,
+                competitor_id=links.competitor_id,
+                scheme_key=linked.schemes[number],
                 ai_team_id=teams.get(team) if team is not None else None,
                 ai_team_reason=found["team_reason"],
                 # Unverified, it never reaches a team (BRIEF D9).
                 verified=any(result.match != "none" for result in results),
             )
             session.add(insight)
+            decision = routing.decide(found["category"], found["severity"], team, routes, teams)
+            to_route.append((insight, decision))
             for position, (quoted, result) in enumerate(
                 zip(found["evidence"], results, strict=True)
             ):
@@ -380,6 +421,11 @@ def _save(
         # orders inserts along relationships, which these tables don't declare.
         session.flush()
         session.add_all(evidence)
+        reviews = [review for links in linked.links for review in links.reviews]
+        new_reviews = entities.add_reviews(session, visit.org_id, visit_id, reviews)
+        routed = Counter(
+            routing.route_new(session, insight, decision, teams) for insight, decision in to_route
+        )
         visits.set_status(visit, VisitStatus.REVIEW)
     log.info(
         "extracted visit=%s insights=%d tasks=%d unknown_turns=%d unknown_teams=%d",
@@ -388,6 +434,22 @@ def _save(
         len(answer["tasks"]),
         unknown["turns"],
         unknown["teams"],
+    )
+    log.info(
+        "linked visit=%s exact=%d fuzzy=%d unknown=%d ambiguous=%d wrong_kind=%d new_reviews=%d"
+        " scheme_by_alias=%d scheme_dropped=%d",
+        visit_id,
+        *(linked.tally[k] for k in ("exact", "fuzzy", "unknown", "ambiguous", "wrong_kind")),
+        new_reviews,
+        linked.tally["scheme_by_alias"],
+        linked.tally["scheme_dropped"],
+    )
+    log.info(
+        "routed visit=%s routed=%d triage=%d unverified=%d",
+        visit_id,
+        routed["routed"],
+        routed["triage"],
+        routed["unverified"],
     )
 
 

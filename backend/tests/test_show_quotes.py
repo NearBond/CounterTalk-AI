@@ -57,7 +57,7 @@ def test_each_quote_with_its_match_playback_and_gap(
         "",
         "Totals: 1 of 2 quotes matched",
         f"{PLACED}: 1",
-        f"{HEARD}: 1/1 (100%)",  # of the placed quotes
+        f"{HEARD}: 1/1 (100%) of placed quotes",
         f"{LATE}: 0",
         f"{UNPLACED}: 0",
     ]
@@ -72,7 +72,7 @@ def test_playback_that_starts_after_the_quote_began_is_listed(
 
     assert capsys.readouterr().out.splitlines()[-5:] == [
         f"{PLACED}: 1",
-        f"{HEARD}: 0/1 (0%)",
+        f"{HEARD}: 0/1 (0%) of placed quotes",
         f"{LATE}: 1",
         f"    {visit_id} #0.0",
         f"{UNPLACED}: 0",
@@ -94,7 +94,7 @@ def test_a_quote_the_script_hasnt_got_is_unplaced_and_left_out_of_the_share(
     assert out[-6:] == [
         "Totals: 1 of 2 quotes matched",
         f"{PLACED}: 0",
-        f"{HEARD}: 0/0",
+        f"{HEARD}: 0/0 of placed quotes",
         f"{LATE}: 0",
         f"{UNPLACED}: 1",
         f"    {visit_id} #0.0 (fit {fit})",
@@ -157,7 +157,7 @@ def test_several_visits_take_their_scripts_and_offsets_in_order(
     assert capsys.readouterr().out.splitlines()[-5:] == [
         "Totals: 2 of 4 quotes matched",
         f"{PLACED}: 2",
-        f"{HEARD}: 2/2 (100%)",
+        f"{HEARD}: 2/2 (100%) of placed quotes",
         f"{LATE}: 0",
         f"{UNPLACED}: 0",
     ]

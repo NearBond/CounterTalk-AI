@@ -31,6 +31,7 @@ from countertalk import roles, storage
 from countertalk.db import session_scope
 from countertalk.logs import configure_logging
 from countertalk.models import Turn, Visit, parse_id
+from countertalk.reporting import percent
 
 LATIN = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)?")
 DEVANAGARI = re.compile(r"[ऀ-ॿ]+")
@@ -102,9 +103,8 @@ def role_agreement(turns: list[Span], reference: list[Span], saved: dict[str, st
             f"  {label:<7} saved {saved.get(label, '(none)'):<11} overlap {by_overlap:<19}"
             f" {'agree' if label in agree else 'differ'}"
         )
-    total = sum(speech.values())
-    share = sum(speech[label] for label in agree) / total if total else 0
-    lines.append(f"  agree: {len(agree)} of {len(speech)} labels, {share:.1%} of speech time")
+    agreed = percent(sum(speech[label] for label in agree), sum(speech.values()), "speech time")
+    lines.append(f"  agree: {len(agree)} of {len(speech)} labels, {agreed}")
     return lines
 
 
@@ -176,8 +176,7 @@ def report(visit_id: str, turns: list[Span], reference: list[Span]) -> None:
     print("Speakers, each chunk's labels by overlap:")
     for label in sorted({t.label for t in turns}):
         print(f"  {label} -> {mapping.get(label, '(overlaps nothing)')}")
-    share = right / total if total else 0
-    print(f"  speech time on the right role: {share:.1%} of {total / 1000:.0f} s")
+    print(f"  speech time on the right role: {percent(right, total, f'{total / 1000:.0f} s')}")
 
     english = Counter(w.lower() for r in reference for w in LATIN.findall(r.text))
     latin = Counter(w.lower() for t in turns for w in LATIN.findall(t.text))

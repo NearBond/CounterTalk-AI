@@ -23,6 +23,7 @@ import logging
 from collections.abc import Collection
 from dataclasses import dataclass
 from itertools import count
+from typing import Literal
 
 from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError
@@ -109,20 +110,24 @@ def _at_least(severity: str, minimum: str, highest_first: tuple[str, ...]) -> bo
     return highest_first.index(severity) <= highest_first.index(minimum)
 
 
+Routed = Literal["routed", "triage", "unverified", "already"]
+
+
 def route_new(
     session: Session, insight: Insight, decision: Decision, team_ids: dict[str, str]
-) -> bool:
+) -> Routed:
     """Gives an insight the routes decided, each with its history row, or a triage row, in the
     caller's transaction. An insight routed before, or unverified, is left as it is (§2.5, D9).
-    True if routed."""
+    What it did."""
     insight = _lock(session, insight.org_id, insight.id)
     if not insight.verified:
-        log.info("routing skipped, unverified insight=%s", insight.id)
-        return False
+        return "unverified"
     routed = exists().where(RoutingDecision.insight_id == insight.id)
     if session.scalar(select(routed)):
-        log.info("routing skipped, already routed insight=%s", insight.id)
-        return False
+        log.info(
+            "routing skipped, already routed visit=%s insight=%s", insight.visit_id, insight.id
+        )
+        return "already"
     history = {
         "org_id": insight.org_id,
         "insight_id": insight.id,
@@ -135,7 +140,7 @@ def route_new(
                 **history, action=RoutingAction.ROUTE, rule=TRIAGE_RULE, ai_team_key_unknown=unknown
             )
         )
-        return True
+        return "triage"
     for choice in decision.routes:
         team_id = team_ids[choice.team]
         session.add(
@@ -158,7 +163,7 @@ def route_new(
                 ai_team_key_unknown=unknown if choice.slot == 1 else None,
             )
         )
-    return True
+    return "routed"
 
 
 def also_send(session: Session, org_id: str, insight_id: str, team_id: str, user_id: str) -> int:

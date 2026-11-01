@@ -839,3 +839,48 @@ def test_a_copied_helper_is_found_but_not_one_calling_another_import() -> None:
 
     assert copied_functions(copied) == ["tests/b.py:2 tiny copies tests/a.py:2 tiny"]
     assert copied_functions(two_scripts) == []
+
+
+# --- R10: every share names what it's a share of ---------------------------------------------
+
+
+def percent_formats(sources: list[Source]) -> list[str]:
+    """CODING_GUIDELINES §8.5 R10: a percentage is printed only by countertalk/reporting.py,
+    whose share() and percent() name the denominator. An f-string or format() with a % spec
+    anywhere else is found. Added in batch 12, when R10 came up three times in one part."""
+    found = []
+    for path, tree in sources:
+        if path == "countertalk/reporting.py":
+            continue
+        for node in ast.walk(tree):
+            spec = None
+            if isinstance(node, ast.FormattedValue) and node.format_spec is not None:
+                spec = node.format_spec
+            elif (
+                isinstance(node, ast.Call) and dotted(node.func) == "format" and len(node.args) > 1
+            ):
+                spec = node.args[1]
+            if spec is not None and any(
+                isinstance(part, ast.Constant) and "%" in str(part.value) for part in ast.walk(spec)
+            ):
+                found.append(f"{path}:{node.lineno}")
+    return found
+
+
+def test_every_percentage_goes_through_reporting() -> None:
+    printed = [(path, tree) for path, tree in reuse_sources() if not path.startswith("tests/")]
+
+    assert percent_formats(printed) == []
+
+
+@pytest.mark.parametrize(
+    "code",
+    ["f'{share:.1%}'\n", "f'{a / b:.0%} of all'\n", "format(share, '.0%')\n"],
+)
+def test_a_percentage_formatted_elsewhere_is_found(code: str) -> None:
+    assert percent_formats([("scripts/x.py", ast.parse(code))]) == ["scripts/x.py:1"]
+
+
+def test_reporting_may_format_and_other_specs_are_fine() -> None:
+    assert percent_formats([("countertalk/reporting.py", ast.parse("f'{x:.0%}'\n"))]) == []
+    assert percent_formats([("scripts/x.py", ast.parse("f'{gap:+.1f} {n:>3}'\n"))]) == []

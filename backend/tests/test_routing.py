@@ -168,7 +168,7 @@ def team_ids(org_id: str) -> dict[str, str]:
         return {key: team_id for key, team_id in session.execute(query)}
 
 
-def route(insight_id: str, decision: Decision) -> bool:
+def route(insight_id: str, decision: Decision) -> str:
     with session_scope() as session:
         insight = session.get_one(Insight, insight_id)
         return routing.route_new(session, insight, decision, team_ids(insight.org_id))
@@ -203,7 +203,7 @@ HIGH_PAYMENT = routing.decide("payments", "high", "finance", TINY, TEAMS)
 def test_routing_writes_each_route_with_its_history(org: Org_) -> None:
     insight_id = an_insight(org)
 
-    assert route(insight_id, HIGH_PAYMENT)
+    assert route(insight_id, HIGH_PAYMENT) == "routed"
 
     assert routes_of(insight_id) == [(1, "money", "table"), (2, "field", "override")]
     assert history_of(insight_id) == [
@@ -215,7 +215,7 @@ def test_routing_writes_each_route_with_its_history(org: Org_) -> None:
 def test_triage_is_one_history_row_and_no_route(org: Org_) -> None:
     insight_id = an_insight(org)
 
-    assert route(insight_id, routing.decide("other", "low", "finance", TINY, TEAMS))
+    assert route(insight_id, routing.decide("other", "low", "finance", TINY, TEAMS)) == "triage"
 
     assert routes_of(insight_id) == []
     assert history_of(insight_id) == [(None, None, "route", "triage", "finance")]
@@ -227,7 +227,7 @@ def test_routing_twice_adds_nothing(org: Org_, decision: Decision) -> None:
     route(insight_id, decision)
     before = (routes_of(insight_id), history_of(insight_id))
 
-    assert not route(insight_id, decision)
+    assert route(insight_id, decision) == "already"
 
     assert (routes_of(insight_id), history_of(insight_id)) == before
 
@@ -235,7 +235,7 @@ def test_routing_twice_adds_nothing(org: Org_, decision: Decision) -> None:
 def test_an_unverified_insight_is_never_routed(org: Org_) -> None:
     insight_id = an_insight(org, verified=False)
 
-    assert not route(insight_id, HIGH_PAYMENT)
+    assert route(insight_id, HIGH_PAYMENT) == "unverified"
 
     assert (routes_of(insight_id), history_of(insight_id)) == ([], [])
 
