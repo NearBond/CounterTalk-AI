@@ -19,11 +19,16 @@ import type {
   NewVisit,
   Note,
   Page,
+  PeriodKind,
   Review,
   RouteSeen,
   RouteTo,
   Segment,
   Shop,
+  Summary,
+  SummaryAsk,
+  SummaryPage,
+  SummaryScope,
   Transcript,
   Untriaged,
   Visit,
@@ -260,6 +265,33 @@ export function assignTeam(insightId: string, teamId: string, signal?: AbortSign
     body: { team_id: teamId },
     signal,
   });
+}
+
+/** A summary's page: the period's numbers at once, and its summary if one was asked for. */
+export function getSummaryPage(
+  scope: SummaryScope,
+  teamId: string | null,
+  period: PeriodKind,
+  signal?: AbortSignal,
+): Promise<SummaryPage> {
+  const query = new URLSearchParams({ scope, period });
+  if (teamId !== null) query.set("team_id", teamId);
+  return apiRequest(`/summaries?${query.toString()}`, { signal });
+}
+
+/** Asks for it: made, with its job queued, only the first time. */
+export function askSummary(body: SummaryAsk, signal?: AbortSignal): Promise<Summary> {
+  return apiRequest("/summaries", { method: "POST", body, signal });
+}
+
+/** One summary, polled while it's written: nothing is counted. */
+export function getSummary(summaryId: string, signal?: AbortSignal): Promise<Summary> {
+  return apiRequest(`/summaries/${encodeURIComponent(summaryId)}`, { signal });
+}
+
+/** Try again: a failed summary is written again; any other is left as it is. */
+export function retrySummary(summaryId: string, signal?: AbortSignal): Promise<Summary> {
+  return apiRequest(`/summaries/${encodeURIComponent(summaryId)}/retry`, { method: "POST", signal });
 }
 
 /** The visit's audio, for an <audio> element: the browser fetches it, seeking with Range. */

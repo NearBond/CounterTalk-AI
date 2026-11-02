@@ -3,7 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr, field_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
@@ -32,6 +32,18 @@ class Settings(BaseSettings):
     # One Meta key for both Muse Voice Transcribe and Muse Spark.
     MODEL_API_KEY: SecretStr = SecretStr("")
     SECRET_KEY: SecretStr = SecretStr("")
+    # Development only (batch 15b): the API acts as this user instead of the demo rep, to see an
+    # example org such as scripts/load_patterns.py's. Refused unless DEBUG is on, so it never
+    # reaches a deploy. Batch 16's sign-in removes it.
+    DEV_USER_EMAIL: str = ""
+
+    @model_validator(mode="after")
+    def _dev_user_only_in_development(self) -> "Settings":
+        if self.DEV_USER_EMAIL and not self.DEBUG:
+            raise ValueError(
+                "DEV_USER_EMAIL is for development only: set DEBUG=1 with it, or leave it empty"
+            )
+        return self
 
     @field_validator("DATABASE_URL")
     @classmethod

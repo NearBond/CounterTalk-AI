@@ -1,4 +1,5 @@
-"""Who is asking. Until batch 16 adds sign-in, every request is the demo rep's."""
+"""Who is asking. Until batch 16 adds sign-in, every request is the demo rep's, or in
+development, DEV_USER_EMAIL's user (batch 15b)."""
 
 from dataclasses import dataclass
 
@@ -20,9 +21,24 @@ class CurrentUser:
 
 
 def demo_rep(session: Session) -> CurrentUser:
-    user = session.scalars(select(User).where(User.email == DEMO_REP_EMAIL)).one_or_none()
+    return _by_email(
+        session,
+        DEMO_REP_EMAIL,
+        PermanentError("demo_rep_missing", "The demo rep isn't set up: run scripts/seed_dev.py"),
+    )
+
+
+def dev_user(session: Session, email: str) -> CurrentUser:
+    """DEV_USER_EMAIL's user (development only: the settings refuse it without DEBUG)."""
+    return _by_email(
+        session,
+        email,
+        PermanentError("dev_user_missing", "No user has DEV_USER_EMAIL's address: check .env"),
+    )
+
+
+def _by_email(session: Session, email: str, missing: PermanentError) -> CurrentUser:
+    user = session.scalars(select(User).where(User.email == email)).one_or_none()
     if user is None:
-        raise PermanentError(
-            "demo_rep_missing", "The demo rep isn't set up: run scripts/seed_dev.py"
-        )
+        raise missing
     return CurrentUser(user.id, user.org_id, user.role)

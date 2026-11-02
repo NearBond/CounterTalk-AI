@@ -16,6 +16,7 @@ from countertalk import extraction, summary_jobs
 from countertalk.api.deps import CurrentUser
 from countertalk.db import DbSession
 from countertalk.models import Summary, SummaryScope
+from countertalk.narrative import Narrative
 from countertalk.summaries import PeriodKind
 
 router = APIRouter(prefix="/api/summaries", tags=["summaries"])
@@ -42,7 +43,7 @@ class SummaryOut(BaseModel):
     # Once it's ready: the numbers its narrative was written from, and when they were counted.
     numbers: dict[str, Any] | None
     counted_at: datetime | None
-    narrative: dict[str, Any] | None
+    narrative: Narrative | None
     model: str | None
     failure_reason: str | None
 

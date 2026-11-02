@@ -38,6 +38,7 @@ PINNED_SETTINGS = {
     "DEBUG": "0",
     "MODEL_API_KEY": "",
     "SECRET_KEY": "test-only-secret",
+    "DEV_USER_EMAIL": "",
 }
 
 

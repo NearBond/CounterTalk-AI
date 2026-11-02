@@ -1,6 +1,6 @@
 /** The only place times, durations and names are formatted (CODING_GUIDELINES §4.9). Times
  * are IST. */
-import type { Shop } from "../types/api";
+import type { PeriodKind, Shop } from "../types/api";
 
 /** "Sunrise Kirana, Old Market": a shop as the rep knows it. */
 export function shopLabel(shop: Shop): string {
@@ -35,4 +35,24 @@ export function formatDateTime(iso: string): string {
     DATE_TIME.formatToParts(when).map((part) => [part.type, part.value]),
   );
   return `${parts.day} ${parts.month} ${parts.year}, ${parts.hour}:${parts.minute} ${String(parts.dayPeriod).toLowerCase()}`;
+}
+
+const IST = "Asia/Kolkata";
+const DAY_MONTH = new Intl.DateTimeFormat("en-IN", { timeZone: IST, day: "numeric", month: "short" });
+const YEAR = new Intl.DateTimeFormat("en-IN", { timeZone: IST, year: "numeric" });
+const MONTH_YEAR = new Intl.DateTimeFormat("en-IN", { timeZone: IST, month: "long", year: "numeric" });
+
+/** A summary's period, [start, end) in IST: "26 Oct – 1 Nov 2026" for a week (with both years
+ * when it crosses one), "October 2026" for a month. */
+export function formatPeriod(kind: PeriodKind, start: string, end: string): string {
+  const first = new Date(start);
+  if (kind === "month") return MONTH_YEAR.format(first);
+  const last = new Date(new Date(end).getTime() - 1);
+  const [from, to] = [YEAR.format(first), YEAR.format(last)];
+  return `${DAY_MONTH.format(first)}${from === to ? "" : ` ${from}`} – ${DAY_MONTH.format(last)} ${to}`;
+}
+
+/** "1 shop", "3 shops", "0.5 shops": a count and its noun, the one way the app words one (R1). */
+export function countOf(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
 }

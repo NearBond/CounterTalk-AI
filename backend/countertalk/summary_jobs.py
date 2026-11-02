@@ -110,11 +110,11 @@ def page(
     now = now or utc_now()
     period = summaries.last_complete(kind, now)
     _check_scope(session, org_id, scope, team_id)
-    found = session.scalars(_of(org_id, scope, team_id, period)).one_or_none()
+    found = existing(session, org_id, scope, team_id, period)
     if found is not None and found.status == SummaryStatus.READY:
         assert found.numbers is not None and found.counted_at is not None  # ck_summaries_ready
         return Page(period, found.numbers, found.counted_at, found)
-    counted = _count(session, pack_for(), org_id, team_id, period)
+    counted = count(session, pack_for(), org_id, team_id, period)
     return Page(period, NUMBERS.dump_python(counted, mode="json"), now, found)
 
 
@@ -154,7 +154,7 @@ def run(
     pack = extraction.pack_for(org_id, packs, playbooks)
     counted_at = utc_now()
     with session_scope(read_only=True) as session:
-        numbers = _count(session, pack, org_id, team_id, period)
+        numbers = count(session, pack, org_id, team_id, period)
         problems = summaries.check(session, org_id, numbers)
     for problem in problems:
         log.error("summary numbers don't add up summary=%s problem=%s", summary_id, problem)
@@ -186,7 +186,7 @@ def _narrative(
     pack: OrgPack,
     org_id: str,
     numbers: TeamNumbers | OrgNumbers,
-) -> dict[str, Any] | None:
+) -> narrative.Narrative | None:
     """The narrative as checked, or None with nothing to cite (no call is made then). Without
     an LLM (no MODEL_API_KEY), a summary with something to cite fails, and Try again works once
     there's one. Logs only counts: never its words or quotes (§1.9)."""
@@ -216,9 +216,10 @@ def _narrative(
     return written
 
 
-def _count(
+def count(
     session: Session, pack: OrgPack, org_id: str, team_id: str | None, period: Period
 ) -> TeamNumbers | OrgNumbers:
+    """A team's numbers for the period, or the org's (no team)."""
     if team_id is None:
         return summaries.org_numbers(session, pack, org_id, period)
     return summaries.team_numbers(session, pack, org_id, team_id, period)
@@ -231,6 +232,13 @@ def _check_scope(session: Session, org_id: str, scope: str, team_id: str | None)
         if team_id is None:
             raise Invalid("team_needed", "Pick the team")
         rows.find_one(session, Team, org_id, team_id, NotFound("team_not_found", "No such team"))
+
+
+def existing(
+    session: Session, org_id: str, scope: str, team_id: str | None, period: Period
+) -> Summary | None:
+    """The summary of this scope, team and period, if one was asked for."""
+    return session.scalars(_of(org_id, scope, team_id, period)).one_or_none()
 
 
 def _of(org_id: str, scope: str, team_id: str | None, period: Period) -> Select[tuple[Summary]]:

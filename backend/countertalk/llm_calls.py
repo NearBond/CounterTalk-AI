@@ -103,19 +103,24 @@ def answer_of(outcome: Outcome, invalid: PermanentError) -> dict[str, Any]:
     return outcome.answer
 
 
-def latest_seq(visit_id: str) -> int:
-    """The visit's newest call's seq, or 0: where a run's own calls start."""
+def _of(key: str, summary: bool) -> Any:
+    return LlmCall.summary_id == key if summary else LlmCall.visit_id == key
+
+
+def latest_seq(key: str, *, summary: bool = False) -> int:
+    """The visit's newest call's seq (or, with `summary`, the summary's), or 0: where a run's
+    own calls start."""
     with session_scope(read_only=True) as session:
-        latest = select(func.max(LlmCall.seq)).where(LlmCall.visit_id == visit_id)
+        latest = select(func.max(LlmCall.seq)).where(_of(key, summary))
         return session.scalar(latest) or 0
 
 
 def since(
-    visit_id: str, seq: int, purpose: LlmPurpose | None = None
+    key: str, seq: int, purpose: LlmPurpose | None = None, *, summary: bool = False
 ) -> list[tuple[str, CallDetails]]:
-    """The visit's calls logged after `seq`, with their purpose: what a run paid for, even one
-    that failed."""
-    query = select(LlmCall).where(LlmCall.visit_id == visit_id, LlmCall.seq > seq)
+    """The visit's (or, with `summary`, the summary's) calls logged after `seq`, with their
+    purpose: what a run paid for, even one that failed."""
+    query = select(LlmCall).where(_of(key, summary), LlmCall.seq > seq)
     if purpose is not None:
         query = query.where(LlmCall.purpose == purpose)
     with session_scope(read_only=True) as session:

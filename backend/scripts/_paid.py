@@ -80,11 +80,13 @@ class Paid:
 
 
 @contextmanager
-def paid_run(since: dict[str, int], heading: str | None = None) -> Iterator[Paid]:
+def paid_run(
+    since: dict[str, int], heading: str | None = None, *, summary: bool = False
+) -> Iterator[Paid]:
     """Around a paid run (the R8 guard): on every way out, done, failed or stopped, it prints
-    each call the visits logged after their seq in `since`, and the cost. Ctrl+C anywhere
-    inside becomes Stopped. If the database doesn't answer, it says so in one line: llm_calls
-    has the calls."""
+    each call the visits (or, with `summary`, the summaries) logged after their seq in
+    `since`, and the cost. Ctrl+C anywhere inside becomes Stopped. If the database doesn't
+    answer, it says so in one line: llm_calls has the calls."""
     paid = Paid()
     try:
         yield paid
@@ -92,7 +94,9 @@ def paid_run(since: dict[str, int], heading: str | None = None) -> Iterator[Paid
         raise Stopped from None
     finally:
         try:
-            paid.calls = {visit: llm_calls.since(visit, seq) for visit, seq in since.items()}
+            paid.calls = {
+                key: llm_calls.since(key, seq, summary=summary) for key, seq in since.items()
+            }
         except SETUP_ERRORS:
             print(
                 "what was paid can't be read: the database didn't answer (llm_calls has it)",
@@ -129,6 +133,12 @@ def run_extract_job(
         job = jobs.claim_for_visit(session, runner.id, visit.id, JobKind.EXTRACT)
     if job is None:
         return None
+    return run_claimed(runner, job)
+
+
+def run_claimed(runner: worker.Worker, job: jobs.ClaimedJob) -> JobRun:
+    """A job claimed by hand, run the worker's way. Ctrl+C fails it, to be retried: the job
+    isn't left running, and the caller sends no more."""
     try:
         runner.run_job(job)
     except KeyboardInterrupt:

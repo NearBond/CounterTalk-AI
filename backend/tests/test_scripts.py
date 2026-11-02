@@ -35,6 +35,8 @@ BAD_INPUTS = {
     "compare_extraction.py": ([UNKNOWN, "no-such.expected.yaml"], {}),
     "export_eval_case.py": ([UNKNOWN, "rp99"], {}),
     "run_eval.py": (["--cases", "no-such-folder"], {}),
+    "write_summary.py": ([UNKNOWN, "--org", "--period", "week"], {}),
+    "load_patterns.py": (["--world", "no-such-world.yaml"], {}),
     "reprocess_failed.py": (
         ["--code", "llm_auth_failed", "--since", "2026-11-01"],
         {"DATABASE_URL": NO_SUCH_DATABASE},

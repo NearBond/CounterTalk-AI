@@ -159,6 +159,20 @@ def claim_for_visit(
     return _take(session, queued, worker_id)
 
 
+def claim_for_summary(session: Session, worker_id: str, summary_id: str) -> ClaimedJob | None:
+    """Takes the summary's queued job, due or not, for a run by hand (scripts/write_summary.py),
+    as claim_for_visit does a visit's."""
+    queued = (
+        select(Job.id)
+        .where(Job.summary_id == summary_id, Job.state == JobState.QUEUED)
+        .order_by(Job.seq)
+        .limit(1)  # the partial unique index allows one anyway
+        .with_for_update(skip_locked=True)
+        .scalar_subquery()
+    )
+    return _take(session, queued, worker_id)
+
+
 def _take(session: Session, job_id: ScalarSelect[Any], worker_id: str) -> ClaimedJob | None:
     row = session.execute(
         update(Job)

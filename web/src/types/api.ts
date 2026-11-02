@@ -428,3 +428,173 @@ export interface TeamFor {
 
 /** The longest resolution note: countertalk/limits.py, RESOLUTION_NOTE_MAX_CHARS. */
 export const RESOLUTION_NOTE_MAX_CHARS = 2_000;
+
+// --- summaries (batch 15b) ---------------------------------------------------------------------
+
+export type SummaryScope = "team" | "org";
+/** Last week, or last month: the latest whole one. */
+export type PeriodKind = "week" | "month";
+export type TrendLabel = "resolved" | "recurring" | "new" | "growing" | "steady";
+export type SummaryStatus = "writing" | "ready" | "failed";
+
+/** summaries.Period: a week from Monday or a calendar month, in IST, as [start, end). */
+export interface SummaryPeriod {
+  kind: PeriodKind;
+  start: string;
+  end: string;
+}
+
+/** summaries.Measures: an issue's numbers in the period, or a cause's across its teams. */
+export interface Measures {
+  severity: string;
+  shops: number;
+  insights: number;
+  reps: number;
+  visits: number;
+  /** Up to the period's end: shops on two or more visits, and shops open since the latest
+   * resolve. */
+  raised_again: number;
+  open_shops: number;
+  age_weeks: number;
+  overdue: boolean;
+  /** The mean of shops per period over the previous four. */
+  baseline: number;
+  seen_periods: number;
+  label: TrendLabel;
+  /** Severity weight (high 3, medium 2, low 1) x open shops x (1 + age in weeks). */
+  score: number;
+  last_seen_at: string;
+}
+
+/** summaries.IssueNumbers. `status` is as it was at the period's end. */
+export interface IssueNumbers {
+  issue_id: string;
+  title_en: string;
+  category: string;
+  status: IssueStatus;
+  measures: Measures;
+}
+
+/** summaries.Totals: distinct insights, shops, reps and visits; triage is the org's only. */
+export interface Totals {
+  insights: number;
+  shops: number;
+  reps: number;
+  visits: number;
+  triage: number;
+}
+
+/** summaries.TeamNumbers: a team's issues, ranked. */
+export interface TeamNumbers {
+  team_id: string;
+  period: SummaryPeriod;
+  issues: IssueNumbers[];
+  totals: Totals;
+}
+
+/** summaries.TeamWork: a team working a cause, and its issue's status at the period's end. */
+export interface TeamWork {
+  team_key: string;
+  team_name: string;
+  issue_id: string;
+  status: IssueStatus;
+}
+
+/** summaries.CauseNumbers: one cause across teams, each insight and shop counted once. */
+export interface CauseNumbers {
+  issue_key: string;
+  title_en: string;
+  category: string;
+  teams: TeamWork[];
+  measures: Measures;
+}
+
+/** summaries.CategoryArea */
+export interface CategoryArea {
+  category: string;
+  area: string;
+  causes: number;
+  shops: number;
+}
+
+/** summaries.CompetitorCount: insights in the period naming a competitor, and their shops. */
+export interface CompetitorCount {
+  competitor: string;
+  insights: number;
+  shops: number;
+}
+
+/** summaries.OrgNumbers: the leadership summary's causes, ranked, and the rest. */
+export interface OrgNumbers {
+  period: SummaryPeriod;
+  causes: CauseNumbers[];
+  totals: Totals;
+  by_category_area: CategoryArea[];
+  competitors: CompetitorCount[];
+  /** The teams' issues as they stood at the period's end. */
+  issues_at_end: { open: number; in_progress: number; overdue: number };
+  resolved_in_period: number;
+}
+
+/** narrative.Citation: an insight a sentence cites, and its visit, for the link. */
+export interface Citation {
+  insight_id: string;
+  visit_id: string;
+}
+
+/** narrative.Sentence */
+export interface Sentence {
+  text: string;
+  cites: Citation[];
+}
+
+/** narrative.IssueWords: an issue's (or cause's) sentences; `id` is its issue_id (a team's) or
+ * issue_key (the org's). */
+export interface IssueWords {
+  id: string;
+  sentences: Sentence[];
+}
+
+/** narrative.Narrative: what the checker kept, and how many it dropped, by why. */
+export interface Narrative {
+  overview: Sentence[];
+  issues: IssueWords[];
+  kept: number;
+  dropped: Record<string, number>;
+}
+
+/** POST /api/summaries, GET /api/summaries/{id}, POST …/retry: SummaryOut. 404
+ * `summary_not_found`. */
+export interface Summary {
+  id: string;
+  scope: SummaryScope;
+  team_id: string | null;
+  period_start: string;
+  period_end: string;
+  status: SummaryStatus;
+  /** Once it's ready: the numbers its narrative was written from, and when they were counted. */
+  numbers: TeamNumbers | OrgNumbers | null;
+  counted_at: string | null;
+  narrative: Narrative | null;
+  model: string | null;
+  failure_reason: string | null;
+}
+
+/** POST /api/summaries: SummaryAsk. 400 `team_needed`, `team_in_org_summary`; 404
+ * `team_not_found`. */
+export interface SummaryAsk {
+  scope: SummaryScope;
+  team_id?: string | null;
+  period: PeriodKind;
+}
+
+/** GET /api/summaries: SummaryPageOut. The summary's own numbers once it's ready, counted now
+ * before then: numbers_as_of says when. */
+export interface SummaryPage {
+  period: PeriodKind;
+  period_start: string;
+  period_end: string;
+  numbers: TeamNumbers | OrgNumbers;
+  numbers_as_of: string;
+  summary: Summary | null;
+}

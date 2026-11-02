@@ -4,7 +4,7 @@ import { ChoiceSelect } from "../components/ChoiceSelect";
 import { IssuePanel } from "../components/IssuePanel";
 import { RetryAlert } from "../components/RetryAlert";
 import { getInboxOptions, type IssueFilters, listIssues } from "../lib/api";
-import { formatDateTime } from "../lib/format";
+import { countOf, formatDateTime } from "../lib/format";
 import { usePolling } from "../lib/hooks";
 import { STATUS_LABELS } from "../lib/issues";
 import { INBOX_POLL_MS } from "../lib/limits";
@@ -83,6 +83,9 @@ export function InboxPage() {
         <Link to="/inbox/triage" className="text-blue-700 underline">
           Triage
         </Link>
+        <Link to="/summaries" className="text-blue-700 underline">
+          Summaries
+        </Link>
       </div>
       <h1 className="text-2xl font-semibold">Inbox</h1>
       {options.error !== null && (
@@ -160,9 +163,9 @@ export function InboxPage() {
 
 function IssueSummary({ issue, expanded, onToggle }: { issue: Issue; expanded: boolean; onToggle: () => void }) {
   const counts = [
-    `${issue.shops} ${issue.shops === 1 ? "shop" : "shops"}`,
-    `${issue.insights} ${issue.insights === 1 ? "insight" : "insights"}`,
-    `${issue.reps} ${issue.reps === 1 ? "rep" : "reps"}`,
+    countOf(issue.shops, "shop", "shops"),
+    countOf(issue.insights, "insight", "insights"),
+    countOf(issue.reps, "rep", "reps"),
   ].join(" · ");
   return (
     <button type="button" aria-expanded={expanded} onClick={onToggle} className="flex flex-col gap-1 text-left">

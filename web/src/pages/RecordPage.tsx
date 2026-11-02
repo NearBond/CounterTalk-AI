@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { RetryAlert } from "../components/RetryAlert";
 import { UploadPanel } from "../components/UploadPanel";
 import { messageOf } from "../lib/api";
-import { formatDuration, shopLabel } from "../lib/format";
+import { countOf, formatDuration, shopLabel } from "../lib/format";
 import { useElapsed, useShops } from "../lib/hooks";
 import { type Recorder, startRecorder } from "../lib/recorder";
 import type { QueueState, UploadQueue } from "../lib/uploadQueue";
@@ -209,7 +209,7 @@ export function RecordPage() {
           {phase.name === "finishing" && "Finishing: sending the last of the recording…"}
           {(phase.name === "recording" || phase.name === "finishing") &&
             waiting > 0 &&
-            ` · ${waiting} ${waiting === 1 ? "piece" : "pieces"} waiting to send${queueState?.retrying ? " (check the connection)" : ""}`}
+            ` · ${countOf(waiting, "piece", "pieces")} waiting to send${queueState?.retrying ? " (check the connection)" : ""}`}
         </p>
         {phase.name === "recording" && (
           <button

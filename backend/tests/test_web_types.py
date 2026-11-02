@@ -5,11 +5,12 @@ schema's fields: a field added, removed or renamed on one side only fails here.
 """
 
 import re
+from dataclasses import fields, is_dataclass
 
 import pytest
 from pydantic import BaseModel
 
-from countertalk import limits, storage
+from countertalk import limits, narrative, storage, summaries
 from countertalk.api.health import HealthOut
 from countertalk.api.insights import (
     ChoiceOut,
@@ -38,6 +39,7 @@ from countertalk.api.issues import (
     UntriagedOut,
 )
 from countertalk.api.shops import ShopOut
+from countertalk.api.summaries import SummaryAsk, SummaryOut, SummaryPageOut
 from countertalk.api.visits import (
     CompleteIn,
     ReviewOut,
@@ -83,6 +85,9 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "RouteSeen": RouteSeen,
     "RouteTo": RouteTo,
     "TeamFor": TeamFor,
+    "Summary": SummaryOut,
+    "SummaryAsk": SummaryAsk,
+    "SummaryPage": SummaryPageOut,
 }
 
 
@@ -97,6 +102,34 @@ def test_the_web_type_has_exactly_the_schemas_fields(name: str) -> None:
     source = TYPES.read_text(encoding="utf-8")
 
     assert interface_fields(source, name) == set(MIRRORS[name].model_fields)
+
+
+# Inside the summaries' JSON (batch 15b): the numbers' dataclasses and the narrative's TypedDicts.
+SHAPES: dict[str, type] = {
+    "SummaryPeriod": summaries.Period,
+    "Measures": summaries.Measures,
+    "IssueNumbers": summaries.IssueNumbers,
+    "Totals": summaries.Totals,
+    "TeamNumbers": summaries.TeamNumbers,
+    "TeamWork": summaries.TeamWork,
+    "CauseNumbers": summaries.CauseNumbers,
+    "CategoryArea": summaries.CategoryArea,
+    "CompetitorCount": summaries.CompetitorCount,
+    "OrgNumbers": summaries.OrgNumbers,
+    "Citation": narrative.Citation,
+    "Sentence": narrative.Sentence,
+    "IssueWords": narrative.IssueWords,
+    "Narrative": narrative.Narrative,
+}
+
+
+@pytest.mark.parametrize("name", SHAPES)
+def test_the_web_type_has_exactly_the_shape_s_fields(name: str) -> None:
+    source = TYPES.read_text(encoding="utf-8")
+    shape = SHAPES[name]
+    found = {f.name for f in fields(shape)} if is_dataclass(shape) else set(shape.__annotations__)
+
+    assert interface_fields(source, name) == found
 
 
 def test_the_web_app_mirrors_the_servers_upload_limits() -> None:

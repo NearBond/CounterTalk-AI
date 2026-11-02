@@ -18,10 +18,12 @@ interface Props {
   /** Whether any edit, finding or note is unsaved: the page's own links ask before leaving. */
   onDirty: (dirty: boolean) => void;
   onConfirmed: (visit: Visit) => void;
+  /** The finding a summary's citation points at (the address's #insight-<id>): focused once. */
+  citedId?: string;
 }
 
 /** The report, tasks and insights of a visit in review or confirmed, and the rep's changes. */
-export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed }: Props) {
+export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed, citedId }: Props) {
   const loaded = usePolling((signal) => getReview(visitId, signal), { key: visitId, shouldPoll: () => false });
   // The rep's changes, kept with the load they were made to; a fresh load (after confirm) wins.
   const [local, setLocal] = useState<{ from: Review; review: Review } | null>(null);
@@ -38,6 +40,12 @@ export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed
   }, []);
   const dirty = dirtyParts.size > 0;
   useLeaveWarning(dirty);
+  // A summary's citation opens the visit at its finding (batch 15b): focused, so scrolled to and
+  // read out, once it's shown.
+  const shown = citedId !== undefined && (review?.insights.some((found) => found.id === citedId) ?? false);
+  useEffect(() => {
+    if (shown) document.getElementById(`insight-${citedId}`)?.focus();
+  }, [shown, citedId]);
   useEffect(() => {
     onDirty(dirty);
     return () => onDirty(false);

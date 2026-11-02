@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { messageOf } from "../lib/api";
+import { countOf } from "../lib/format";
 import type { QueueState, UploadQueue } from "../lib/uploadQueue";
 import { byteRanges, extOf, finishVisit, openVisit } from "../lib/visits";
 import { ALLOWED_EXTS, type RecordingExt } from "../types/api";
@@ -141,7 +142,7 @@ export function UploadPanel({ shopId, disabled, onBusyChange }: Props) {
         Send
       </button>
       <p role="status" className="text-gray-700">
-        {busy && progress !== null && `Sent ${progress.uploaded} of ${total} ${total === 1 ? "piece" : "pieces"}`}
+        {busy && progress !== null && `Sent ${progress.uploaded} of ${countOf(total, "piece", "pieces")}`}
         {busy && progress?.retrying && " (check the connection)"}
       </p>
       {error !== null && (

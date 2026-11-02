@@ -37,7 +37,7 @@ def test_ctrl_c_is_stopped_once_what_was_paid_is_printed(
 def test_a_database_that_doesnt_answer_is_one_line(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def down(visit_id: str, seq: int) -> list[object]:
+    def down(key: str, seq: int, *, summary: bool = False) -> list[object]:
         raise OperationalError("SELECT", {}, Exception("gone"))
 
     monkeypatch.setattr(_paid.llm_calls, "since", down)

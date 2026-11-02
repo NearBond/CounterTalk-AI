@@ -145,6 +145,16 @@ describe("ReviewPanel", () => {
     expect(within(found).getByText("Sent to Money desk")).toBeInTheDocument();
   });
 
+  it("focuses the finding a summary's citation points at, once it's shown", async () => {
+    fakeApi({ "GET /api/visits/v1/review": () => json(200, reviewOf("confirmed")) });
+
+    show({ citedId: "i1" });
+
+    const cited = await cardOf("A payout is late.");
+    expect(cited).toHaveAttribute("id", "insight-i1");
+    expect(cited).toHaveFocus();
+  });
+
   it("shows no order section without order items: an older extraction never looked for one", async () => {
     fakeApi({ "GET /api/visits/v1/review": () => json(200, { ...reviewOf("review"), order_items: [] }) });
 

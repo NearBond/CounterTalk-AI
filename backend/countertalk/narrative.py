@@ -21,7 +21,7 @@ import re
 from collections.abc import Iterator, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, TypedDict
 
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
@@ -36,6 +36,35 @@ from countertalk.summaries import CauseNumbers, IssueNumbers, OrgNumbers, Period
 NAME = "summary_narrative"
 # Why a sentence was dropped, in the order they're checked.
 DROPPED = ("extra", "uncited", "citation", "number")
+
+
+class Citation(TypedDict):
+    """An insight a sentence cites, and its visit, for the link."""
+
+    insight_id: str
+    visit_id: str
+
+
+class Sentence(TypedDict):
+    text: str
+    cites: list[Citation]
+
+
+class IssueWords(TypedDict):
+    """An issue's sentences: `id` is its issue_id (a team's) or issue_key (the org's)."""
+
+    id: str
+    sentences: list[Sentence]
+
+
+class Narrative(TypedDict):
+    """What the checker kept, and how many sentences it dropped, by why (DROPPED)."""
+
+    overview: list[Sentence]
+    issues: list[IssueWords]
+    kept: int
+    dropped: dict[str, int]
+
 
 PROMPT = """You write the words of a short business summary for an FMCG company's team, from \
 numbers and quotes that code has already counted and picked. The numbers are right: never \
@@ -131,7 +160,7 @@ def checked(
     numbers: TeamNumbers | OrgNumbers,
     request: Request,
     answer: dict[str, Any],
-) -> dict[str, Any]:
+) -> Narrative:
     """The narrative as kept: each section's sentences, each citation once with its visit for
     the link, and how many sentences were kept and dropped, by why."""
     team_id = numbers.team_id if isinstance(numbers, TeamNumbers) else None
@@ -140,33 +169,34 @@ def checked(
     citable = _citable(session, org_id, team_id, numbers.period, cited)
     dropped = dict.fromkeys(DROPPED, 0)
 
-    def keep(found: Sequence[dict[str, Any]], section: Section | None) -> list[dict[str, Any]]:
+    def keep(found: Sequence[dict[str, Any]], section: Section | None) -> list[Sentence]:
         room = limits.OVERVIEW_SENTENCES if section is request.overview else limits.ISSUE_SENTENCES
-        kept = []
+        kept: list[Sentence] = []
         for sentence in found:
             why = "extra"
             if section is not None and len(kept) < room:
                 why = _why_dropped(sentence, citable, section)
             if why is None:
                 cites = [
-                    {"insight_id": i, "visit_id": citable[i]}
+                    Citation(insight_id=i, visit_id=citable[i])
                     for i in dict.fromkeys(sentence["cites"])
                 ]
-                kept.append({"text": sentence["text"].strip(), "cites": cites})
+                kept.append(Sentence(text=sentence["text"].strip(), cites=cites))
             else:
                 dropped[why] += 1
         return kept
 
     overview = keep(answer["overview"], request.overview)
-    sections, seen = [], set()
+    sections: list[IssueWords] = []
+    seen = set()
     for issue in answer["issues"]:
         section = None if issue["id"] in seen else request.sections.get(issue["id"])
         seen.add(issue["id"])
         kept = keep(issue["sentences"], section)
         if kept:
-            sections.append({"id": issue["id"], "sentences": kept})
+            sections.append(IssueWords(id=issue["id"], sentences=kept))
     total = len(overview) + sum(len(s["sentences"]) for s in sections)
-    return {"overview": overview, "issues": sections, "kept": total, "dropped": dropped}
+    return Narrative(overview=overview, issues=sections, kept=total, dropped=dropped)
 
 
 # --- what it's given -------------------------------------------------------------------------

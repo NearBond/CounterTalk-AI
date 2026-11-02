@@ -73,7 +73,10 @@ export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved
 
   return (
     <li
-      className={`flex flex-col gap-2 rounded-lg border p-3 ${
+      // A summary's citation links here (batch 15b): the page focuses it, so it's outlined.
+      id={`insight-${insight.id}`}
+      tabIndex={-1}
+      className={`flex scroll-mt-4 flex-col gap-2 rounded-lg border p-3 focus:ring-2 focus:ring-blue-600 focus:outline-none ${
         insight.verified ? "border-gray-200" : "border-dashed border-gray-300 bg-gray-50 text-gray-500"
       }`}
     >

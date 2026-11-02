@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useBlocker, useParams } from "react-router";
+import { Link, useBlocker, useLocation, useParams } from "react-router";
 import { ReviewPanel } from "../components/ReviewPanel";
 import { PagePlayer } from "../components/PagePlayer";
 import { RetryAlert } from "../components/RetryAlert";
@@ -34,6 +34,9 @@ function chipColours(turns: Turn[]): Map<string, string> {
  * while processing. */
 export function VisitPage() {
   const { visitId = "" } = useParams();
+  // A summary's citation: /visits/<id>#insight-<insight id> (batch 15b).
+  const { hash } = useLocation();
+  const citedId = hash.startsWith("#insight-") ? hash.slice("#insight-".length) : undefined;
   const visit = usePolling((signal) => getVisit(visitId, signal), {
     key: visitId,
     shouldPoll: (value) => value.processing,
@@ -108,6 +111,7 @@ export function VisitPage() {
           onPlay={playAt}
           onDirty={setDirty}
           onConfirmed={visit.reload}
+          citedId={citedId}
         />
       )}
 
