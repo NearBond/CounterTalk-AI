@@ -133,8 +133,9 @@ GROWING_MAX_P = 0.05
 BASELINE_PERIODS = 4
 BASELINE_FLOOR = 0.5
 RECURRING_MIN_PERIODS = 3
-# The narrative (batch 15b): about the top NARRATIVE_ISSUES, each with up to NARRATIVE_QUOTES
-# quotes (one per shop); an overview of up to OVERVIEW_SENTENCES, and up to ISSUE_SENTENCES each.
+# The narrative (batch 15b): about the top NARRATIVE_ISSUES of the issues with a quote from the
+# period, each with up to NARRATIVE_QUOTES quotes (one per shop); an overview of up to
+# OVERVIEW_SENTENCES, and up to ISSUE_SENTENCES each.
 NARRATIVE_ISSUES = 10
 NARRATIVE_QUOTES = 3
 OVERVIEW_SENTENCES = 3

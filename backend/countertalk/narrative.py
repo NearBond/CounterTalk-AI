@@ -1,10 +1,11 @@
 """A summary's narrative (batch 15b; BRIEF D16): Muse Spark writes the words, from the numbers
 and quotes code picks, and code checks every sentence (CODING_GUIDELINES §9.6).
 
-What it's given: the top NARRATIVE_ISSUES issues (a team's) or causes (the org's), ranked, each
-with its numbers and up to NARRATIVE_QUOTES quotes: the period's shown insights, the highest
-severity first, then the most recent, one per shop. Reps are only counts: no name is sent, so
-none can be ranked or named.
+What it's given: the top NARRATIVE_ISSUES issues (a team's) or causes (the org's), ranked, of
+those with a quote from the period, each with its numbers and up to NARRATIVE_QUOTES quotes: the
+period's shown insights, the highest severity first, then the most recent, one per shop. One
+with no quote from the period isn't sent: there'd be nothing to cite (15b-6, from the paid run).
+Reps are only counts: no name is sent, so none can be ranked or named.
 
 What it returns, in a strict schema: an overview, and sentences for each issue, every sentence
 citing insights from those it was given (an enum of their IDs).
@@ -18,12 +19,12 @@ numbers.
 
 import json
 import re
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, TypedDict
 
-from sqlalchemy import exists, select
+from sqlalchemy import distinct, exists, select
 from sqlalchemy.orm import Session
 
 from countertalk import issues, limits, summaries
@@ -80,6 +81,9 @@ Every sentence must:
 - use only numbers that appear in the numbers given, copied exactly, as digits;
 - leave out dates, percentages and money amounts, unless they're among the numbers given.
 
+You're given only the issues with quotes from this period: others, with no quote, may rank \
+higher, so don't call any issue you're given the biggest or the main one.
+
 Don't name or rank anyone: reps are only counts. Don't guess at causes the quotes don't show."""
 
 
@@ -117,7 +121,12 @@ def request_for(
     session: Session, pack: OrgPack, org_id: str, numbers: TeamNumbers | OrgNumbers
 ) -> Request:
     """The request for this summary's narrative (the module docstring)."""
-    items = _items(numbers)
+    ranked = _items(numbers)
+    # Only issues with a quote from the period: one with none has nothing to cite, so any
+    # sentence about it would be dropped. Its numbers still show, with no words.
+    quoted = _quoted(session, org_id, ranked, numbers.period)
+    items = [(item_id, item) for item_id, item in ranked if item_id in quoted]
+    items = items[: limits.NARRATIVE_ISSUES]
     quotes = _quotes(session, pack, org_id, items, numbers.period)
     described = [_described(item_id, item, quotes[item_id]) for item_id, item in items]
     sections = {
@@ -203,16 +212,50 @@ def checked(
 
 
 def _items(numbers: TeamNumbers | OrgNumbers) -> list[tuple[str, IssueNumbers | CauseNumbers]]:
-    """The top issues or causes, ranked, by the ID the answer names them with."""
+    """The issues or causes, ranked, by the ID the answer names them with."""
     if isinstance(numbers, TeamNumbers):
-        return [(n.issue_id, n) for n in numbers.issues[: limits.NARRATIVE_ISSUES]]
-    return [(c.issue_key, c) for c in numbers.causes[: limits.NARRATIVE_ISSUES]]
+        return [(n.issue_id, n) for n in numbers.issues]
+    return [(c.issue_key, c) for c in numbers.causes]
 
 
 def _issue_ids(item: IssueNumbers | CauseNumbers) -> list[str]:
     if isinstance(item, IssueNumbers):
         return [item.issue_id]
     return [work.issue_id for work in item.teams]
+
+
+def _owners(items: list[tuple[str, IssueNumbers | CauseNumbers]]) -> dict[str, str]:
+    """Each issue ID, to the item (an issue, or a cause of several) it's part of."""
+    return {issue_id: item_id for item_id, item in items for issue_id in _issue_ids(item)}
+
+
+def _quotable(org_id: str, period: Period, issue_ids: Iterable[str], *columns: Any) -> Any:
+    """These issues' quotes from the period: the shopkeeper's words of shown insights."""
+    return (
+        select(*columns)
+        .select_from(InsightRoute)
+        .join(Insight, Insight.id == InsightRoute.insight_id)
+        .join(Visit, Visit.id == Insight.visit_id)
+        .join(Evidence, Evidence.insight_id == Insight.id)
+        .where(
+            InsightRoute.issue_id.in_(list(issue_ids)),
+            *summaries.shown_in(org_id, period),
+            Evidence.speaker_role == SHOPKEEPER,
+            Evidence.quote_final.is_not(None),
+        )
+    )
+
+
+def _quoted(
+    session: Session,
+    org_id: str,
+    items: list[tuple[str, IssueNumbers | CauseNumbers]],
+    period: Period,
+) -> set[str]:
+    """The items with a quote from the period: one row an issue, not every quote."""
+    owner = _owners(items)
+    found = _quotable(org_id, period, owner, distinct(InsightRoute.issue_id))
+    return {owner[issue_id] for issue_id in session.scalars(found)}
 
 
 def _quotes(
@@ -223,20 +266,11 @@ def _quotes(
     period: Period,
 ) -> dict[str, list[Quote]]:
     """Each item's quotes (the module docstring): the shopkeeper's words of its first evidence."""
-    owner = {issue_id: item_id for item_id, item in items for issue_id in _issue_ids(item)}
+    owner = _owners(items)
+    columns = (InsightRoute.issue_id, Insight.id, Visit.shop_id, Visit.created_at)
+    quoted = (Insight.severity, Insight.summary_en, Evidence.quote_final)
     rows = session.execute(
-        select(InsightRoute.issue_id, Insight.id, Visit.shop_id, Visit.created_at)
-        .add_columns(Insight.severity, Insight.summary_en, Evidence.quote_final)
-        .join(Insight, Insight.id == InsightRoute.insight_id)
-        .join(Visit, Visit.id == Insight.visit_id)
-        .join(Evidence, Evidence.insight_id == Insight.id)
-        .where(
-            InsightRoute.issue_id.in_(owner),
-            *summaries.shown_in(org_id, period),
-            Evidence.speaker_role == SHOPKEEPER,
-            Evidence.quote_final.is_not(None),
-        )
-        .order_by(Evidence.seq)
+        _quotable(org_id, period, owner, *columns, *quoted).order_by(Evidence.seq)
     )
     found: dict[str, dict[str, Quote]] = {item_id: {} for item_id, _ in items}
     for issue_id, insight_id, *quote in rows:

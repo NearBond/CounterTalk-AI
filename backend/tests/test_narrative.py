@@ -15,8 +15,8 @@ from countertalk import narrative, worker
 from countertalk.db import session_scope
 from countertalk.errors import PermanentError, RetryableError
 from countertalk.llm.base import Outcome
-from countertalk.models import Insight, InsightRoute, LlmCall, Shop, User
-from countertalk.summaries import TeamNumbers, team_numbers
+from countertalk.models import Insight, InsightRoute, Issue, LlmCall, Shop, Team, User
+from countertalk.summaries import TeamNumbers, org_numbers, team_numbers
 from tests.conftest import ORG_PACK_FIXTURES
 from tests.test_extraction import insight
 from tests.test_inbox_routing import only_visit_of
@@ -68,7 +68,11 @@ def checked(org: Org_, answer: dict[str, Any]) -> dict[str, Any]:
 def issue_of(insight_id: str) -> str:
     """The money team's issue the insight is in."""
     with session_scope(read_only=True) as session:
-        query = select(InsightRoute.issue_id).where(InsightRoute.insight_id == insight_id)
+        query = (
+            select(InsightRoute.issue_id)
+            .join(Team, Team.id == InsightRoute.team_id)
+            .where(InsightRoute.insight_id == insight_id, Team.key == "money")
+        )
         return session.scalars(query).one()
 
 
@@ -103,6 +107,56 @@ def test_the_quotes_are_the_highest_severity_then_the_newest_one_per_shop_three_
     assert found.schema["properties"]["issues"]["items"]["properties"]["id"]["enum"] == [
         issue["id"]
     ]
+
+
+def three_issues(org: Org_) -> tuple[str, str, str]:
+    """Money's issues, ranked: one still open from the week before, with no quote this week; then
+    two quoted this week, in two other areas, the newer first. Their insights' IDs."""
+    older = paid(org, day(-3), "high")
+    far = paid(at_shop(org, "Far Shop", area="Far Area"), day(0))
+    newer = paid(at_shop(org, "New Shop", area="New Area"), day(1))
+    return older, newer, far
+
+
+def test_the_top_issues_with_a_quote_from_the_period_are_the_ones_offered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(narrative.limits, "NARRATIVE_ISSUES", 1)
+    org = tiny_org()
+    older, newer, far = three_issues(org)
+
+    found = request(org)
+
+    ranked = [issue_of(older), issue_of(newer), issue_of(far)]
+    assert [n.issue_id for n in money(org).issues] == ranked
+    assert [i["id"] for i in json.loads(found.messages[1].content)["issues"]] == [issue_of(newer)]
+    assert found.schema["properties"]["issues"]["items"]["properties"]["id"]["enum"] == [
+        issue_of(newer)
+    ]
+    assert found.offered == (newer,)
+
+
+def test_a_cause_with_no_quote_from_the_period_isn_t_offered_either(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(narrative.limits, "NARRATIVE_ISSUES", 1)
+    org = tiny_org()
+    older, newer, _ = three_issues(org)
+
+    with session_scope(read_only=True) as session:
+        numbers = org_numbers(session, PACK, org.org_id, LAST_WEEK)
+        found = narrative.request_for(session, PACK, org.org_id, numbers)
+
+    # The older one's cause, in money's and field's issues, ranks first with no quote.
+    assert numbers.causes[0].issue_key == key_of(issue_of(older))
+    enum = found.schema["properties"]["issues"]["items"]["properties"]["id"]["enum"]
+    assert enum == [key_of(issue_of(newer))]
+    assert found.offered == (newer,)
+
+
+def key_of(issue_id: str) -> str:
+    with session_scope(read_only=True) as session:
+        return session.get_one(Issue, issue_id).issue_key
 
 
 def test_it_gets_the_top_ten_issues_and_no_rep_s_name(monkeypatch: pytest.MonkeyPatch) -> None:
