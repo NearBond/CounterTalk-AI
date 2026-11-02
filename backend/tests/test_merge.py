@@ -295,7 +295,7 @@ def test_k6_s_p1_after_e_s_issue_is_merged_into_it() -> None:
     e_issue = k6_issue_of(world, e_insight, "finance")
     assert e_issue != p1  # its scheme isn't linked: an issue of its own
 
-    member = _k6_member(world)
+    member = k6_member(world)
     with session_scope() as session:
         issues.merge(
             session,
@@ -331,7 +331,7 @@ def test_k6_s_p1_after_e_s_issue_is_merged_into_it() -> None:
     )
 
 
-def _k6_member(world: _k6.World) -> str:
+def k6_member(world: _k6.World) -> str:
     with session_scope(read_only=True) as session:
         return session.scalars(
             select(User.id).where(User.org_id == world.org_id, User.email.startswith("finance-"))

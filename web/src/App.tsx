@@ -1,4 +1,5 @@
 import type { RouteObject } from "react-router";
+import { DrillPage } from "./pages/DrillPage";
 import { HealthPage } from "./pages/HealthPage";
 import { InboxPage } from "./pages/InboxPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -17,6 +18,7 @@ export const routes: RouteObject[] = [
   { path: "/inbox", element: <InboxPage /> },
   { path: "/inbox/triage", element: <TriagePage /> },
   { path: "/summaries", element: <SummariesPage /> },
+  { path: "/summaries/drill", element: <DrillPage /> },
   { path: "/health", element: <HealthPage /> },
   // The server answers every unknown path with the app, so the app must answer them too.
   { path: "*", element: <NotFoundPage /> },

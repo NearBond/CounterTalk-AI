@@ -42,7 +42,15 @@ from countertalk.api.issues import (
     UntriagedOut,
 )
 from countertalk.api.shops import ShopOut
-from countertalk.api.summaries import SummaryAsk, SummaryOut, SummaryPageOut
+from countertalk.api.summaries import (
+    DrillOut,
+    DrillRepOut,
+    DrillShopOut,
+    DrillVisitOut,
+    SummaryAsk,
+    SummaryOut,
+    SummaryPageOut,
+)
 from countertalk.api.visits import (
     CompleteIn,
     ReviewOut,
@@ -94,6 +102,10 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "Suggestion": SuggestionOut,
     "OtherIssue": OtherIssueOut,
     "MergeIn": MergeIn,
+    "Drill": DrillOut,
+    "DrillRep": DrillRepOut,
+    "DrillShop": DrillShopOut,
+    "DrillVisit": DrillVisitOut,
 }
 
 

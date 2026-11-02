@@ -1030,6 +1030,8 @@ WRITTEN_ONCE = {
     ".where(Summary.id == summary_id)\n": "countertalk/summary_jobs.py",
     # An open or in-progress issue: issues.active (15c-3, R1 in 15c-2 and 15c-3).
     "for status in ACTIVE_ISSUE]": "countertalk/issues.py",
+    # Shops raising it again: summaries.raised_again_of (15c-4, R1 in 15c-3 and 15c-4).
+    "len(visits) >= 2": "countertalk/summaries.py",
     # The insights a summary counts: summaries.shown_in.
     "Visit.created_at >= period.start": "countertalk/summaries.py",
 }

@@ -456,7 +456,7 @@ def test_a_retried_job_doesn_t_ask_for_suggestions_again(two: tuple[Org_, str, s
 def test_k6_s_finance_gets_one_suggestion_e_s_issue_into_p1() -> None:
     world = _k6.load()
     p1 = k6_issue_of(world, world.insights["P1"][0], "finance")
-    e = _e_issue(world)
+    e = e_issue_of(world)
 
     def p1_only(payload: dict[str, Any]) -> dict[str, Any]:
         ids = {i["id"] for i in payload["issues"]}
@@ -479,7 +479,7 @@ def test_k6_s_finance_gets_one_suggestion_e_s_issue_into_p1() -> None:
     assert {name for name, _ in llm.asked} == {"merge_suggestions", "summary_narrative"}
 
 
-def _e_issue(world: _k6.World) -> str:
+def e_issue_of(world: _k6.World) -> str:
     with session_scope(read_only=True) as session:
         e_insight = session.scalars(
             select(Insight.id)

@@ -52,6 +52,13 @@ export function formatPeriod(kind: PeriodKind, start: string, end: string): stri
   return `${DAY_MONTH.format(first)}${from === to ? "" : ` ${from}`} – ${DAY_MONTH.format(last)} ${to}`;
 }
 
+const ISO_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: IST, year: "numeric", month: "2-digit", day: "2-digit" });
+
+/** 2026-10-26: a moment's day in IST, as the API takes a period's start. */
+export function istDay(iso: string): string {
+  return ISO_DAY.format(new Date(iso));
+}
+
 /** "1 shop", "3 shops", "0.5 shops": a count and its noun, the one way the app words one (R1). */
 export function countOf(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;

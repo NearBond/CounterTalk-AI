@@ -4,7 +4,7 @@ import { ChoiceSelect } from "../components/ChoiceSelect";
 import { RetryAlert } from "../components/RetryAlert";
 import { SaveError } from "../components/SaveError";
 import { askSummary, getInboxOptions, getSummary, getSummaryPage, retrySummary } from "../lib/api";
-import { countOf, formatDateTime, formatPeriod } from "../lib/format";
+import { countOf, formatDateTime, formatPeriod, istDay } from "../lib/format";
 import { usePolling, useSave } from "../lib/hooks";
 import { STATUS_LABELS } from "../lib/issues";
 import type {
@@ -162,7 +162,12 @@ export function SummariesPage() {
             </section>
           )}
           {"issues" in numbers ? (
-            <TeamView numbers={numbers} narrative={ready?.narrative ?? null} />
+            <TeamView
+              numbers={numbers}
+              narrative={ready?.narrative ?? null}
+              period={period}
+              teamKey={team?.key ?? ""}
+            />
           ) : (
             <OrgView numbers={numbers} narrative={ready?.narrative ?? null} />
           )}
@@ -207,7 +212,19 @@ function wordsFor(narrative: Narrative | null, id: string): Sentence[] {
   return narrative?.issues.find((section) => section.id === id)?.sentences ?? [];
 }
 
-function TeamView({ numbers, narrative }: { numbers: TeamNumbers; narrative: Narrative | null }) {
+function TeamView({
+  numbers,
+  narrative,
+  period,
+  teamKey,
+}: {
+  numbers: TeamNumbers;
+  narrative: Narrative | null;
+  period: PeriodKind;
+  teamKey: string;
+}) {
+  // The drill-down of the very period shown, and the way back to this team's summary.
+  const drill = new URLSearchParams({ team: teamKey, team_id: numbers.team_id, period, start: istDay(numbers.period.start) });
   return (
     <>
       <TotalsLine totals={numbers.totals} />
@@ -220,6 +237,7 @@ function TeamView({ numbers, narrative }: { numbers: TeamNumbers; narrative: Nar
             measures={issue.measures}
             status={STATUS_LABELS[issue.status]}
             words={wordsFor(narrative, issue.issue_id)}
+            drillTo={`/summaries/drill?${drill.toString()}&issue=${issue.issue_id}`}
           />
         ))}
       </ol>
@@ -283,7 +301,20 @@ function OrgView({ numbers, narrative }: { numbers: OrgNumbers; narrative: Narra
 }
 
 /** An issue or cause: its numbers, why it ranks where it does, and its sentences. */
-function Ranked({ title, measures: m, status, words }: { title: string; measures: Measures; status: string; words: Sentence[] }) {
+function Ranked({
+  title,
+  measures: m,
+  status,
+  words,
+  drillTo,
+}: {
+  title: string;
+  measures: Measures;
+  status: string;
+  words: Sentence[];
+  /** A team's issue drills down to its reps, shops and quotes (batch 15c). */
+  drillTo?: string;
+}) {
   return (
     <li className="flex flex-col gap-1 rounded-lg border border-gray-200 p-3">
       <span className="font-medium">{title}</span>
@@ -303,6 +334,11 @@ function Ranked({ title, measures: m, status, words }: { title: string; measures
       {words.map((sentence, index) => (
         <Said key={index} sentence={sentence} />
       ))}
+      {drillTo !== undefined && (
+        <Link to={drillTo} className="text-sm text-blue-700 underline">
+          Its reps, shops and quotes
+        </Link>
+      )}
     </li>
   );
 }

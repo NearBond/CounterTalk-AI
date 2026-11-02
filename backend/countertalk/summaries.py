@@ -38,6 +38,7 @@ from sqlalchemy import Select, distinct, exists, func, select
 from sqlalchemy.orm import Session
 
 from countertalk import entities, issues, limits
+from countertalk.errors import Invalid
 from countertalk.models import (
     ACTIVE_ISSUE,
     IST,
@@ -52,6 +53,7 @@ from countertalk.models import (
     Team,
     Visit,
     ist_date,
+    parse_id,
 )
 from countertalk.playbooks import OrgPack
 
@@ -105,6 +107,14 @@ def period_from(start: datetime, end: datetime) -> Period:
         if (found.start, found.end) == (start, end):
             return found
     raise ValueError("not a week or a month")
+
+
+def period_starting(kind: PeriodKind, day: date) -> Period:
+    """The week (a Monday) or month (a 1st) starting on this IST date: 400 for any other day."""
+    found = period_of(kind, day)
+    if ist_date(found.start) != day:
+        raise Invalid("not_a_period_start", f"That day doesn't start a {kind}")
+    return found
 
 
 def week_start(moment: datetime) -> datetime:
@@ -264,14 +274,14 @@ def team_numbers(
                 IssueNumbers(issue.id, issue.title_en, issue.category, state.status, measured)
             )
     shown = [m for n in numbers for m in loaded.members[n.issue_id] if period.holds(m.seen_at)]
-    return TeamNumbers(team_id, period, _ranked(numbers), _totals(shown))
+    return TeamNumbers(team_id, period, _ranked(numbers), totals_of(shown))
 
 
 def _ranked[T: IssueNumbers | CauseNumbers](numbers: list[T]) -> list[T]:
     return sorted(numbers, key=lambda n: (-n.measures.score, -n.measures.last_seen_at.timestamp()))
 
 
-def _totals(in_period: Sequence[_Member], triage: int = 0) -> Totals:
+def totals_of(in_period: Sequence[_Member], triage: int = 0) -> Totals:
     return Totals(
         insights=len({m.insight_id for m in in_period}),
         shops=len({m.shop_id for m in in_period}),
@@ -312,7 +322,13 @@ def _members(*leading: Any) -> Select[Any]:
     )
 
 
-def _load(session: Session, org_id: str, period: Period, team_id: str | None) -> _Loaded:
+def _load(
+    session: Session,
+    org_id: str,
+    period: Period,
+    team_id: str | None,
+    issue_id: str | None = None,
+) -> _Loaded:
     """The issues with routes that could matter to the period (open ones, and ones seen or
     resolved since the baseline's first period), of one team or all, that have an insight seen
     by its end; those insights; and their state at its end. One whose insights all came later
@@ -325,6 +341,8 @@ def _load(session: Session, org_id: str, period: Period, team_id: str | None) ->
     )
     if team_id is not None:
         query = query.where(Issue.team_id == team_id)
+    if issue_id is not None:  # one issue, for its drill-down
+        query = query.where(Issue.id == issue_id)
     candidates = list(session.scalars(query))
     members: dict[str, list[_Member]] = defaultdict(list)
     for issue_id, *member in session.execute(
@@ -377,6 +395,62 @@ def _state(issue: Issue, history: Sequence[tuple[datetime, str]], period: Period
     )
 
 
+def _run(parts: Sequence[tuple[_State, Sequence[_Member]]]) -> list[_Member]:
+    """Its latest run: the open teams' issues' insights since their latest resolve; if none is
+    open, each issue's up to the resolve that closed it. What open shops count, and what the
+    drill-down lists (R1)."""
+    running = [(state, part) for state, part in parts if state.active] or parts
+    return [
+        m
+        for state, part in running
+        for m in part
+        if state.run_start is None or m.seen_at > state.run_start
+    ]
+
+
+@dataclass(frozen=True)
+class Run:
+    """One of a team's issues as its summary counts it (batch 15c's drill-down): its
+    insights up to the period's end (members: the period's counts and raised again come
+    from these) and its latest run of them (run: its open shops)."""
+
+    issue: Issue
+    status: str
+    members: list[_Member]
+    run: list[_Member]
+
+
+def run_of(session: Session, org_id: str, team_id: str, issue_id: str, period: Period) -> Run:
+    """The team's issue as its summary for the period counts it; 404 if it isn't one the
+    summary lists (another team's, merged away, with nothing up to the period's end, or
+    closed before it with nothing in it)."""
+    found = parse_id(issue_id)
+    loaded = None if found is None else _load(session, org_id, period, team_id, found)
+    if loaded is None or not loaded.found:
+        raise issues.missing_issue()
+    [issue] = loaded.found
+    state, members = loaded.states[issue.id], loaded.members[issue.id]
+    in_period = [m for m in members if period.holds(m.seen_at)]
+    if not _listed(in_period, state.active, state.resolved_in_period):
+        raise issues.missing_issue()
+    return Run(issue, state.status, members, _run([(state, members)]))
+
+
+def _listed(in_period: Sequence[_Member], active: bool, resolved_in_period: bool) -> bool:
+    """Whether a summary lists it: something in the period, or open, or resolved in it (R1:
+    the summary and its drill-down both ask)."""
+    return bool(in_period) or active or resolved_in_period
+
+
+def raised_again_of(members: Sequence[_Member]) -> int:
+    """Shops raising it again: two or more visits among these insights (R1: the summary and
+    its drill-down both count it)."""
+    visits_by_shop: dict[str, set[str]] = defaultdict(set)
+    for m in members:
+        visits_by_shop[m.shop_id].add(m.visit_id)
+    return sum(1 for visits in visits_by_shop.values() if len(visits) >= 2)
+
+
 def _measure(
     pack: OrgPack, parts: Sequence[tuple[_State, Sequence[_Member]]], period: Period
 ) -> Measures | None:
@@ -388,13 +462,10 @@ def _measure(
     active = any(state.active for state in states)
     resolved_in_period = not active and any(state.resolved_in_period for state in states)
     in_period = [m for m in members if period.holds(m.seen_at)]
-    if not in_period and not active and not resolved_in_period:
+    if not _listed(in_period, active, resolved_in_period):
         return None
     earlier = _earlier(period)
     first_seen = min(m.seen_at for m in members)
-    visits_by_shop: dict[str, set[str]] = defaultdict(set)
-    for m in members:
-        visits_by_shop[m.shop_id].add(m.visit_id)
     shops_per_period = [len({m.shop_id for m in members if p.holds(m.seen_at)}) for p in earlier]
     shops = len({m.shop_id for m in in_period})
     baseline = sum(shops_per_period) / len(shops_per_period)
@@ -407,15 +478,7 @@ def _measure(
         reopened=any(state.reopened for state in states),
         resolved_in_period=resolved_in_period,
     )
-    # Its latest run: the open teams' issues' since their latest resolve; if none is open, each
-    # issue's run up to the resolve that closed it.
-    running = [(state, part) for state, part in parts if state.active] or parts
-    run = [
-        m
-        for state, part in running
-        for m in part
-        if state.run_start is None or m.seen_at > state.run_start
-    ]
+    run = _run(parts)
     open_shops = len({m.shop_id for m in run}) if active else 0
     # Its severity as issues.py keeps it: the highest of its latest run's insights (all of them,
     # if the ones that began the run have since been hidden).
@@ -423,14 +486,14 @@ def _measure(
         (m.severity for m in run or members), key=lambda s: issues.severity_rank(pack, s)
     )
     age = age_weeks(first_seen, period)
-    counted = _totals(in_period)
+    counted = totals_of(in_period)
     return Measures(
         severity=severity,
         shops=counted.shops,
         insights=counted.insights,
         reps=counted.reps,
         visits=counted.visits,
-        raised_again=sum(1 for visits in visits_by_shop.values() if len(visits) >= 2),
+        raised_again=raised_again_of(members),
         open_shops=open_shops,
         age_weeks=age,
         overdue=any(state.overdue for state in states),
@@ -533,7 +596,7 @@ def org_numbers(session: Session, pack: OrgPack, org_id: str, period: Period) ->
         causes=_ranked(causes),
         # From what the summary shows (its causes' insights and triage's), so the checker's
         # fresh COUNT(DISTINCT) can disagree.
-        totals=_totals(routed + triage, triage=len(triage)),
+        totals=totals_of(routed + triage, triage=len(triage)),
         by_category_area=_by_category_area(loaded, grouped_causes, period),
         competitors=_competitors(session, org_id, period),
         issues_at_end=_at_end(loaded),

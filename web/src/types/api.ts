@@ -628,3 +628,49 @@ export interface SummaryPage {
   numbers_as_of: string;
   summary: Summary | null;
 }
+
+/** GET /api/summaries/drill: DrillOut, a team summary's issue drilled down (batch 15c). Its
+ * latest run up to the period's end, counted now (numbers_as_of; a summary written earlier keeps
+ * its own). shops is its open shops while it's open; in_period is the summary's own counts.
+ * 404 `issue_not_found`. */
+export interface Drill {
+  period: PeriodKind;
+  period_start: string;
+  period_end: string;
+  numbers_as_of: string;
+  issue_id: string;
+  title_en: string;
+  category: string;
+  /** As it was at the period's end. */
+  status: IssueStatus;
+  shops: number;
+  insights: number;
+  reps: number;
+  raised_again: number;
+  in_period: Totals;
+  by_rep: DrillRep[];
+}
+
+/** A rep's shops in the issue, and how many insights: never ranked or compared. */
+export interface DrillRep {
+  rep_id: string;
+  rep_name: string;
+  insights: number;
+  shops: DrillShop[];
+}
+
+export interface DrillShop {
+  shop_id: string;
+  name: string;
+  area: string;
+  distributor: string | null;
+  visits: DrillVisit[];
+}
+
+export interface DrillVisit {
+  visit_id: string;
+  visited_at: string;
+  /** In the summary's period, or before it in the issue's run. */
+  in_period: boolean;
+  insights: Insight[];
+}

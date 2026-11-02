@@ -4,6 +4,7 @@
  */
 import type {
   CompleteVisit,
+  Drill,
   ErrorBody,
   FrameworkErrorCode,
   Health,
@@ -295,6 +296,19 @@ export function getSummaryPage(
   const query = new URLSearchParams({ scope, period });
   if (teamId !== null) query.set("team_id", teamId);
   return apiRequest(`/summaries?${query.toString()}`, { signal });
+}
+
+/** A team summary's issue drilled down to each quote (batch 15c), counted now. */
+export function getDrill(
+  teamId: string,
+  issueId: string,
+  period: PeriodKind,
+  start: string | null,
+  signal?: AbortSignal,
+): Promise<Drill> {
+  const query = new URLSearchParams({ team_id: teamId, issue_id: issueId, period });
+  if (start !== null) query.set("start", start); // the period the summary page showed
+  return apiRequest(`/summaries/drill?${query.toString()}`, { signal });
 }
 
 /** Asks for it: made, with its job queued, only the first time. */
