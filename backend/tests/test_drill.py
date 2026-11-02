@@ -20,7 +20,7 @@ from tests.test_merge import money_issue
 from tests.test_merges import NOTHING, ByName, suggesting
 from tests.test_narrative import at_shop, day
 from tests.test_review import PACK
-from tests.test_review_api import error_of, seeded_demo
+from tests.test_review_api import error_of, signed_in_demo
 from tests.test_roles import tiny_org
 from tests.test_summaries import EXPECTED, reopened_by_a_low_one, resolve, visit_at
 from tests.test_summary_jobs import LAST_WEEK, summary_row, team
@@ -104,7 +104,7 @@ def test_another_team_s_issue_or_a_merged_one_is_404() -> None:
 def last_weeks(client: TestClient) -> tuple[Org_, str, str]:
     """A demo-org payment confirmed through the API, dated last Monday: the org, finance's
     team ID, and its issue's ID."""
-    demo = seeded_demo()
+    demo = signed_in_demo(client)
     visit_id = confirmed(client, shop(demo, "Corner Daily Needs"))
     with session_scope() as session:
         session.execute(

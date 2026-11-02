@@ -29,6 +29,7 @@ from countertalk.models import (
     Insight,
     Issue,
     Shop,
+    User,
     Visit,
     VisitClient,
     VisitKind,
@@ -38,9 +39,8 @@ from countertalk.models import (
 )
 from countertalk.playbooks import load_org_pack
 from countertalk.summaries import last_complete
-from countertalk.users import demo_rep
 from scripts import _k6
-from scripts.seed_dev import DEMO_PACK, seed
+from scripts.seed_dev import DEMO_PACK, DEMO_REP, seed
 
 E2E_SUFFIX = "_e2e"
 PLAYBACK_MS = 20_000
@@ -79,7 +79,7 @@ def k6() -> dict[str, str]:
     """K6, the planted patterns (batch 15c's click check), in an org of its own, moved so its
     W6 is last week, as the summaries page shows it; E's issue merged into P1's, as a person
     would from the suggestion; and a tone as each of P1's visits' recording, so ▶ plays.
-    What the check needs: the finance member's address (DEV_USER_EMAIL), and D2's name."""
+    What the check needs: the finance member's address, to sign in as, and D2's name."""
     last_week = ist_date(last_complete("week", utc_now()).start)
     world = _k6.load(w1_start=last_week - timedelta(weeks=5))
     p1, e = _k6.expected_merge(world)
@@ -121,7 +121,7 @@ def main() -> int:
     pack = load_org_pack(*DEMO_PACK)
     with session_scope() as session:
         seed(session, pack)
-        rep = demo_rep(session)
+        rep = session.scalars(select(User).where(User.email == DEMO_REP["email"])).one()
         shop_id = session.scalars(
             select(Shop.id).where(Shop.org_id == rep.org_id).order_by(Shop.name)
         ).first()

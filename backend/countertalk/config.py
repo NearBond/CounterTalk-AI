@@ -3,7 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
@@ -31,19 +31,9 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     # One Meta key for both Muse Voice Transcribe and Muse Spark.
     MODEL_API_KEY: SecretStr = SecretStr("")
+    # Signs the session cookies (countertalk.auth). The API won't start without it unless DEBUG
+    # is on (main.create_app); scripts and the worker don't need it.
     SECRET_KEY: SecretStr = SecretStr("")
-    # Development only (batch 15b): the API acts as this user instead of the demo rep, to see an
-    # example org such as scripts/load_patterns.py's. Refused unless DEBUG is on, so it never
-    # reaches a deploy. Batch 16's sign-in removes it.
-    DEV_USER_EMAIL: str = ""
-
-    @model_validator(mode="after")
-    def _dev_user_only_in_development(self) -> "Settings":
-        if self.DEV_USER_EMAIL and not self.DEBUG:
-            raise ValueError(
-                "DEV_USER_EMAIL is for development only: set DEBUG=1 with it, or leave it empty"
-            )
-        return self
 
     @field_validator("DATABASE_URL")
     @classmethod
@@ -84,3 +74,22 @@ def _inside_backend_if_relative(path: Path) -> Path:
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+class Misconfigured(RuntimeError):
+    """A setting the app can't run without."""
+
+
+def secret_key() -> str:
+    """SECRET_KEY, which signs the session cookies (batch 16). Empty with DEBUG off: the
+    API won't start (main's lifespan), and nothing is signed with no key; with DEBUG on, ""
+    (auth then signs with a key of its own process)."""
+    settings = get_settings()
+    key = settings.SECRET_KEY.get_secret_value()
+    if not key and not settings.DEBUG:
+        raise Misconfigured(
+            "SECRET_KEY is empty: sign-in sessions are signed with it. Set it in the host's"
+            " variables (or backend/.env), e.g. from"
+            ' python -c "import secrets; print(secrets.token_urlsafe(32))"'
+        )
+    return key

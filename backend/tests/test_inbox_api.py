@@ -14,7 +14,7 @@ from countertalk import extraction
 from countertalk.db import session_scope
 from countertalk.models import Distributor, InsightRoute, Shop, utc_now
 from tests.test_extraction import answer, insight, transcribed
-from tests.test_review_api import PAYMENT, error_of, seeded_demo, the_review
+from tests.test_review_api import PAYMENT, error_of, signed_in_demo, the_review
 from tests.test_roles import ALL_PLACED, FakeLlm
 from tests.test_visits import Org_
 
@@ -23,8 +23,8 @@ OTHER = insight(category="other", severity="low", suggested_team=None)  # no tea
 
 
 @pytest.fixture(autouse=True)
-def demo() -> Org_:
-    return seeded_demo()
+def demo(client: TestClient) -> Org_:
+    return signed_in_demo(client)
 
 
 def shop(demo: Org_, name: str) -> Org_:

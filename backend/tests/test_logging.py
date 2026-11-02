@@ -25,8 +25,7 @@ from countertalk.db import DbSession, session_scope
 from countertalk.logs import HANDLER_NAME, configure_logging, install_frames_only_excepthook
 from countertalk.main import create_app
 from countertalk.models import Org, Role, User, new_id
-from countertalk.playbooks import load_org_pack
-from scripts.seed_dev import DEMO_PACK, seed
+from tests.test_review_api import signed_in_demo
 
 FAKE_EMAIL = "leaky.person@example.com"
 FAKE_NAME = "Leaky Person"
@@ -245,8 +244,7 @@ def test_any_handler_gets_the_frames_but_never_the_message() -> None:
 def test_a_500_in_an_included_router_logs_the_routes_whole_template(
     client: TestClient, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    with session_scope() as session:
-        seed(session, load_org_pack(*DEMO_PACK))
+    signed_in_demo(client)
 
     def broken(*args: object) -> None:
         raise RuntimeError("a bug")

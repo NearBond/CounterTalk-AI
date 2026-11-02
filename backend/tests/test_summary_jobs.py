@@ -25,7 +25,7 @@ from countertalk.models import (
 from tests.conftest import ORG_PACK_FIXTURES, lock_waiters
 from tests.test_jobs import OTHER_WORKER, claimed, make_stale
 from tests.test_review import PACK
-from tests.test_review_api import error_of, seeded_demo
+from tests.test_review_api import error_of, signed_in_demo
 from tests.test_roles import FakeLlm, tiny_org
 from tests.test_summaries import visit_at
 from tests.test_visits import Org_, make_org
@@ -257,7 +257,7 @@ def demo_team(client: TestClient, key: str) -> str:
 
 
 def test_the_api_asks_once_reads_the_numbers_at_once_and_tries_again(client: TestClient) -> None:
-    demo = seeded_demo()
+    demo = signed_in_demo(client)
     finance = demo_team(client, "finance")
     ask = {"scope": "team", "team_id": finance, "period": "week"}
 
@@ -311,7 +311,7 @@ def test_the_api_asks_once_reads_the_numbers_at_once_and_tries_again(client: Tes
 def test_the_api_asks_only_for_its_own_org_s_teams(
     client: TestClient, ask: dict[str, Any], expected: tuple[int, str]
 ) -> None:
-    seeded_demo()
+    signed_in_demo(client)
     other = team(tiny_org().org_id, "money")
     ids = {"TEAM": demo_team(client, "finance"), "OTHER": other}
     body = {**ask, **({"team_id": ids[ask["team_id"]]} if "team_id" in ask else {})}
@@ -327,7 +327,7 @@ def test_no_request_calls_muse_spark(client: TestClient, monkeypatch: pytest.Mon
         raise AssertionError("Muse Spark was called inside a request")
 
     monkeypatch.setattr(MetaLlm, "complete", never)
-    seeded_demo()
+    signed_in_demo(client)
     finance = demo_team(client, "finance")
     params = {"scope": "team", "team_id": finance, "period": "week"}
 
@@ -344,7 +344,7 @@ def test_no_request_calls_muse_spark(client: TestClient, monkeypatch: pytest.Mon
 
 
 def test_another_org_s_summary_is_404(client: TestClient) -> None:
-    seeded_demo()
+    signed_in_demo(client)
     theirs = asked(tiny_org())
 
     assert error_of(client.get(f"/api/summaries/{theirs}")) == (404, "summary_not_found")

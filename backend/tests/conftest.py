@@ -20,11 +20,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.exc import OperationalError
 
-from countertalk import transcription
+from countertalk import auth, transcription
 from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import get_engine, session_scope
 from countertalk.main import create_app
-from countertalk.models import Org, Visit
+from countertalk.models import Org, User, Visit
 
 # 127.0.0.1, not localhost: on Windows, localhost tries ::1 first and waits for it to time out.
 # CI's job container reaches its Postgres service by name instead (TEST_POSTGRES_HOST).
@@ -38,7 +38,6 @@ PINNED_SETTINGS = {
     "DEBUG": "0",
     "MODEL_API_KEY": "",
     "SECRET_KEY": "test-only-secret",
-    "DEV_USER_EMAIL": "",
 }
 
 
@@ -201,8 +200,20 @@ def app() -> FastAPI:
 
 @pytest.fixture
 def client(app: FastAPI) -> Iterator[TestClient]:
-    with TestClient(app, raise_server_exceptions=False) as test_client:
+    # https: the session cookie is Secure, so a client sends it only over https (batch 16).
+    with TestClient(app, base_url=HTTPS, raise_server_exceptions=False) as test_client:
         yield test_client
+
+
+HTTPS = "https://testserver"
+
+
+def sign_in(client: TestClient, user_id: str) -> None:
+    """Signs the client in as this user: a real session and its signed cookie, as sign-in
+    sets them (batch 16). No password: argon2 is slow, and only test_auth needs one."""
+    with session_scope() as session:
+        token = auth.start_session(session, session.get_one(User, user_id))
+    client.cookies.set(auth.COOKIE, auth.cookie_for(token))
 
 
 ORG_PACK_FIXTURES = BACKEND_DIR / "tests" / "fixtures" / "org_packs"

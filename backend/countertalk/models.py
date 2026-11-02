@@ -147,8 +147,16 @@ class User(Base):
         CheckConstraint(_one_of("role", Role), name="role"),
         # Stored lowercase, so the unique email can't hold the same address twice.
         CheckConstraint("email = lower(email)", name="email_lowercase"),
+        # A team member has a team, and only a team member (batch 16): their inbox is its.
+        CheckConstraint(
+            f"(role = '{Role.TEAM_MEMBER}') = (team_id IS NOT NULL)", name="team_member_team"
+        ),
         # The target of visits' (org_id, rep_id) key: a visit's rep is in the visit's org.
         UniqueConstraint("org_id", "id"),
+        # Their team is their own org's. Teams are never deleted.
+        ForeignKeyConstraint(
+            ["org_id", "team_id"], ["teams.org_id", "teams.id"], name="fk_users_team_id_teams"
+        ),
     )
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
@@ -156,7 +164,54 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, unique=True)
     name: Mapped[str] = mapped_column(String)
     role: Mapped[str] = mapped_column(String)
+    team_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    # argon2 (countertalk.auth). None: no password set, so no sign-in (scripts/set_password.py).
+    password_hash: Mapped[str | None] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class UserSession(Base):
+    """A signed-in browser (batch 16). The cookie holds a random token, signed with SECRET_KEY;
+    only the token's SHA-256 is stored, so a leaked table signs nobody in. It ends at
+    expires_at, never extended (a GET never writes), or when signed out (the row deleted)."""
+
+    __tablename__ = "sessions"
+    __table_args__ = (
+        CheckConstraint("token_hash ~ '^[0-9a-f]{64}$'", name="token_hash_sha256"),
+        CheckConstraint("expires_at > created_at", name="expires_after_created"),
+        # The user is in the session's org; a deleted user's sessions go with them.
+        ForeignKeyConstraint(
+            ["org_id", "user_id"],
+            ["users.org_id", "users.id"],
+            ondelete="CASCADE",
+            name="fk_sessions_user_id_users",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    token_hash: Mapped[str] = mapped_column(String, unique=True)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+    expires_at: Mapped[datetime] = mapped_column(UtcDateTime)
+
+
+class SigninFailure(Base):
+    """Wrong passwords in a row for one email (batch 16), whether or not an account has it, so
+    the delay they bring says nothing about which emails are real. Keyed by the email, never
+    the client's IP (a proxy's X-Forwarded-For is anyone's to set). Not org-scoped: an unknown
+    email has no org. A sign-in that works deletes the row."""
+
+    __tablename__ = "signin_failures"
+    __table_args__ = (
+        CheckConstraint("email = lower(email)", name="email_lowercase"),
+        CheckConstraint("failures > 0", name="failures_positive"),
+    )
+
+    email: Mapped[str] = mapped_column(String, primary_key=True)
+    failures: Mapped[int] = mapped_column()
+    # When a password was last checked for it: a failure, or a check claimed after a pause.
+    last_checked_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
 
 
 class Shop(Base):

@@ -2,22 +2,28 @@
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Cookie, Depends
 
-from countertalk import users
-from countertalk.config import get_settings
+from countertalk import auth, users
 from countertalk.db import session_scope
 
 
-def current_user() -> users.CurrentUser:
-    """The demo rep until batch 16, or in development DEV_USER_EMAIL's user (batch 15b).
+def current_user(
+    session_cookie: Annotated[str | None, Cookie(alias=auth.COOKIE)] = None,
+) -> users.CurrentUser:
+    """The signed-in user, from the session cookie (batch 16); 401 signed_out without one.
 
     Looked up in its own short read-only session, so a write request's locks start at the
     route's first query, not here (§2.3).
     """
-    email = get_settings().DEV_USER_EMAIL
+    token = auth.token_in(session_cookie)
+    if token is None:
+        raise auth.signed_out()
     with session_scope(read_only=True) as session:
-        return users.dev_user(session, email) if email else users.demo_rep(session)
+        found = users.signed_in(session, token)
+    if found is None:
+        raise auth.signed_out()
+    return found
 
 
 CurrentUser = Annotated[users.CurrentUser, Depends(current_user)]

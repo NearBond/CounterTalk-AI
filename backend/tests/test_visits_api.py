@@ -18,22 +18,20 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
-from countertalk import storage, visits
+from countertalk import auth, storage, visits
 from countertalk.db import session_scope
 from countertalk.limits import LOCK_TIMEOUT_MS, MAX_SEGMENT_BYTES, MAX_SEGMENTS_PER_VISIT
 from countertalk.models import Org, Role, Shop, User, Visit
-from countertalk.playbooks import load_org_pack
-from scripts.seed_dev import DEMO_PACK, seed
-from tests.conftest import give_transcript
+from tests.conftest import HTTPS, give_transcript
+from tests.test_review_api import signed_in_demo
 from tests.test_visits import staged_files
 
 RACE_TIMEOUT_S = 2 * LOCK_TIMEOUT_MS / 1000
 
 
 @pytest.fixture(autouse=True)
-def demo() -> None:
-    with session_scope() as session:
-        seed(session, load_org_pack(*DEMO_PACK))
+def demo(client: TestClient) -> None:
+    signed_in_demo(client)
 
 
 def a_shop(client: TestClient) -> dict:
@@ -251,7 +249,7 @@ def without_the_demo_rep(client: TestClient) -> httpx.Response:
             "audio_not_found",
         ),
         (lambda client: client.get(f"/api/visits/{other_org()[0]}/audio"), 404, "visit_not_found"),
-        (without_the_demo_rep, 500, "demo_rep_missing"),
+        (without_the_demo_rep, 401, "signed_out"),  # their session went with them
     ],
 )
 def test_visit_and_list_errors(
@@ -431,6 +429,17 @@ def raw_put(
     return asyncio.run(call())
 
 
+def signed(client: TestClient, headers: dict[str, str]) -> dict[str, str]:
+    """The headers with the signed-in client's session cookie (batch 16)."""
+    return {**headers, "cookie": f"{auth.COOKIE}={client.cookies[auth.COOKIE]}"}
+
+
+def own_client(app: FastAPI, client: TestClient) -> TestClient:
+    """Another client of the app, signed in as `client` is: for races across clients."""
+    cookies = {auth.COOKIE: client.cookies[auth.COOKIE]}
+    return TestClient(app, base_url=HTTPS, cookies=cookies, raise_server_exceptions=False)
+
+
 BODY = b"the bytes"
 GOOD = {"content-length": str(len(BODY)), "x-content-sha256": hashlib.sha256(BODY).hexdigest()}
 MIB = b"x" * (1024 * 1024)
@@ -458,7 +467,7 @@ MIB = b"x" * (1024 * 1024)
             False,
         ),
         ("malformed", GOOD, [BODY], 422, "invalid_request", True),
-        ("no_user", GOOD, [BODY], 500, "demo_rep_missing", True),
+        ("no_user", GOOD, [BODY], 401, "signed_out", True),
         ("bad_seq", GOOD, [BODY], 400, "invalid_seq", True),
     ],
     ids=["unicode-length", "length-over", "body-over", "malformed-id", "no-user", "bad-seq"],
@@ -480,7 +489,7 @@ def test_the_route_refuses_before_reading_or_beyond_the_limit(
 
     seq = MAX_SEGMENTS_PER_VISIT if visit == "bad_seq" else 0
     path = f"/api/visits/{visit_id}/segments/{seq}"
-    got, body, chunks_read = raw_put(app, path, headers, chunks)
+    got, body, chunks_read = raw_put(app, path, signed(client, headers), chunks)
 
     assert got == status
     assert code.encode() in body
@@ -496,7 +505,11 @@ def test_an_upload_that_breaks_off_is_a_400_and_not_an_error_in_the_log(
 
     with caplog.at_level(logging.INFO):
         status, body, _ = raw_put(
-            app, f"/api/visits/{visit_id}/segments/0", headers, [b"x" * 1024, b"x" * 1024], 1
+            app,
+            f"/api/visits/{visit_id}/segments/0",
+            signed(client, headers),
+            [b"x" * 1024, b"x" * 1024],
+            1,
         )
 
     assert status == 400
@@ -508,14 +521,15 @@ def test_an_upload_that_breaks_off_is_a_400_and_not_an_error_in_the_log(
 # --- races that need HTTP ----------------------------------------------------------------------
 
 
-def test_two_uploads_of_one_segment_with_different_bytes_store_one(app: FastAPI) -> None:
-    with TestClient(app, raise_server_exceptions=False) as setup:
-        visit_id = new_visit(setup)
+def test_two_uploads_of_one_segment_with_different_bytes_store_one(
+    app: FastAPI, client: TestClient
+) -> None:
+    visit_id = new_visit(client)
     start = threading.Barrier(2, timeout=RACE_TIMEOUT_S)
     statuses: list[int] = []
 
     def send(body: bytes) -> None:
-        with TestClient(app, raise_server_exceptions=False) as own:
+        with own_client(app, client) as own:
             start.wait()
             statuses.append(put_segment(own, visit_id, 0, body).status_code)
 
@@ -544,7 +558,7 @@ def test_while_a_segment_is_staged_the_visit_is_not_locked(
     statuses: list[int] = []
 
     def upload() -> None:
-        with TestClient(app, raise_server_exceptions=False) as own:
+        with own_client(app, client) as own:
             statuses.append(put_segment(own, visit_id, 0, b"the bytes").status_code)
 
     thread = threading.Thread(target=upload)

@@ -21,6 +21,13 @@ class Invalid(DomainError):
     http_status = 400
 
 
+class SignedOut(DomainError):
+    """No valid session (batch 16): signed out, expired, or a cookie that isn't ours. The web
+    app goes to /signin."""
+
+    http_status = 401
+
+
 class NotFound(DomainError):
     """Missing, or belongs to another org: never 403, which would reveal that it exists."""
 
@@ -38,6 +45,16 @@ class Conflict(DomainError):
     """Wrong state, or conflicting data."""
 
     http_status = 409
+
+
+class TooMany(DomainError):
+    """Too many tries for now (batch 16's sign-in): 429, with when to try again."""
+
+    http_status = 429
+
+    def __init__(self, code: str, message: str, *, retry_after_s: int) -> None:
+        super().__init__(code, message)
+        self.retry_after_s = retry_after_s
 
 
 class TooLarge(DomainError):

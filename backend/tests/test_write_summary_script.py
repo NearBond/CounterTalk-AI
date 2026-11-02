@@ -1,26 +1,21 @@
 """scripts/write_summary.py and load_patterns.py (batch 15b): a dry run, then the summary job
 the worker's way, with a fake LLM; and K6 loaded into a dev org once. They print counts and
-costs: never the words. And DEV_USER_EMAIL, to see that org in the app: development only."""
+costs: never the words."""
 
 from datetime import timedelta
 
 import pytest
-from fastapi.testclient import TestClient
-from pydantic import ValidationError
 from sqlalchemy import func, select
 
-from countertalk.config import get_settings
 from countertalk.db import session_scope
 from countertalk.errors import PermanentError
 from countertalk.llm import pricing
 from countertalk.llm.base import Outcome
-from countertalk.main import create_app
-from countertalk.models import Org, Summary, User, ist_date
+from countertalk.models import Org, Summary, ist_date
 from scripts import load_patterns, write_summary
 from scripts._paid import NARRATIVE_ANSWER_TOKENS
 from tests.conftest import ORG_PACK_FIXTURES
 from tests.test_narrative import day, paid, request, said
-from tests.test_review_api import seeded_demo
 from tests.test_roles import FakeLlm, call, tiny_org
 from tests.test_summary_jobs import LAST_WEEK, NOW, summary_row
 from tests.test_visits import Org_
@@ -190,43 +185,9 @@ def test_k6_loads_into_an_org_of_its_own_once(capsys: pytest.CaptureFixture[str]
 
     assert load_patterns.main([]) == 0
 
-    see = f"to see it in the app: DEBUG=1 and DEV_USER_EMAIL=finance-{org_id[:8]}@example.com\n"
+    see = (
+        f"to see it in the app, sign in as finance-{org_id[:8]}@example.com"
+        " (scripts/set_password.py gives it a password)\n"
+    )
     assert first == f"loaded: org {org_id}, 30 shops, 67 visits\n{see}"
     assert capsys.readouterr().out == f"loaded already: org {org_id}\n{see}"
-
-
-# --- DEV_USER_EMAIL: the app as an example org's member, in development only ------------------
-
-
-def test_dev_user_email_is_refused_without_debug_and_the_app_won_t_start(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("DEBUG", "0")
-    monkeypatch.setenv("DEV_USER_EMAIL", "finance-0000@example.com")
-    get_settings.cache_clear()
-
-    with pytest.raises(ValidationError) as refused:
-        create_app()
-
-    assert "DEV_USER_EMAIL is for development only: set DEBUG=1 with it, or leave it empty" in str(
-        refused.value
-    )
-
-
-def test_with_debug_the_api_acts_as_dev_user_email_s_user(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    seeded_demo()
-    org = tiny_org()
-    with session_scope(read_only=True) as session:
-        email = session.get_one(User, org.rep_id).email
-    monkeypatch.setenv("DEBUG", "1")
-    monkeypatch.setenv("DEV_USER_EMAIL", email)
-    get_settings.cache_clear()
-
-    with TestClient(create_app()) as client:
-        response = client.get("/api/shops")
-
-    assert response.status_code == 200, response.text
-    # The tiny org's one shop, not the demo org's.
-    assert [shop["name"] for shop in response.json()["items"]] == ["Test Shop"]

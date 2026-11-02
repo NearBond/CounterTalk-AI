@@ -96,28 +96,62 @@ def test_created_at_reads_back_as_utc_whatever_the_connection_time_zone() -> Non
     assert created_at == written
 
 
+def a_team(org_id: str) -> str:
+    with session_scope() as session:
+        team = Team(org_id=org_id, key="finance", name="Finance")
+        session.add(team)
+        session.flush()
+        return team.id
+
+
 @pytest.mark.parametrize("role", list(Role))
 def test_every_role_is_accepted(role: Role) -> None:
     org_id = add_org()
+    team_id = a_team(org_id) if role == Role.TEAM_MEMBER else None
 
     with session_scope() as session:
-        session.add(User(org_id=org_id, email=f"{role}@example.com", name="Test", role=role))
+        email = f"{role}@example.com"
+        session.add(User(org_id=org_id, email=email, name="Test", role=role, team_id=team_id))
 
 
 @pytest.mark.parametrize(
-    ("role", "email", "constraint"),
+    ("role", "email", "team", "constraint"),
     [
-        ("superuser", "boss@example.com", "ck_users_role"),
-        (Role.REP, "Rep@Example.com", "ck_users_email_lowercase"),
+        ("superuser", "boss@example.com", False, "ck_users_role"),
+        (Role.REP, "Rep@Example.com", False, "ck_users_email_lowercase"),
+        # A team member has a team, and only a team member (batch 16).
+        (Role.TEAM_MEMBER, "member@example.com", False, "ck_users_team_member_team"),
+        (Role.MANAGER, "manager@example.com", True, "ck_users_team_member_team"),
     ],
 )
-def test_a_bad_user_is_refused_by_the_database(role: str, email: str, constraint: str) -> None:
+def test_a_bad_user_is_refused_by_the_database(
+    role: str, email: str, team: bool, constraint: str
+) -> None:
     org_id = add_org()
+    team_id = a_team(org_id) if team else None
 
     with pytest.raises(IntegrityError) as error, session_scope() as session:
-        session.add(User(org_id=org_id, email=email, name="Test", role=role))
+        session.add(User(org_id=org_id, email=email, name="Test", role=role, team_id=team_id))
 
     assert constraint_name(error.value) == constraint
+
+
+def test_a_team_member_s_team_is_in_their_own_org() -> None:
+    theirs, other = add_org(), add_org("Other Org")
+    other_team = a_team(other)
+
+    with pytest.raises(IntegrityError) as error, session_scope() as session:
+        session.add(
+            User(
+                org_id=theirs,
+                email="member@example.com",
+                name="Test",
+                role=Role.TEAM_MEMBER,
+                team_id=other_team,
+            )
+        )
+
+    assert constraint_name(error.value) == "fk_users_team_id_teams"
 
 
 @pytest.mark.parametrize(

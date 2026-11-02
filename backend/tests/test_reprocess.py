@@ -15,18 +15,15 @@ from countertalk.models import (
     Job,
     JobKind,
     JobState,
-    Shop,
     Transcript,
     Visit,
     VisitClient,
     VisitStatus,
 )
-from countertalk.playbooks import load_org_pack
-from countertalk.users import demo_rep
 from scripts import reprocess_failed
-from scripts.seed_dev import DEMO_PACK, seed
 from tests.conftest import give_transcript, lock_waiters
 from tests.test_extraction import PACKS, answer, run, transcribed
+from tests.test_review_api import signed_in_demo
 from tests.test_roles import ALL_PLACED, FakeLlm, call, tiny_org
 from tests.test_transcription import FakeStt, short_chunks, uploaded_visit  # noqa: F401
 from tests.test_visits import Org_, load, move_to, new_visit
@@ -246,13 +243,9 @@ def test_reprocess_and_confirm_cant_interleave(org: Org_, start: reprocess.From)
 
 
 @pytest.fixture
-def demo_visit() -> str:
-    """A visit of the demo org, the API's (batch 16 brings sign-in), in review."""
-    with session_scope() as session:
-        seed(session, load_org_pack(*DEMO_PACK))
-        rep = demo_rep(session)
-        shops = select(Shop.id).where(Shop.org_id == rep.org_id).order_by(Shop.name)
-        demo = Org_(rep.org_id, rep.id, session.scalars(shops).first())
+def demo_visit(client: TestClient) -> str:
+    """A visit of the demo org in review, with the client signed in as its rep."""
+    demo = signed_in_demo(client)
     visit_id = transcribed(demo)
     move_to(demo, visit_id, S.EXTRACTING, S.REVIEW)
     return visit_id

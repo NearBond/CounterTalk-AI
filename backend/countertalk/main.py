@@ -5,6 +5,8 @@ own errors (unknown route, wrong method, wrong request shape) and unexpected one
 """
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from http import HTTPStatus
 from typing import Any
 
@@ -14,10 +16,10 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from countertalk.api import debug, health, insights, issues, shops, summaries, visits
-from countertalk.config import get_settings
+from countertalk.api import auth, debug, health, insights, issues, shops, summaries, visits
+from countertalk.config import get_settings, secret_key
 from countertalk.db import constraint_name
-from countertalk.errors import DomainError
+from countertalk.errors import DomainError, TooMany
 from countertalk.logs import configure_logging
 from countertalk.web import mount_web_app
 
@@ -38,7 +40,10 @@ def _error_response(
 
 
 async def _domain_error(request: Request, error: DomainError) -> JSONResponse:
-    return _error_response(error.http_status, error.code, error.message, error.details)
+    headers = None
+    if isinstance(error, TooMany):
+        headers = {"Retry-After": str(error.retry_after_s)}
+    return _error_response(error.http_status, error.code, error.message, error.details, headers)
 
 
 async def _http_error(request: Request, error: HTTPException) -> JSONResponse:
@@ -114,8 +119,15 @@ class UnexpectedErrors:
         await response(scope, receive, send)
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Checked as the server starts, not on import: uvicorn stops with the message."""
+    secret_key()
+    yield
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="CounterTalk")
+    app = FastAPI(title="CounterTalk", lifespan=_lifespan)
     app.add_exception_handler(DomainError, _domain_error)
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _invalid_request)
@@ -123,6 +135,7 @@ def create_app() -> FastAPI:
     # Each router carries its own /api/<area> prefix, so a route's template (logged when it
     # fails) is the whole path: an include_router prefix isn't part of route.path.
     app.include_router(health.router)
+    app.include_router(auth.router)
     app.include_router(shops.router)
     app.include_router(visits.router)
     app.include_router(insights.router)

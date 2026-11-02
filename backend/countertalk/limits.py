@@ -159,3 +159,17 @@ LINK_NEAR_POINTS = 5
 # spread over the rest, and one more for any label not in those.
 ROLES_FIRST_TURNS = 60
 ROLES_SAMPLED_TURNS = 20
+
+# Sign-in (batch 16): a session lasts this long from sign-in, never extended.
+SESSION_DAYS = 14
+# ...and wrong passwords for one email: this many are free; past them, a password is checked
+# only a second more per failure after the last check, up to SIGNIN_MAX_WAIT_S. A count
+# untouched for SIGNIN_FAILURES_KEPT_H starts again.
+SIGNIN_FREE_FAILURES = 4
+SIGNIN_MAX_WAIT_S = 10
+SIGNIN_FAILURES_KEPT_H = 24
+# ...and password checks at once: argon2 uses 64 MiB for each, so a flood of sign-ins can't
+# take the memory of a small container.
+ARGON2_AT_ONCE = 4
+# ...and the shortest password set_password.py (and 16's demo org) will take.
+PASSWORD_MIN_CHARS = 12

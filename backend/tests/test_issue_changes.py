@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from sqlalchemy import select, update
 
-from countertalk import issues, limits
+from countertalk import issues, limits, routing
 from countertalk.db import session_scope
 from countertalk.errors import Conflict, Forbidden, Invalid, NotFound
 from countertalk.models import Issue, IssueEvent, Role, User, utc_now
@@ -24,11 +24,14 @@ def org() -> Org_:
     return tiny_org()
 
 
-def a_member(org: Org_, name: str = "Finance member") -> str:
-    """A team member of the org: their user ID."""
+def a_member(org: Org_, name: str = "Finance member", team: str = "money") -> str:
+    """A member of one of the org's teams: their user ID."""
     with session_scope() as session:
         email = f"{name.split()[0].lower()}-{org.org_id[:8]}@example.com"
-        user = User(org_id=org.org_id, email=email, name=name, role=Role.TEAM_MEMBER)
+        team_id = routing.team_ids(session, org.org_id)[team]
+        user = User(
+            org_id=org.org_id, email=email, name=name, role=Role.TEAM_MEMBER, team_id=team_id
+        )
         session.add(user)
         session.flush()
         return user.id

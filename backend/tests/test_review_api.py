@@ -7,13 +7,14 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from countertalk import catalog, extraction, limits
 from countertalk.db import session_scope
-from countertalk.models import Insight, Shop, new_id
+from countertalk.models import Insight, Shop, User, new_id
 from countertalk.playbooks import load_org_pack
-from countertalk.users import demo_rep
-from scripts.seed_dev import DEMO_PACK, seed
+from scripts.seed_dev import DEMO_PACK, DEMO_REP, seed
+from tests.conftest import sign_in
 from tests.test_extraction import answer, insight, transcribed
 from tests.test_quotes import PARAPHRASE
 from tests.test_roles import ALL_PLACED, FakeLlm
@@ -24,17 +25,28 @@ PAYMENT = insight(category="payments", severity="low", suggested_team="finance")
 
 
 def seeded_demo() -> Org_:
-    """The demo org, rep and shops, seeded: the API's current user is its rep."""
+    """The demo org, rep and shops, seeded."""
     with session_scope() as session:
         seed(session, load_org_pack(*DEMO_PACK))
-        rep = demo_rep(session)
+        rep = demo_rep_of(session)
         shops = select(Shop.id).where(Shop.org_id == rep.org_id).order_by(Shop.name)
         return Org_(rep.org_id, rep.id, session.scalars(shops).first())
 
 
+def demo_rep_of(session: Session) -> User:
+    return session.scalars(select(User).where(User.email == DEMO_REP["email"])).one()
+
+
+def signed_in_demo(client: TestClient) -> Org_:
+    """The demo org, seeded, with the client signed in as its rep."""
+    found = seeded_demo()
+    sign_in(client, found.rep_id)
+    return found
+
+
 @pytest.fixture(autouse=True)
-def demo() -> Org_:
-    return seeded_demo()
+def demo(client: TestClient) -> Org_:
+    return signed_in_demo(client)
 
 
 def in_review(org: Org_, *found: dict[str, Any], busy: bool = False) -> str:

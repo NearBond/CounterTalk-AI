@@ -26,7 +26,16 @@ from pathlib import Path
 from types import FrameType
 
 # limits as a module, so a test or a manual run can shorten a limit for everything here.
-from countertalk import extraction, jobs, limits, storage, summary_jobs, transcription, visits
+from countertalk import (
+    auth,
+    extraction,
+    jobs,
+    limits,
+    storage,
+    summary_jobs,
+    transcription,
+    visits,
+)
 from countertalk.config import get_settings
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, PermanentError, RetryableError
@@ -254,6 +263,11 @@ def _sweep_staged_files() -> dict[str, int]:
     return {"staged_files": storage.sweep_staged(limits.STAGED_FILE_MAX_AGE_MS)}
 
 
+def _prune_sign_in() -> dict[str, int]:
+    with session_scope() as session:
+        return auth.prune(session)
+
+
 def _queue_waiting_extractions() -> dict[str, int]:
     if not get_settings().MODEL_API_KEY.get_secret_value():
         return {"extractions_queued": 0}
@@ -265,6 +279,7 @@ _HOUSEKEEPING: list[tuple[str, Callable[[], dict[str, int]]]] = [
     ("abandoned_uploads", _fail_abandoned_uploads),
     ("staged_files", _sweep_staged_files),
     ("waiting_extractions", _queue_waiting_extractions),
+    ("sign_in", _prune_sign_in),
 ]
 
 

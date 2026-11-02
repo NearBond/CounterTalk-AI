@@ -22,11 +22,10 @@ from countertalk.errors import Conflict, DomainError, describe
 from countertalk.logs import configure_logging
 from countertalk.models import Base, Distributor, Org, Role, Shop, User
 from countertalk.playbooks import OrgPack, load_org_pack
-from countertalk.users import DEMO_REP_EMAIL
 
 DEMO_ORG_NAME = "Demo Org"
-# The app treats this rep as the current user until batch 16 (countertalk/users.py).
-DEMO_REP = {"email": DEMO_REP_EMAIL, "name": "Demo Rep"}
+# The dev org's rep: scripts/set_password.py gives them a password to sign in with.
+DEMO_REP = {"email": "rep@example.com", "name": "Demo Rep"}
 DEMO_PACK = ("pepsico-india-demo", 1)
 # (name, area, distributor key, beat): fictional kirana shops in made-up areas, on the pack's
 # made-up distributors.

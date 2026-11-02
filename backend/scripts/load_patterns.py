@@ -6,7 +6,8 @@ The world is synthetic, made-up example data (tests/fixtures/patterns/world.yaml
 3 reps and 67 visits over six weeks from Monday 21 Sep 2026, each confirmed the app's way, in
 the world's own time (scripts/_k6.py). Its org is named "K6 world (example) …", and it's loaded
 once: run again, it says which org has it. It prints the org's ID, for write_summary.py, and
-its finance member's example address, for DEV_USER_EMAIL (with DEBUG=1) to see it in the app.
+its finance member's example address: give it a password with scripts/set_password.py to
+sign in as finance and see it in the app.
 """
 
 import argparse
@@ -53,7 +54,10 @@ def main(argv: list[str]) -> int:
             # One insight a visit; the shops map holds K6's letters too, so they're counted by ID.
             made = sum(len(ids) for ids in world.insights.values())
             print(f"loaded: org {found}, {len(set(world.shops.values()))} shops, {made} visits")
-        print(f"to see it in the app: DEBUG=1 and DEV_USER_EMAIL={_k6.finance_email(found)}")
+        print(
+            f"to see it in the app, sign in as {_k6.finance_email(found)}"
+            " (scripts/set_password.py gives it a password)"
+        )
     except SETUP_ERRORS as error:
         print(f"failed: {setup_trouble(error)}", file=sys.stderr)
         return 1

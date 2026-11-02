@@ -76,7 +76,7 @@ class World:
 
 
 def finance_email(org_id: str) -> str:
-    """The finance member's example address, for DEV_USER_EMAIL (with DEBUG=1)."""
+    """The finance member's example address, to sign in as (scripts/set_password.py)."""
     return f"finance-{org_id[:8]}@example.com"
 
 
@@ -146,6 +146,7 @@ def _org(spec: dict[str, Any], pack: OrgPack) -> tuple[World, dict[str, str]]:
             email=finance_email(org.id),
             name="Finance member (example)",
             role=Role.TEAM_MEMBER,
+            team_id=routing.team_ids(session, org.id)["finance"],
         )
         session.add(member)
         session.flush()
