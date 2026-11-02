@@ -1,0 +1,196 @@
+{
+  "recording": "rp14",
+  "title": "A broken fridge, expiring packets and a small-pack request, with a customer in between",
+  "duration_ms": 112715,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "ritu_hi_conversation"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "manan_hi_conversational"
+    },
+    "customer": {
+      "role": "other",
+      "voice": "kunal_hi_kids"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते यादव जी!",
+      "start_ms": 500,
+      "end_ms": 1700
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते पूजा जी। आइए। एक minute, customer है।",
+      "start_ms": 1962,
+      "end_ms": 5242
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "भैया, एक Mirinda देना, ठंडी वाली।",
+      "start_ms": 5558,
+      "end_ms": 10038
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठंडी नहीं है बेटा, fridge बंद पड़ा है। ऐसे ही ले लो।",
+      "start_ms": 10687,
+      "end_ms": 14047
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "ठंडी नहीं है? रहने दो फिर। Thums Up है ठंडा?",
+      "start_ms": 14715,
+      "end_ms": 19915
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "कुछ भी ठंडा नहीं है। fridge ख़राब है।",
+      "start_ms": 20390,
+      "end_ms": 22870
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "ठीक है, रहने दो।",
+      "start_ms": 23442,
+      "end_ms": 25122
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "देखा? दस दिन से यही हो रहा है। आपकी company वाला fridge ख़राब है। मैंने complaint भी लिखवाई, कोई आया ही नहीं।",
+      "start_ms": 25733,
+      "end_ms": 32773
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दस दिन से? complaint number है आपके पास?",
+      "start_ms": 33401,
+      "end_ms": 35961
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ये पर्ची पे लिखा है। रोज़ के दस-पंद्रह cold drink के customer लौट जाते हैं।",
+      "start_ms": 36665,
+      "end_ms": 41865
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये तो बड़ा नुकसान है। मैं आज ही इसको escalate करती हूँ।",
+      "start_ms": 42230,
+      "end_ms": 45430
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "करो, जल्दी करो। सर्दी में भी लोग ठंडा ही माँगते हैं।",
+      "start_ms": 46149,
+      "end_ms": 49269
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बिलकुल। और कोई परेशानी?",
+      "start_ms": 49494,
+      "end_ms": 51334
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ये Kurkure Chilli Chatka के packet अगले हफ़्ते expire हो जाएँगे। आठ packet हैं। वापस ले लोगी?",
+      "start_ms": 51810,
+      "end_ms": 58610
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, expiry वाले मैं return में ले लेती हूँ। अभी list बना लेती हूँ।",
+      "start_ms": 59088,
+      "end_ms": 62848
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "अंकल, दो Kurkure Masala Munch दे दो।",
+      "start_ms": 63130,
+      "end_ms": 66970
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ये लो, बीस रुपये।",
+      "start_ms": 67224,
+      "end_ms": 68904
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "ये लीजिए।",
+      "start_ms": 69833,
+      "end_ms": 75833
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Masala Munch तो रोज़ बिकता होगा।",
+      "start_ms": 76237,
+      "end_ms": 79437
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ। और सुनिए, Tropicana के छोटे pack रखवाओ। बड़ा वाला सौ रुपये का है, यहाँ कोई नहीं लेता। छोटा तीस-चालीस वाला हो तो बिकेगा।",
+      "start_ms": 80020,
+      "end_ms": 89300
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, छोटा Tropicana मैं check करती हूँ। order बता दीजिए।",
+      "start_ms": 90295,
+      "end_ms": 93735
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Kurkure Masala Munch चार डिब्बे, Lay's Chile Limon एक। और Mirinda एक crate... नहीं, रहने दो, fridge ठीक होने के बाद।",
+      "start_ms": 94442,
+      "end_ms": 103722
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, fridge ठीक होते ही cold drink का order। मैं कल फ़ोन करती हूँ।",
+      "start_ms": 104141,
+      "end_ms": 107901
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है। नमस्ते।",
+      "start_ms": 108740,
+      "end_ms": 110260
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते यादव जी।",
+      "start_ms": 110795,
+      "end_ms": 111915
+    }
+  ]
+}

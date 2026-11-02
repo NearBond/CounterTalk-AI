@@ -1,0 +1,157 @@
+{
+  "recording": "rp16",
+  "title": "Laughing about missing stock, irritated by a bottle cap",
+  "duration_ms": 99032,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "shreya_hi_conversational"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "sumit_hi_conversational"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते पांडे जी!",
+      "start_ms": 500,
+      "end_ms": 1780
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आइए आइए, Kurkure वाली madam! आपका Kurkure तो जैसे गायब ही हो गया है!",
+      "start_ms": 2659,
+      "end_ms": 7299
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "गायब? मतलब?",
+      "start_ms": 7676,
+      "end_ms": 9196
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "दस दिन से एक packet नहीं आया! लोग आते हैं, Kurkure माँगते हैं, नहीं मिलता तो Bingo ले के चले जाते हैं। Bingo वालों की तो चाँदी हो गई!",
+      "start_ms": 9403,
+      "end_ms": 17483
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दस दिन से? order तो गया था ना?",
+      "start_ms": 17686,
+      "end_ms": 20166
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "order गया था, माल नहीं आया! distributor बोलता है company से नहीं आया, company वाले बोलते हैं distributor से पूछो। मैं तो मज़े ले रहा हूँ, क्या करूँ।",
+      "start_ms": 20954,
+      "end_ms": 29834
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये तो गंभीर है पांडे जी। दस दिन में तो बहुत बिक्री गई होगी।",
+      "start_ms": 30659,
+      "end_ms": 34579
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, रोज़ के बीस-पच्चीस packet तो जाते ही थे। चलो, आप देख लो।",
+      "start_ms": 35525,
+      "end_ms": 40085
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "मैं आज ही distributor से बात करती हूँ और कल तक माल भिजवाती हूँ।",
+      "start_ms": 41024,
+      "end_ms": 44624
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और एक चीज़ से मैं सच में परेशान हूँ। ये Pepsi की bottle का ढक्कन इतना tight है कि खुलता ही नहीं। हर customer मुझसे खुलवाता है। बहुत गुस्सा आता है, सच में!",
+      "start_ms": 45058,
+      "end_ms": 54338
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा, ढक्कन tight है? सारी bottles में?",
+      "start_ms": 54968,
+      "end_ms": 57688
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ! पिछले दो crate में सबका! हाथ दुख जाता है! ये कोई तरीका है?",
+      "start_ms": 58606,
+      "end_ms": 62926
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "मैं ये बात आगे पहुँचा दूँगी।",
+      "start_ms": 63304,
+      "end_ms": 65224
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "एक idea है। शादी का season आ रहा है, Kurkure और Pepsi का combo बनाओ, साथ में थोड़ा सस्ता। लोग party के लिए ले जाएँगे।",
+      "start_ms": 65752,
+      "end_ms": 73272
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा idea है, मैं marketing वालों को बताती हूँ।",
+      "start_ms": 73719,
+      "end_ms": 76359
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बताना। पर पहले Kurkure भेजो!",
+      "start_ms": 76613,
+      "end_ms": 78933
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पक्का। order लिख लूँ? Kurkure कितना?",
+      "start_ms": 79674,
+      "end_ms": 82474
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Kurkure Masala Munch छह डिब्बे, Solid Masti दो। Pepsi एक crate, ढक्कन वाली ही सही।",
+      "start_ms": 83359,
+      "end_ms": 89919
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है। कल तक भिजवाती हूँ। नमस्ते पांडे जी।",
+      "start_ms": 90788,
+      "end_ms": 94628
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते। और Bingo वालों से बचा के रखना मुझे!",
+      "start_ms": 95192,
+      "end_ms": 98232
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+# K2 for rp18: a long visit: a pending payout, wet cartons, chatter, and a cheaper rival cola.
+# Answer key, checked 3 Nov 2026.
+# Set: held back. Long (12+ minutes): lines 151 on land after the 10-minute mark.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+# Not insights: the small talk (family, the wedding, the paint, cricket, petrol, the fair, the
+# shop's history), the customers' purchases (role "other"), the yeses (lines 033, 035), "चल रहा
+# है, धीरे-धीरे" on Doritos, the stock count, "Uncle Chipps ख़त्म होने वाला है" (a restock), the
+# Puffcorn trial and the order.
+recording: rp18
+insights:
+  - kind: problem
+    category: schemes
+    severity: high                 # money owed to the shop: a ₹1,200 payout for 15 cartons, Diwali gone and no answer
+    speaker: shopkeeper
+    phrase: "उसका payout अभी तक नहीं आया"
+    skus: [kurkure]                # "Diwali वाली Kurkure scheme" (line 019)
+    competitors: []
+    scheme: kurkure_diwali_payout
+    teams: [finance]
+    # One insight for lines 019–025 and the reminder in 165.
+
+  - kind: problem
+    category: damage               # cartons wet and crushed on the way (the van), and the return never collected
+    severity: medium               # three cartons spoiled last time, the same every delivery; the rep takes them back today; as rp02's damaged cartons (medium)
+    speaker: shopkeeper
+    phrase: "नीचे वाले दो-तीन डिब्बे गीले होते हैं"
+    skus: [lays_classic_salted, lays] # either the product or its brand
+    competitors: []
+    scheme: null
+    teams: [distribution]
+    # One insight for lines 052–058, 129 and the reminder in 165: the wet cartons and the return
+    # the delivery boy never took, kept together as rp07 kept the expiry and the refused return.
+
+  - kind: competitor_preference    # reason: margin (15% against 10%); price for customers (₹10 for 200 ml) is the second reason
+    category: pricing
+    severity: medium               # two crates of Campa since last week and Pepsi's sales falling; as rp08's threat (medium); "high" if you count "जो चलेगा वही रखूँगा" as a risk of losing the shop
+    speaker: shopkeeper
+    phrase: "मुझे margin भी Pepsi से ज़्यादा देते हैं"
+    skus: [pepsi]                  # the shopkeeper names Pepsi as the one losing out
+    competitors: [campa_cola, campa] # "Campa वाले ... उनका cola": either the product or its brand
+    scheme: null
+    teams: [sales_ops]
+    # One insight for lines 151–157.
+
+  - kind: product_request
+    category: demand               # a drink customers ask for (the gym boys), not a cheaper pack
+    severity: low                  # a request, no harm yet
+    speaker: shopkeeper
+    phrase: "Gatorade की छोटी bottle मिल सकती है"
+    skus: [gatorade]
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]
+    optional: true                 # asked with its own reason (a new gym nearby), but the rep fills it in the order at once: an insight or just an order item are both fine

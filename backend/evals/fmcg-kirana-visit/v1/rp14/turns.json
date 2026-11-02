@@ -1,0 +1,211 @@
+{
+ "version": 1,
+ "recording": "rp14",
+ "org_pack": {
+  "id": "pepsico-india-demo",
+  "version": 1
+ },
+ "visited_at": "2026-11-02T20:29:05.977445+00:00",
+ "transcript": {
+  "provider": "meta",
+  "model": "muse-voice-transcribe-1.0",
+  "language_code": "hi,en"
+ },
+ "roles": {
+  "playbook": {
+   "id": "fmcg-kirana-visit",
+   "version": 1
+  },
+  "speakers": {
+   "c0:A": {
+    "role": "rep",
+    "confidence": 0.99
+   },
+   "c0:B": {
+    "role": "shopkeeper",
+    "confidence": 0.99
+   },
+   "c0:C": {
+    "role": "other",
+    "confidence": 0.97
+   }
+  }
+ },
+ "turns": [
+  {
+   "turn_id": 0,
+   "label": "c0:A",
+   "start_ms": 300,
+   "end_ms": 1900,
+   "text": "नमस्ते यादव जी,"
+  },
+  {
+   "turn_id": 1,
+   "label": "c0:B",
+   "start_ms": 1980,
+   "end_ms": 5580,
+   "text": "नमस्ते पूजा जी, आइए एक मिनट कस्टमर है"
+  },
+  {
+   "turn_id": 2,
+   "label": "c0:C",
+   "start_ms": 5660,
+   "end_ms": 10540,
+   "text": "भैया एक Mirinda देना ठंडी वाली"
+  },
+  {
+   "turn_id": 3,
+   "label": "c0:B",
+   "start_ms": 10620,
+   "end_ms": 14460,
+   "text": "ठंडी ठंडी नहीं है बेटा फ्रिज बंद पड़ा है ऐसे ही ले लो"
+  },
+  {
+   "turn_id": 4,
+   "label": "c0:C",
+   "start_ms": 14620,
+   "end_ms": 20140,
+   "text": "ठंडी नहीं है रहने दो फिर Thums Up है ठंडा"
+  },
+  {
+   "turn_id": 5,
+   "label": "c0:B",
+   "start_ms": 20220,
+   "end_ms": 23340,
+   "text": "कुछ भी ठंडा नहीं है फ्रिज खराब है"
+  },
+  {
+   "turn_id": 6,
+   "label": "c0:C",
+   "start_ms": 23580,
+   "end_ms": 25580,
+   "text": "ठीक ठीक है रहने दो"
+  },
+  {
+   "turn_id": 7,
+   "label": "c0:B",
+   "start_ms": 25820,
+   "end_ms": 33500,
+   "text": "देखा दस दिन से यही हो रहा है आपकी कंपनी वाला फ्रिज खराब है मैंने कंप्लेंट भी लिखवाई कोई आया ही नहीं"
+  },
+  {
+   "turn_id": 8,
+   "label": "c0:A",
+   "start_ms": 33580,
+   "end_ms": 36620,
+   "text": "दस दिन से कंप्लेन नंबर है आपके पास"
+  },
+  {
+   "turn_id": 9,
+   "label": "c0:B",
+   "start_ms": 36700,
+   "end_ms": 42300,
+   "text": "हाँ ये पर्ची पे लिखा है रोज के दस पंद्रह कोल्ड ड्रिंक के कस्टमर लौट जाते हैं"
+  },
+  {
+   "turn_id": 10,
+   "label": "c0:A",
+   "start_ms": 42380,
+   "end_ms": 45980,
+   "text": "ये तो बड़ा नुकसान है मैं आज ही इसको एस्केलेट करती हूँ करती हूँ"
+  },
+  {
+   "turn_id": 11,
+   "label": "c0:B",
+   "start_ms": 46140,
+   "end_ms": 49340,
+   "text": "करो जल्दी करो सर्दी में भी लोग ठंडा ठंडा ही मांगते हैं"
+  },
+  {
+   "turn_id": 12,
+   "label": "c0:A",
+   "start_ms": 49820,
+   "end_ms": 51740,
+   "text": "बिल्कुल और कोई परेशानी"
+  },
+  {
+   "turn_id": 13,
+   "label": "c0:B",
+   "start_ms": 51820,
+   "end_ms": 59020,
+   "text": "हाँ एक Kurkure चिल्ली Chatka के पैकेट अगले हफ्ते एक्सपायर हो जाएंगे आठ पैकेट हैं वापस ले लोगी"
+  },
+  {
+   "turn_id": 14,
+   "label": "c0:A",
+   "start_ms": 59260,
+   "end_ms": 62940,
+   "text": "हाँ Xorti वाले मैं रिटर्न में ले लेती हूँ अभी लिस्ट बना लेती हूँ"
+  },
+  {
+   "turn_id": 15,
+   "label": "c0:C",
+   "start_ms": 63500,
+   "end_ms": 67420,
+   "text": "अंकल दो Kurkure Masala Munch दे दो"
+  },
+  {
+   "turn_id": 16,
+   "label": "c0:B",
+   "start_ms": 67420,
+   "end_ms": 70540,
+   "text": "ये लो बीस रुपए"
+  },
+  {
+   "turn_id": 17,
+   "label": "c0:C",
+   "start_ms": 75420,
+   "end_ms": 76460,
+   "text": "ये जी"
+  },
+  {
+   "turn_id": 18,
+   "label": "c0:A",
+   "start_ms": 76540,
+   "end_ms": 79820,
+   "text": "मसाला मंच तो रोज बिकता होगा"
+  },
+  {
+   "turn_id": 19,
+   "label": "c0:B",
+   "start_ms": 80300,
+   "end_ms": 90140,
+   "text": "हाँ और सुनिए, Tropicana ना के छोटे पैक रखवाओ, रखवाओ, बड़ा वाला सौ रुपए रुपए का है, यहाँ कोई नहीं लेता, छोटा तीस चालीस वाला हो तो बिकेगा,"
+  },
+  {
+   "turn_id": 20,
+   "label": "c0:A",
+   "start_ms": 90220,
+   "end_ms": 94460,
+   "text": "ठीक है, छोटा Tropicana मैं चेक करती हूँ, ऑर्डर बता दीजिए,"
+  },
+  {
+   "turn_id": 21,
+   "label": "c0:B",
+   "start_ms": 94540,
+   "end_ms": 104060,
+   "text": "Kurkure Masala Munch चार डिब्बे, Lay's Chile Limon एक, और और Mirinda एक क्रेट नहीं, रहने दो, फ्रिज ठीक होने के बाद,"
+  },
+  {
+   "turn_id": 22,
+   "label": "c0:A",
+   "start_ms": 104460,
+   "end_ms": 108540,
+   "text": "ठीक है फ्रिज ठीक होते ही कोल्ड ड्रिंक का ऑर्डर ऑर्डर मैं कल फोन करती हूँ"
+  },
+  {
+   "turn_id": 23,
+   "label": "c0:B",
+   "start_ms": 108620,
+   "end_ms": 110620,
+   "text": "ठीक है नमस्ते"
+  },
+  {
+   "turn_id": 24,
+   "label": "c0:A",
+   "start_ms": 110860,
+   "end_ms": 112300,
+   "text": "नमस्ते यादव यादव जी"
+  }
+ ]
+}

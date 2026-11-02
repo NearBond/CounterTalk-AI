@@ -1,0 +1,38 @@
+# K2 for rp16: laughing about missing stock, irritated by a bottle cap.
+# Answer key, checked 3 Nov 2026.
+# Set: held back.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+# Severity follows what the shop loses, not the tone: the stock-out he laughs about is high, the
+# cap that angers him is low. The order is not an insight.
+recording: rp16
+insights:
+  - kind: problem
+    category: supply
+    severity: high                 # a fast seller out for ten days (20–25 packets a day), customers buying Bingo instead; as rp09 (high)
+    speaker: shopkeeper
+    phrase: "दस दिन से एक packet नहीं आया"
+    skus: [kurkure]
+    competitors: [bingo]           # customers take Bingo instead: folded in here as in rp09, not a competitor preference of the shop's
+    scheme: null
+    teams: [distribution]
+    # One insight for lines 002–008 and the jokes and reminders in 016 and 020.
+
+  - kind: problem
+    category: quality              # a fault in the pack itself
+    severity: low                  # an annoyance: customers still buy, nothing is lost; "medium" if you count it as customers' complaints about the pack
+    speaker: shopkeeper
+    phrase: "Pepsi की bottle का ढक्कन इतना tight है"
+    skus: [pepsi]
+    competitors: []
+    scheme: null
+    teams: [distribution]
+
+  - kind: suggestion
+    category: pricing              # a cheaper bundle that would sell, like the codebook's "a cheaper, smaller pack would sell better"; review: "schemes" (a promotion, finance) is a fair reading
+    severity: low                  # a suggestion, no harm
+    speaker: shopkeeper
+    phrase: "Kurkure और Pepsi का combo बनाओ"
+    skus: [kurkure, pepsi]
+    competitors: []
+    scheme: null                   # an idea for a new offer, none of the pack's 4 schemes
+    teams: [sales_ops]

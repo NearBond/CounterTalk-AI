@@ -1,0 +1,38 @@
+# K2 for rp15: loud about a poster, calm about money owed.
+# Answer key, checked 3 Nov 2026.
+# Set: tuning.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+# Severity follows what the shop loses, not the tone: the poster he shouts about is low, the
+# payout he mentions calmly is high. "Pepsi अभी है, अगली बार" and the order are not insights.
+recording: rp15
+insights:
+  - kind: problem
+    category: visibility           # display material, torn and faded
+    severity: low                  # a torn poster costs the shop little, however loud; "medium" if you weigh three months of broken promises as hurting the relationship
+    speaker: shopkeeper
+    phrase: "ये Lay's का poster पूरा फट गया है"
+    skus: [lays]
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]
+    # One insight for lines 002, 004 and 019.
+
+  - kind: problem
+    category: schemes              # a scheme's payout, not payments (the codebook's excludes), though he calls it "credit" in line 010
+    severity: high                 # money owed to the shop: ₹8,000 for 40 cartons, a month and a half late; "कोई जल्दी नहीं" doesn't lower it
+    speaker: shopkeeper
+    phrase: "आठ हज़ार रुपये, डेढ़ महीने से pending है"
+    skus: [uncle_chipps]           # named by the shopkeeper with the scheme
+    competitors: []
+    scheme: uncle_chipps_ten_plus_one
+    teams: [finance]
+
+  - kind: problem
+    category: supply               # deliveries half as often ("late or irregular delivery"); review: "servicing" (sales_ops) if you read the delivery boy's visits as the beat, as the rep does
+    severity: medium               # stock runs out between deliveries; the shop copes
+    speaker: shopkeeper
+    phrase: "delivery वाला लड़का आजकल दो हफ़्ते में एक बार"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [distribution]

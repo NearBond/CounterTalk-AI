@@ -1,0 +1,179 @@
+{
+ "version": 1,
+ "recording": "rp17",
+ "org_pack": {
+  "id": "pepsico-india-demo",
+  "version": 1
+ },
+ "visited_at": "2026-11-02T20:29:07.306298+00:00",
+ "transcript": {
+  "provider": "meta",
+  "model": "muse-voice-transcribe-1.0",
+  "language_code": "hi,en"
+ },
+ "roles": {
+  "playbook": {
+   "id": "fmcg-kirana-visit",
+   "version": 1
+  },
+  "speakers": {
+   "c0:A": {
+    "role": "rep",
+    "confidence": 0.99
+   },
+   "c0:B": {
+    "role": "shopkeeper",
+    "confidence": 0.99
+   }
+  }
+ },
+ "turns": [
+  {
+   "turn_id": 0,
+   "label": "c0:A",
+   "start_ms": 220,
+   "end_ms": 1900,
+   "text": "नमस्ते चौधरी जी,"
+  },
+  {
+   "turn_id": 1,
+   "label": "c0:B",
+   "start_ms": 2140,
+   "end_ms": 5260,
+   "text": "आओ दीपक, बोलो क्या लाया आज?"
+  },
+  {
+   "turn_id": 2,
+   "label": "c0:A",
+   "start_ms": 5740,
+   "end_ms": 7980,
+   "text": "ऑर्डर लेने आया हूँ, बताइए।"
+  },
+  {
+   "turn_id": 3,
+   "label": "c0:B",
+   "start_ms": 8060,
+   "end_ms": 14220,
+   "text": "वो वो Lay's का नीला वाला, दस रुपए वाला, पाँच डिब्बे और हरा वाला, दो,"
+  },
+  {
+   "turn_id": 4,
+   "label": "c0:A",
+   "start_ms": 14300,
+   "end_ms": 16860,
+   "text": "ठीक है, पाँच पाँच नीले, दो हरे,"
+  },
+  {
+   "turn_id": 5,
+   "label": "c0:B",
+   "start_ms": 17340,
+   "end_ms": 20780,
+   "text": "और Kurkure चार डिब्बे वो मसाला वाला,"
+  },
+  {
+   "turn_id": 6,
+   "label": "c0:A",
+   "start_ms": 21100,
+   "end_ms": 23660,
+   "text": "मसाला वाला, चार, चार, और"
+  },
+  {
+   "turn_id": 7,
+   "label": "c0:B",
+   "start_ms": 23660,
+   "end_ms": 32380,
+   "text": "और वो Dorito का sweet chilli वाला, वाला वो आपके डिस्ट्रीब्यूटर के पास आता ही नहीं बच्चे पूछते हैं वो मंगवा के दो"
+  },
+  {
+   "turn_id": 8,
+   "label": "c0:A",
+   "start_ms": 32540,
+   "end_ms": 38860,
+   "text": "ठीक है मैं डिस्ट्रीब्यूटर से पूछता हूँ सुना है Bingo वाले आजकल ज्यादा मार्जिन दे रहे हैं सच है"
+  },
+  {
+   "turn_id": 9,
+   "label": "c0:B",
+   "start_ms": 39020,
+   "end_ms": 48380,
+   "text": "हाँ वो बारह परसेंट देते हैं आप लोग लोग नौ देते हो तीन परसेंट का फर्क है तो मैं उनका उनका माल आगे रखता हूँ"
+  },
+  {
+   "turn_id": 10,
+   "label": "c0:A",
+   "start_ms": 48780,
+   "end_ms": 51660,
+   "text": "समझ गया ये बात मैं ऊपर पहुँचाता हूँ"
+  },
+  {
+   "turn_id": 11,
+   "label": "c0:B",
+   "start_ms": 51740,
+   "end_ms": 63340,
+   "text": "और एक नया ब्रांड आया है Crunchora उसके चिप्स पाँच रुपए में इतना बड़ा पैकेट देते हैं गाँव वाले कस्टमर अब वही लेते हैं"
+  },
+  {
+   "turn_id": 12,
+   "label": "c0:A",
+   "start_ms": 63340,
+   "end_ms": 67340,
+   "text": "Crunchora पहली बार सुना किस कंपनी का है"
+  },
+  {
+   "turn_id": 13,
+   "label": "c0:B",
+   "start_ms": 67500,
+   "end_ms": 71420,
+   "text": "पता नहीं कोई लोकल कंपनी है पर बिकता खूब है"
+  },
+  {
+   "turn_id": 14,
+   "label": "c0:A",
+   "start_ms": 71420,
+   "end_ms": 74060,
+   "text": "ठीक है मैं नोट कर नोट कर लेता हूँ और Cheetos"
+  },
+  {
+   "turn_id": 15,
+   "label": "c0:B",
+   "start_ms": 74220,
+   "end_ms": 78060,
+   "text": "Cheetos एक डिब्बा Masala Balls वाले"
+  },
+  {
+   "turn_id": 16,
+   "label": "c0:A",
+   "start_ms": 78300,
+   "end_ms": 79500,
+   "text": "Pepsi"
+  },
+  {
+   "turn_id": 17,
+   "label": "c0:B",
+   "start_ms": 79500,
+   "end_ms": 82380,
+   "text": "Pepsi नहीं Dew दो क्रेट"
+  },
+  {
+   "turn_id": 18,
+   "label": "c0:A",
+   "start_ms": 82620,
+   "end_ms": 90620,
+   "text": "ठीक है चौधरी जी तो ऑर्डर हो गया Lay's पाँच नीले दो हरे Kurkure चार Cheetos एक Dew दो क्रेट"
+  },
+  {
+   "turn_id": 19,
+   "label": "c0:B",
+   "start_ms": 90940,
+   "end_ms": 92620,
+   "text": "हाँ ठीक है नमस्ते"
+  },
+  {
+   "turn_id": 20,
+   "label": "c0:A",
+   "start_ms": 92620,
+   "end_ms": 93900,
+   "text": "नमस्ते"
+  }
+ ]
+}

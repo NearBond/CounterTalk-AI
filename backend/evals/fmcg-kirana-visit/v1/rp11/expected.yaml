@@ -1,0 +1,29 @@
+# K2 for rp11: yes to the rep's questions, and what the shopkeeper raises himself.
+# Answer key, checked 3 Nov 2026.
+# Set: tuning.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+# The plain yeses to the rep's leading questions (Kurkure selling, the last delivery on time, the
+# new rack, the winter scheme) are not insights, nor is "देखेंगे, अगली बार" on Doritos Sweet
+# Chilli, nor the order.
+recording: rp11
+insights:
+  - kind: problem
+    category: supply               # short supply; review: "payments" if you read "bill में चौबीस ... crate में बाईस" as a disputed bill (then high, finance + area_manager)
+    severity: medium               # two bottles short a crate for three deliveries, 12 bottles lost; "high" if you count bottles billed and not delivered as money owed (rp07's four lost cartons stayed medium)
+    speaker: shopkeeper
+    phrase: "हर crate में दो bottle कम निकल रही हैं"
+    skus: [pepsi]                  # he names Pepsi himself as he raises it ("Pepsi का ही बताना था", line 016)
+    competitors: []
+    scheme: null
+    teams: [distribution]
+    # One insight for lines 016–022: the short crates, the 12 bottles lost, and having to say it every time.
+
+  - kind: product_request
+    category: demand               # a can wanted for its format, not to hit a lower price, so not pricing
+    severity: low                  # a request; college boys ask for it, but as rp01's Doritos small pack (low), no loss counted yet
+    speaker: shopkeeper
+    phrase: "Sting के छोटे can मंगवा दो"
+    skus: [sting]
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]

@@ -1,0 +1,1211 @@
+{
+  "recording": "rp18",
+  "title": "A long visit: a pending payout, wet cartons, chatter, and a cheaper rival cola",
+  "duration_ms": 806013,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "aayan_hi_conversational"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "mahesh_hi_documentary"
+    },
+    "customer": {
+      "role": "other",
+      "voice": "rehan_hi_social"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते अग्रवाल जी! राम राम।",
+      "start_ms": 500,
+      "end_ms": 2974
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "राम राम मनोज, आओ बेटा। बड़े दिनों बाद दिखे।",
+      "start_ms": 3241,
+      "end_ms": 7732
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ जी, पिछले हफ़्ते छुट्टी पे था, गाँव गया था।",
+      "start_ms": 8128,
+      "end_ms": 11025
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अच्छा, घर पे सब ठीक है?",
+      "start_ms": 11422,
+      "end_ms": 13701
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, सब ठीक। माँ की तबीयत थोड़ी ढीली थी, अब ठीक हैं।",
+      "start_ms": 14547,
+      "end_ms": 19633
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "चलो अच्छा है। माँ-बाप का ध्यान रखना चाहिए, बाकी सब तो चलता रहता है।",
+      "start_ms": 20039,
+      "end_ms": 26618
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बिलकुल। और आपकी दुकान तो नई-नई लग रही है। paint करवाया?",
+      "start_ms": 27283,
+      "end_ms": 31571
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, दीवाली से पहले करवाया था। पूरा पंद्रह हज़ार लग गया, पर अच्छा लग रहा है ना?",
+      "start_ms": 32141,
+      "end_ms": 38515
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बहुत अच्छा लग रहा है। ये हल्का पीला रंग बढ़िया है।",
+      "start_ms": 38999,
+      "end_ms": 43184
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बेटे ने पसंद किया। मैं तो सफ़ेद ही करवा रहा था।",
+      "start_ms": 43990,
+      "end_ms": 47861
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "अंकल, एक bread और एक Kurkure देना।",
+      "start_ms": 48496,
+      "end_ms": 51976
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "कौन सा Kurkure? masala वाला?",
+      "start_ms": 52874,
+      "end_ms": 55555
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "हाँ, masala वाला, दस रुपये वाला।",
+      "start_ms": 56122,
+      "end_ms": 59010
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ये लो, पैंतालीस रुपये हुए।",
+      "start_ms": 59481,
+      "end_ms": 61655
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "ये लीजिए।",
+      "start_ms": 62179,
+      "end_ms": 63069
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Kurkure तो रोज़ बिकता होगा।",
+      "start_ms": 63972,
+      "end_ms": 65770
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, चलता है। पर इसी से याद आया, एक बात बोलनी थी।",
+      "start_ms": 66140,
+      "end_ms": 72318
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, बोलिए।",
+      "start_ms": 72584,
+      "end_ms": 73770
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "वो Diwali वाली Kurkure scheme थी ना, पंद्रह डिब्बे पे payout वाली। मैंने पूरे पंद्रह डिब्बे लिए थे अक्टूबर में।",
+      "start_ms": 74562,
+      "end_ms": 84048
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, Diwali payout वाली scheme।",
+      "start_ms": 84817,
+      "end_ms": 87497
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "उसका payout अभी तक नहीं आया। Diwali निकल गई, अब तो शादी का season आ गया।",
+      "start_ms": 88460,
+      "end_ms": 94148
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "कितना बनता था?",
+      "start_ms": 94679,
+      "end_ms": 95661
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बारह सौ रुपये। distributor बोलता है company भेजेगी, company से कोई जवाब नहीं।",
+      "start_ms": 96401,
+      "end_ms": 103897
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये मैं finance वालों से check करता हूँ। आपके पास bill number होगा?",
+      "start_ms": 104722,
+      "end_ms": 109303
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, गल्ले में रखा है, बाद में देता हूँ।",
+      "start_ms": 110105,
+      "end_ms": 113579
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है। और बताइए, आपके भतीजे की शादी थी ना?",
+      "start_ms": 114050,
+      "end_ms": 118134
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अरे हाँ, अगले हफ़्ते है। उसी की तैयारी में लगे हैं सब।",
+      "start_ms": 118946,
+      "end_ms": 122833
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बधाई हो! कहाँ है शादी?",
+      "start_ms": 123526,
+      "end_ms": 125700
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "यहीं, शहर में ही, गार्डन में। तुम भी आना।",
+      "start_ms": 125992,
+      "end_ms": 129980
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ज़रूर, उस दिन इधर का beat हुआ तो पक्का आऊँगा।",
+      "start_ms": 130265,
+      "end_ms": 133955
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "beat-वीट छोड़ो, खाना खाने आना।",
+      "start_ms": 134642,
+      "end_ms": 137922
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है अग्रवाल जी। अच्छा, बाकी सब ठीक चल रहा है ना?",
+      "start_ms": 138438,
+      "end_ms": 142212
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ठीक है।",
+      "start_ms": 142796,
+      "end_ms": 144476
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Lay's का rack ठीक है? पिछली बार जो लगाया था?",
+      "start_ms": 144925,
+      "end_ms": 147998
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ठीक है।",
+      "start_ms": 148399,
+      "end_ms": 150079
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और Doritos?",
+      "start_ms": 150638,
+      "end_ms": 151826
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "चल रहा है, धीरे-धीरे।",
+      "start_ms": 152160,
+      "end_ms": 154442
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Pepsi की winter scheme शुरू हुई है, नवंबर से। दस crate पे एक free। लेंगे?",
+      "start_ms": 154828,
+      "end_ms": 160519
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "देखते हैं, अगले हफ़्ते बताता हूँ।",
+      "start_ms": 161087,
+      "end_ms": 163860
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है। और बेटा कैसा है आपका? board exams हैं ना इस बार?",
+      "start_ms": 164488,
+      "end_ms": 168782
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बारहवीं में है। दिन-रात पढ़ता है, mobile भी कम कर दिया है।",
+      "start_ms": 169257,
+      "end_ms": 174736
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा है। science लिया है?",
+      "start_ms": 175169,
+      "end_ms": 177252
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, science। बोलता है engineer बनना है। देखो क्या होता है।",
+      "start_ms": 178220,
+      "end_ms": 184405
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बन जाएगा, मेहनती लड़का है।",
+      "start_ms": 185049,
+      "end_ms": 187331
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "अंकल, Aquafina की bottle है?",
+      "start_ms": 187847,
+      "end_ms": 190424
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बीस वाली या चालीस वाली?",
+      "start_ms": 191292,
+      "end_ms": 194277
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "बीस वाली दो दे दो।",
+      "start_ms": 194944,
+      "end_ms": 196629
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ये लो, चालीस रुपये।",
+      "start_ms": 197592,
+      "end_ms": 199466
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "thank you अंकल।",
+      "start_ms": 199791,
+      "end_ms": 200977
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, तो क्या बोल रहे थे... अरे हाँ, एक और दिक्कत है।",
+      "start_ms": 201516,
+      "end_ms": 206189
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बताइए।",
+      "start_ms": 207110,
+      "end_ms": 207701
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Lay's Classic Salted के डिब्बे जब आते हैं, तो नीचे वाले दो-तीन डिब्बे गीले होते हैं, दबे हुए। van में ऊपर से भारी माल रख देते हैं।",
+      "start_ms": 208065,
+      "end_ms": 220438
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "गीले? पानी से?",
+      "start_ms": 220816,
+      "end_ms": 222599
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, van का फ़र्श गीला रहता है शायद। पिछली बार तीन डिब्बे ख़राब निकले, packet आपस में चिपक गए थे।",
+      "start_ms": 222803,
+      "end_ms": 232086
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "वो डिब्बे आपने वापस किए?",
+      "start_ms": 232622,
+      "end_ms": 234210
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "delivery वाले लड़के को दिखाए थे, बोला ले जाऊँगा, पर ले नहीं गया। पीछे पड़े हैं।",
+      "start_ms": 234713,
+      "end_ms": 241495
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "मैं आज जाते-जाते ले जाता हूँ और return में लिखवा देता हूँ। distributor को भी बोलूँगा कि van में माल ठीक से रखें।",
+      "start_ms": 241882,
+      "end_ms": 249654
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बोलना। हर बार यही होता है।",
+      "start_ms": 250301,
+      "end_ms": 253977
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ज़रूर। चाय मँगवाएँ?",
+      "start_ms": 254180,
+      "end_ms": 256262
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, अरे छोटू, सामने से दो चाय बोल दे।",
+      "start_ms": 257202,
+      "end_ms": 261785
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "वैसे कल का match देखा आपने?",
+      "start_ms": 262354,
+      "end_ms": 264046
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "देखा! आख़िरी over तक बैठा रहा। क्या catch पकड़ा था boundary पे!",
+      "start_ms": 265043,
+      "end_ms": 270615
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, मैं तो सोच रहा था हार जाएँगे।",
+      "start_ms": 271182,
+      "end_ms": 273079
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "मैं भी। पर ये नया लड़का बढ़िया खेलता है। आगे जाएगा।",
+      "start_ms": 273548,
+      "end_ms": 279429
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "सही बात। अगला match कब है?",
+      "start_ms": 280174,
+      "end_ms": 282172
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "रविवार को। उस दिन दुकान पे TV लगाऊँगा, लोग रुक के देखते हैं।",
+      "start_ms": 282754,
+      "end_ms": 289338
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये तो बढ़िया है, दुकान पे रौनक रहती है।",
+      "start_ms": 290049,
+      "end_ms": 293135
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, match के दिन भीड़ रहती है।",
+      "start_ms": 294066,
+      "end_ms": 297158
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा, petrol फिर बढ़ गया, देखा?",
+      "start_ms": 297655,
+      "end_ms": 299941
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ भाई, अब तो scooter निकालने से पहले भी सोचना पड़ता है।",
+      "start_ms": 300422,
+      "end_ms": 305301
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "मेरा तो पूरा दिन scooter पे ही जाता है। महीने का दो हज़ार सिर्फ़ petrol में।",
+      "start_ms": 305641,
+      "end_ms": 311429
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "company देती है ना petrol का पैसा?",
+      "start_ms": 311903,
+      "end_ms": 313889
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "देती है, पर पूरा नहीं पड़ता।",
+      "start_ms": 314827,
+      "end_ms": 317214
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, सब जगह यही हाल है।",
+      "start_ms": 317887,
+      "end_ms": 320371
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "चाय आ गई। लीजिए।",
+      "start_ms": 321205,
+      "end_ms": 323089
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "लो, गरम-गरम पियो।",
+      "start_ms": 323571,
+      "end_ms": 325852
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "वाह, अदरक वाली है। बहुत अच्छी है।",
+      "start_ms": 326716,
+      "end_ms": 329295
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "सामने वाला अच्छी बनाता है। तीस साल से वहीं बैठा है।",
+      "start_ms": 330080,
+      "end_ms": 335465
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "तीस साल! और आपकी दुकान कितनी पुरानी है?",
+      "start_ms": 335807,
+      "end_ms": 339382
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "मेरे पिताजी ने खोली थी, उन्नीस सौ अस्सी में। तब यहाँ कच्ची सड़क थी।",
+      "start_ms": 340129,
+      "end_ms": 347212
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अरे वाह, चालीस साल से ज़्यादा।",
+      "start_ms": 347664,
+      "end_ms": 350449
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ। तब ये सब packet वाला सामान आता ही नहीं था। चना, मूँगफली, बस यही बिकता था।",
+      "start_ms": 350822,
+      "end_ms": 359707
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "वो ज़माना ही अलग था।",
+      "start_ms": 360417,
+      "end_ms": 361799
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बिलकुल। अब तो हर हफ़्ते कोई नया सामान आ जाता है।",
+      "start_ms": 362464,
+      "end_ms": 366253
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा, अगले हफ़्ते यहाँ मेला लग रहा है ना? रास्ते में poster देखे।",
+      "start_ms": 367054,
+      "end_ms": 371136
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, मैदान में। हर साल लगता है, पाँच दिन चलता है।",
+      "start_ms": 371556,
+      "end_ms": 376643
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बच्चों के झूले वगैरह होते हैं?",
+      "start_ms": 377630,
+      "end_ms": 379612
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, झूले, खिलौने, खाने की दुकानें। रात को बहुत भीड़ होती है।",
+      "start_ms": 380176,
+      "end_ms": 387863
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आप जाते हैं?",
+      "start_ms": 388696,
+      "end_ms": 389677
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "पहले जाता था। अब घुटनों में दर्द रहता है, बच्चे चले जाते हैं।",
+      "start_ms": 390160,
+      "end_ms": 395145
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ध्यान रखिए अपना। सुबह थोड़ा टहला कीजिए।",
+      "start_ms": 395509,
+      "end_ms": 398205
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "सब यही बोलते हैं। सुबह सात बजे दुकान खोलनी होती है, टहलूँ कब?",
+      "start_ms": 398950,
+      "end_ms": 405238
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये बात भी सही है। वैसे भतीजे की शादी में खाने का क्या menu है?",
+      "start_ms": 406149,
+      "end_ms": 411033
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अरे, पूरा देसी। पूरी, कचौरी, छोले, पनीर, और मीठे में गुलाब जामुन और रबड़ी।",
+      "start_ms": 411470,
+      "end_ms": 421857
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "वाह, सुन के ही भूख लग गई।",
+      "start_ms": 422270,
+      "end_ms": 424551
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "इसीलिए तो बोल रहा हूँ आना। हलवाई भी हमारे पुराने वाले हैं, बीस साल से वही बनाते हैं।",
+      "start_ms": 424798,
+      "end_ms": 431671
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "फिर तो पक्का आऊँगा। लड़की वाले कहाँ से हैं?",
+      "start_ms": 432073,
+      "end_ms": 434864
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "जयपुर से। बारात यहीं से जाएगी, फिर reception यहाँ होगा।",
+      "start_ms": 435622,
+      "end_ms": 441504
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "जयपुर! बढ़िया शहर है। मैं एक बार गया था, हवा महल देखा था।",
+      "start_ms": 441911,
+      "end_ms": 446398
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बहुत सुंदर है। मैं भी जवानी में गया था, अब तो बस दुकान और घर।",
+      "start_ms": 447224,
+      "end_ms": 455708
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "कभी छुट्टी ले के घूम आइए, बेटा दुकान संभाल लेगा।",
+      "start_ms": 455913,
+      "end_ms": 458991
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "वो पढ़ाई करे या दुकान देखे? exams के बाद देखेंगे।",
+      "start_ms": 459811,
+      "end_ms": 464787
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, पहले exams। coaching भी जाता है?",
+      "start_ms": 465267,
+      "end_ms": 468640
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, शाम को चार से सात। फ़ीस भी बहुत है आजकल, पर बच्चों के लिए करना पड़ता है।",
+      "start_ms": 469324,
+      "end_ms": 477209
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "सही बात है। मेरे छोटे भाई का भी यही हाल है, दिन भर किताबें।",
+      "start_ms": 478112,
+      "end_ms": 482702
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "तुम्हारा भाई क्या कर रहा है?",
+      "start_ms": 483288,
+      "end_ms": 485178
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "B.Com कर रहा है, आख़िरी साल है। फिर CA की तैयारी करेगा, बोल रहा है।",
+      "start_ms": 486060,
+      "end_ms": 491643
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अच्छा है, CA में बहुत scope है। हिसाब-किताब वाला लड़का है फिर तो।",
+      "start_ms": 492267,
+      "end_ms": 497045
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, बचपन से maths में तेज़ है।",
+      "start_ms": 497516,
+      "end_ms": 499403
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बढ़िया। हमारे ज़माने में तो दसवीं पास कर ली, वही बहुत था।",
+      "start_ms": 499848,
+      "end_ms": 505725
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अब ज़माना बदल गया है अग्रवाल जी।",
+      "start_ms": 506061,
+      "end_ms": 508040
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बहुत बदल गया। अब तो mobile पे ही सब होता है। मेरा बेटा मुझे सिखाता रहता है।",
+      "start_ms": 508593,
+      "end_ms": 514478
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आप भी सीख गए होंगे अब तो।",
+      "start_ms": 514828,
+      "end_ms": 516508
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "थोड़ा-थोड़ा। बेटी से video call कर लेता हूँ, वो पुणे में है।",
+      "start_ms": 517046,
+      "end_ms": 521925
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा, दीदी पुणे में हैं? क्या करती हैं?",
+      "start_ms": 522623,
+      "end_ms": 525409
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "software company में है। दो साल हो गए। दीवाली पे आई थी, अब होली पे आएगी।",
+      "start_ms": 525824,
+      "end_ms": 531899
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बहुत अच्छा। आपको तो गर्व होता होगा।",
+      "start_ms": 532770,
+      "end_ms": 535654
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, बेटी ने नाम रोशन किया है। मोहल्ले में सब पूछते हैं।",
+      "start_ms": 536106,
+      "end_ms": 541191
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "अंकल, एक माचिस और दो अगरबत्ती के packet देना।",
+      "start_ms": 541897,
+      "end_ms": 545979
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ये लो बेटा, पच्चीस रुपये।",
+      "start_ms": 546489,
+      "end_ms": 548771
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "ये लीजिए।",
+      "start_ms": 549441,
+      "end_ms": 550331
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आज तो customer लगातार आ रहे हैं।",
+      "start_ms": 551126,
+      "end_ms": 553205
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, सुबह-शाम ऐसे ही रहता है। दोपहर में थोड़ा आराम मिलता है।",
+      "start_ms": 553936,
+      "end_ms": 558309
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "तभी मैं दोपहर में आता हूँ, आपके पास time होता है।",
+      "start_ms": 558845,
+      "end_ms": 561725
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बड़े समझदार हो। चलो, अब तुम अपना काम करो।",
+      "start_ms": 562288,
+      "end_ms": 566462
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा, मैं ज़रा shelf देख लूँ? stock गिन लूँ?",
+      "start_ms": 567394,
+      "end_ms": 570467
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, देख लो।",
+      "start_ms": 571261,
+      "end_ms": 572939
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Kurkure Masala Munch सात packet बचे हैं। Green Chutney तीन। Lay's Classic तो बहुत कम है, चार ही हैं।",
+      "start_ms": 573239,
+      "end_ms": 581421
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, वो गीले वाले हटाए ना, इसलिए कम है।",
+      "start_ms": 582072,
+      "end_ms": 585751
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Magic Masala आठ, Cream and Onion पाँच। Uncle Chipps दो ही बचे हैं।",
+      "start_ms": 585953,
+      "end_ms": 593826
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Uncle Chipps ख़त्म होने वाला है, लिख लेना।",
+      "start_ms": 594185,
+      "end_ms": 597572
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "लिख लिया। Cheetos?",
+      "start_ms": 597885,
+      "end_ms": 599867
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Cheetos का एक डिब्बा पड़ा है, अभी नहीं चाहिए।",
+      "start_ms": 600464,
+      "end_ms": 604142
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और cold drink में Pepsi छह bottle, Dew चार, 7UP दो।",
+      "start_ms": 604569,
+      "end_ms": 610637
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "7UP अभी रहने दो।",
+      "start_ms": 611455,
+      "end_ms": 613131
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "अंकल, Lay's का हरा वाला है?",
+      "start_ms": 613922,
+      "end_ms": 616298
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ये लो, बीस रुपये।",
+      "start_ms": 616801,
+      "end_ms": 619574
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "दो दे दो।",
+      "start_ms": 620500,
+      "end_ms": 621885
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "चालीस हुए।",
+      "start_ms": 622784,
+      "end_ms": 623671
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अग्रवाल जी, एक नया Kurkure Puffcorn आया है, cheese वाला। एक डिब्बा रख के देखिए।",
+      "start_ms": 624071,
+      "end_ms": 630362
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "अच्छा? कितने का है?",
+      "start_ms": 631142,
+      "end_ms": 633627
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दस और बीस, दोनों। पहला डिब्बा मैं introductory offer में दिलवा दूँगा।",
+      "start_ms": 634528,
+      "end_ms": 640010
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है, एक डिब्बा दस वाला रख दो। देखते हैं।",
+      "start_ms": 640857,
+      "end_ms": 645136
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पक्का। आप देखिएगा, बच्चों को पसंद आएगा।",
+      "start_ms": 645964,
+      "end_ms": 650055
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "देखेंगे। अच्छा, तुम्हारी शादी कब कर रहे हो?",
+      "start_ms": 650706,
+      "end_ms": 654884
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अभी नहीं अग्रवाल जी। पहले थोड़ा जम जाऊँ।",
+      "start_ms": 655651,
+      "end_ms": 658642
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "जम जाओगे, अच्छे लड़के हो। पर ज़्यादा देर मत करना।",
+      "start_ms": 659596,
+      "end_ms": 664178
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, ठीक है। अच्छा, order final कर लें?",
+      "start_ms": 664754,
+      "end_ms": 668731
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, पर पहले एक बात सुनो, ये ज़रूरी है।",
+      "start_ms": 669361,
+      "end_ms": 673746
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "जी, बोलिए।",
+      "start_ms": 674257,
+      "end_ms": 675849
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आजकल Campa वाले बहुत ज़ोर लगा रहे हैं। उनका cola दस रुपये में दे रहे हैं, दो सौ ml, और मुझे margin भी Pepsi से ज़्यादा देते हैं।",
+      "start_ms": 676683,
+      "end_ms": 689865
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "कितना margin दे रहे हैं?",
+      "start_ms": 690630,
+      "end_ms": 692015
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बोल रहे थे पंद्रह percent। Pepsi पे मुझे दस मिलता है। और customer को भी दस वाला सस्ता लगता है।",
+      "start_ms": 692912,
+      "end_ms": 700986
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "तो आप Campa रख रहे हैं?",
+      "start_ms": 701857,
+      "end_ms": 703237
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, पिछले हफ़्ते से दो crate रखे हैं। सच बोलूँ तो लोग उठा रहे हैं, ख़ासकर मज़दूर लोग, जिनको सस्ता चाहिए।",
+      "start_ms": 703720,
+      "end_ms": 714996
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "समझ गया। ये बात मैं ऊपर ज़रूर पहुँचाऊँगा।",
+      "start_ms": 715280,
+      "end_ms": 718369
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "पहुँचाओ, वरना Pepsi की बिक्री और गिरेगी। मैं तो जो चलेगा वही रखूँगा।",
+      "start_ms": 718894,
+      "end_ms": 727164
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बिलकुल समझता हूँ। और कुछ?",
+      "start_ms": 728098,
+      "end_ms": 730483
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, एक छोटी चीज़। Gatorade की छोटी bottle मिल सकती है? पास में नया gym खुला है, लड़के आ के पूछते हैं।",
+      "start_ms": 730725,
+      "end_ms": 740808
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Gatorade, हाँ, मिल जाएगी। कितनी चाहिए?",
+      "start_ms": 741237,
+      "end_ms": 744339
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "शुरू में एक डिब्बा। देखते हैं चलती है कि नहीं।",
+      "start_ms": 744642,
+      "end_ms": 748819
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है। तो order: Kurkure Masala Munch पाँच डिब्बे, Green Chutney दो, Lay's Classic Salted तीन, Uncle Chipps तीन, Puffcorn एक, Gatorade एक, और Pepsi दो crate।",
+      "start_ms": 749164,
+      "end_ms": 764842
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Pepsi दो नहीं, एक crate। और Dew एक crate।",
+      "start_ms": 765218,
+      "end_ms": 771402
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, Pepsi एक, Dew एक।",
+      "start_ms": 771647,
+      "end_ms": 774231
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ। और वो Diwali payout और गीले डिब्बे, दोनों भूलना मत।",
+      "start_ms": 774445,
+      "end_ms": 783831
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नहीं भूलूँगा। गीले डिब्बे मैं अभी ले जाता हूँ। payout के लिए bill दे दीजिए।",
+      "start_ms": 784505,
+      "end_ms": 789294
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ये रहा bill। फ़ोटो खींच लो।",
+      "start_ms": 790081,
+      "end_ms": 792555
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "खींच ली। ठीक है अग्रवाल जी, चलता हूँ। शादी की बहुत-बहुत बधाई।",
+      "start_ms": 793228,
+      "end_ms": 799209
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "धन्यवाद बेटा। आना ज़रूर। राम राम।",
+      "start_ms": 800175,
+      "end_ms": 803565
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "राम राम।",
+      "start_ms": 804339,
+      "end_ms": 805213
+    }
+  ]
+}

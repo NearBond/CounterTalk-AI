@@ -515,6 +515,24 @@ def test_scripts_on_both_models_are_each_priced_at_their_own(
     )
 
 
+def test_a_cached_script_s_model_isn_t_among_the_rates(
+    samples: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run(samples, "rp01", "--yes", tts=FakeTts())  # rp01, on v3, all cached
+    v4 = samples / "scripts" / "rp02.toml"
+    v4.write_text(V4 + SCRIPT, encoding="utf-8")
+    characters = tool.characters_to_send([tool.load_script(v4)], samples / "tts_cache")
+    capsys.readouterr()
+
+    run(samples, "rp01", "rp02")
+
+    total = capsys.readouterr().out.splitlines()[2]
+    assert total == (
+        f"total: {characters} characters to send, about ₹{characters / 1000:.2f} before GST"
+        " (bulbul:v4-flash at ₹1.00 per 1,000)"
+    )
+
+
 def test_the_api_is_sent_the_script_s_model(samples: Path) -> None:
     sent: list[str] = []
 

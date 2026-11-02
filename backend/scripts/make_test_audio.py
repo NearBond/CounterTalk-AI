@@ -65,7 +65,7 @@ MAX_RETRY_AFTER_S = 120
 PASSING_STATUSES = {429, 500, 502, 503, 504}
 
 ROLES = ("rep", "shopkeeper", "other")
-PACE_RANGE = (0.5, 2.0)  # bulbul:v3's
+PACE_RANGE = (0.5, 2.0)  # bulbul:v3's and bulbul:v4-flash's (Sarvam's docs, 3 Nov)
 # The rep holds the phone; the shopkeeper and anyone else are farther off, in the room's echo.
 ROLE_GAIN_DB = {"rep": 0.0, "shopkeeper": -4.0, "other": -6.0}
 ROOM_ECHO = "aecho=0.8:0.85:40|75:0.25|0.12"
@@ -682,7 +682,8 @@ def main(argv: list[str], *, tts: Tts | None = None) -> int:
             )
         missing = _missing(scripts, cache).values()
         total = sum(len(request.text) for request in missing)
-        used = sorted({script.model for script in scripts})
+        # The rates of what's still to send: a fully cached script's model costs nothing.
+        used = sorted({request.model for request in missing} or {s.model for s in scripts})
         rate = ", ".join(f"{m} at ₹{RUPEES_PER_1000_CHARS[m]:.2f} per 1,000" for m in used)
         rupees = cost_rupees(missing)
         print(f"total: {total} characters to send, about ₹{rupees:.2f} before GST ({rate})")

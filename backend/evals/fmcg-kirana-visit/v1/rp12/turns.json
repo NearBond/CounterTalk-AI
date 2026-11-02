@@ -1,0 +1,214 @@
+{
+ "version": 1,
+ "recording": "rp12",
+ "org_pack": {
+  "id": "pepsico-india-demo",
+  "version": 1
+ },
+ "visited_at": "2026-11-02T20:29:05.237154+00:00",
+ "transcript": {
+  "provider": "meta",
+  "model": "muse-voice-transcribe-1.0",
+  "language_code": "hi,en"
+ },
+ "roles": {
+  "playbook": {
+   "id": "fmcg-kirana-visit",
+   "version": 1
+  },
+  "speakers": {
+   "c0:A": {
+    "role": "rep",
+    "confidence": 0.98
+   },
+   "c0:B": {
+    "role": "shopkeeper",
+    "confidence": 0.98
+   }
+  }
+ },
+ "turns": [
+  {
+   "turn_id": 0,
+   "label": "c0:A",
+   "start_ms": 380,
+   "end_ms": 3180,
+   "text": "नमस्ते भाभी जी, भैया नहीं है आज?"
+  },
+  {
+   "turn_id": 1,
+   "label": "c0:B",
+   "start_ms": 3260,
+   "end_ms": 6860,
+   "text": "नमस्ते अमित, वो मंदिर गए हैं आज दुकान मैं देख रही हूँ,"
+  },
+  {
+   "turn_id": 2,
+   "label": "c0:A",
+   "start_ms": 6940,
+   "end_ms": 9020,
+   "text": "अच्छा सब ठीक चल रहा है ना?"
+  },
+  {
+   "turn_id": 3,
+   "label": "c0:B",
+   "start_ms": 9100,
+   "end_ms": 11260,
+   "text": "हाँ जी ठीक है"
+  },
+  {
+   "turn_id": 4,
+   "label": "c0:A",
+   "start_ms": 11340,
+   "end_ms": 14140,
+   "text": "पिछले महीने वाली Lay's डिस्प्ले की पेमेंट पेमेंट मिल गई थी ना?"
+  },
+  {
+   "turn_id": 5,
+   "label": "c0:B",
+   "start_ms": 14220,
+   "end_ms": 17500,
+   "text": "हाँ वो मिल गई थी भैया ने बताया था"
+  },
+  {
+   "turn_id": 6,
+   "label": "c0:A",
+   "start_ms": 17580,
+   "end_ms": 20940,
+   "text": "बढ़िया और नया स्टॉक बिक रहा है"
+  },
+  {
+   "turn_id": 7,
+   "label": "c0:B",
+   "start_ms": 21500,
+   "end_ms": 30060,
+   "text": "सच बताऊं तो Lay's Magic Masala बहुत चल रहा है बच्चे स्कूल से आते ही वही मांगते हैं हफ्ते में दो डिब्बे निकल जाते हैं"
+  },
+  {
+   "turn_id": 8,
+   "label": "c0:A",
+   "start_ms": 30140,
+   "end_ms": 34300,
+   "text": "अरे वाह ये तो अच्छी बात है Doritos भी अच्छा चल रहा होगा ना"
+  },
+  {
+   "turn_id": 9,
+   "label": "c0:B",
+   "start_ms": 34300,
+   "end_ms": 41500,
+   "text": "नहीं Doritos का तो उल्टा है पिछली बार जो डिब्बा आया था उसमें आधे पैकेट पिचके हुए थे दो दो कस्टमर ने वापस कर दिए"
+  },
+  {
+   "turn_id": 10,
+   "label": "c0:A",
+   "start_ms": 41660,
+   "end_ms": 44300,
+   "text": "पिचके हुए मतलब फटे हुए थे"
+  },
+  {
+   "turn_id": 11,
+   "label": "c0:B",
+   "start_ms": 44300,
+   "end_ms": 52700,
+   "text": "फटे नहीं पर हवा निकली हुई थी अंदर सब चूरा हो गया था मैंने अलग रख दिए हैं आठ पैकेट हैं ये देखो"
+  },
+  {
+   "turn_id": 12,
+   "label": "c0:A",
+   "start_ms": 52780,
+   "end_ms": 57100,
+   "text": "हाँ ये तो खराब है मैं इनको अगली डिलीवरी में रिप्लेस करवा देता हूँ"
+  },
+  {
+   "turn_id": 13,
+   "label": "c0:B",
+   "start_ms": 57660,
+   "end_ms": 61980,
+   "text": "हाँ कर देना ऐसा माल रखो तो मेरी दुकान का नाम खराब होता है"
+  },
+  {
+   "turn_id": 14,
+   "label": "c0:A",
+   "start_ms": 62780,
+   "end_ms": 65660,
+   "text": "बिल्कुल और Kurkure कैसा है?"
+  },
+  {
+   "turn_id": 15,
+   "label": "c0:B",
+   "start_ms": 65820,
+   "end_ms": 67100,
+   "text": "ठीक है"
+  },
+  {
+   "turn_id": 16,
+   "label": "c0:A",
+   "start_ms": 67340,
+   "end_ms": 68540,
+   "text": "Uncle Chipps? Chipps?"
+  },
+  {
+   "turn_id": 17,
+   "label": "c0:B",
+   "start_ms": 68860,
+   "end_ms": 70700,
+   "text": "हाँ, ठीक है, चल रहा है।"
+  },
+  {
+   "turn_id": 18,
+   "label": "c0:A",
+   "start_ms": 70860,
+   "end_ms": 72380,
+   "text": "अच्छा, order लिख लूँ?"
+  },
+  {
+   "turn_id": 19,
+   "label": "c0:B",
+   "start_ms": 72540,
+   "end_ms": 81020,
+   "text": "Lay's Magic Masala, तीन डिब्बे लिखो और Kurkure Green Chutney एक, Doritos अभी मत भेजना, पहले पहले वो बदल दो,"
+  },
+  {
+   "turn_id": 20,
+   "label": "c0:A",
+   "start_ms": 81180,
+   "end_ms": 84700,
+   "text": "ठीक है, Pepsi की Winter Scheme भी शुरू हुई है, लेनी है?"
+  },
+  {
+   "turn_id": 21,
+   "label": "c0:B",
+   "start_ms": 85020,
+   "end_ms": 88460,
+   "text": "नहीं, अभी नहीं, भैया आएंगे तो उनसे बात कर लेना,"
+  },
+  {
+   "turn_id": 22,
+   "label": "c0:A",
+   "start_ms": 88700,
+   "end_ms": 93580,
+   "text": "ठीक है भाभी जी, Doritos वाले पैकेट में ले जा रहा हूँ, receipt दे देता हूँ,"
+  },
+  {
+   "turn_id": 23,
+   "label": "c0:B",
+   "start_ms": 93820,
+   "end_ms": 96780,
+   "text": "हाँ receipt दे दो भैया पूछेंगे"
+  },
+  {
+   "turn_id": 24,
+   "label": "c0:A",
+   "start_ms": 96860,
+   "end_ms": 100460,
+   "text": "ये लीजिए चलता चलता हूँ नमस्ते"
+  },
+  {
+   "turn_id": 25,
+   "label": "c0:B",
+   "start_ms": 100780,
+   "end_ms": 101660,
+   "text": "नमस्ते"
+  }
+ ]
+}

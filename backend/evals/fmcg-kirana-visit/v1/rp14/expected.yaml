@@ -1,0 +1,40 @@
+# K2 for rp14: a broken fridge, expiring packets and a small-pack request, with a customer in between.
+# Answer key, checked 3 Nov 2026.
+# Set: held back.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+# The customer (role "other") asks for a cold Mirinda, a cold Thums Up and Kurkure: none of that
+# is an insight, though it shows the fridge problem. "हाँ" to "Masala Munch तो रोज़ बिकता होगा" is
+# an agreement, not praise.
+recording: rp14
+insights:
+  - kind: problem
+    category: visibility
+    severity: medium               # ten days, 10–15 cold-drink customers a day turned away, the complaint unanswered; as rp06's cooler (medium); "high" if you count the held-back cold-drink order as a risk to the shop
+    speaker: shopkeeper
+    phrase: "आपकी company वाला fridge ख़राब है"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]
+    # One insight for lines 004–012, the unanswered complaint, and the Mirinda order put off until
+    # the fridge is fixed (line 022).
+
+  - kind: problem
+    category: damage
+    severity: low                  # eight packets near expiry, and the rep takes them back on the spot
+    speaker: shopkeeper
+    phrase: "Kurkure Chilli Chatka के packet अगले हफ़्ते expire हो जाएँगे"
+    skus: [kurkure_chilli_chatka, kurkure] # either the product or its brand
+    competitors: []
+    scheme: null
+    teams: [distribution]
+
+  - kind: product_request
+    category: pricing              # a smaller pack to hit a lower price (₹30–40, not ₹100) is pricing, not demand (the codebook's excludes; as rp08)
+    severity: low                  # a request: the big pack doesn't sell, nothing lost yet
+    speaker: shopkeeper
+    phrase: "Tropicana के छोटे pack रखवाओ"
+    skus: [tropicana]
+    competitors: []
+    scheme: null
+    teams: [sales_ops]

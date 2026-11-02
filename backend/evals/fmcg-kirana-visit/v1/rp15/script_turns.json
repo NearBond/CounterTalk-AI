@@ -1,0 +1,164 @@
+{
+  "recording": "rp15",
+  "title": "Loud about a poster, calm about money owed",
+  "duration_ms": 96209,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "aditya_hi_conversational"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "ratan_hi_customer_expressive"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते बंसल जी!",
+      "start_ms": 500,
+      "end_ms": 1620
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आ गए! अरे पहले ये देखो, ये देखो! ये Lay's का poster पूरा फट गया है, धूप में रंग उड़ गया! दुकान के बाहर कितना गंदा लगता है! कब से बोल रहा हूँ!",
+      "start_ms": 2559,
+      "end_ms": 11279
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अरे हाँ, ये तो बहुत ख़राब हो गया है।",
+      "start_ms": 12112,
+      "end_ms": 14832
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "तीन महीने से बोल रहा हूँ! हर बार बोलते हो लगवा देंगे! कोई सुनता ही नहीं!",
+      "start_ms": 15315,
+      "end_ms": 19075
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "माफ़ कीजिए बंसल जी। इस बार मैं नया poster ले के आऊँगा, पक्का।",
+      "start_ms": 20023,
+      "end_ms": 24743
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ले आना। बस। बैठो।",
+      "start_ms": 25682,
+      "end_ms": 27922
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और बाकी सब कैसा है?",
+      "start_ms": 28857,
+      "end_ms": 30137
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बाकी ठीक है। हाँ, वो Uncle Chipps वाली दस पे एक free scheme का पैसा, आठ हज़ार रुपये, डेढ़ महीने से pending है। कोई जल्दी नहीं, पर देख लेना।",
+      "start_ms": 30884,
+      "end_ms": 40404
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आठ हज़ार? scheme का पूरा पैसा?",
+      "start_ms": 41356,
+      "end_ms": 43596
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, सितंबर में मैंने scheme में चालीस डिब्बे लिए थे। उसका जो credit मिलना था, आठ हज़ार का, वो अभी तक नहीं आया।",
+      "start_ms": 44180,
+      "end_ms": 51620
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये तो ज़रूरी है। मैं आज ही finance को लिखता हूँ।",
+      "start_ms": 52076,
+      "end_ms": 55036
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, लिख देना। और एक बात। तुम्हारा delivery वाला लड़का आजकल दो हफ़्ते में एक बार आता है। पहले हर हफ़्ते आता था। बीच में माल ख़त्म हो जाता है।",
+      "start_ms": 55789,
+      "end_ms": 63389
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दो हफ़्ते में? ये मैं distributor से पूछता हूँ, beat का दिन बदला होगा।",
+      "start_ms": 64323,
+      "end_ms": 70483
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "पूछ लेना। चलो, order लिखो।",
+      "start_ms": 71054,
+      "end_ms": 72734
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "जी, बताइए।",
+      "start_ms": 73042,
+      "end_ms": 74482
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Uncle Chipps Spicy Treat चार डिब्बे, Kurkure तीन, Lay's Classic Salted दो।",
+      "start_ms": 75237,
+      "end_ms": 80757
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और Pepsi?",
+      "start_ms": 81551,
+      "end_ms": 82431
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Pepsi अभी है, अगली बार।",
+      "start_ms": 82638,
+      "end_ms": 84078
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और poster ले के आना, भूलना मत! फटा poster देख के मेरा दिमाग़ ख़राब होता है!",
+      "start_ms": 84507,
+      "end_ms": 88747
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पक्का बंसल जी, अगली बार सबसे पहले poster। नमस्ते।",
+      "start_ms": 89647,
+      "end_ms": 93967
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते।",
+      "start_ms": 94929,
+      "end_ms": 95409
+    }
+  ]
+}

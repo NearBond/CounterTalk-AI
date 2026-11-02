@@ -1,0 +1,199 @@
+{
+  "recording": "rp12",
+  "title": "Short answers, real praise, and crushed packets",
+  "duration_ms": 102075,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "amit_hi_conversational"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "roopa_hi_conversational"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते भाभी जी! भैया नहीं हैं आज?",
+      "start_ms": 500,
+      "end_ms": 2900
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते अमित। वो mandi गए हैं, आज दुकान मैं देख रही हूँ।",
+      "start_ms": 3204,
+      "end_ms": 6324
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा। सब ठीक चल रहा है ना?",
+      "start_ms": 6905,
+      "end_ms": 8825
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ जी, ठीक है।",
+      "start_ms": 9199,
+      "end_ms": 10559
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पिछले महीने वाली Lay's display की payment मिल गई थी ना?",
+      "start_ms": 11236,
+      "end_ms": 13876
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, वो मिल गई थी। भैया ने बताया था।",
+      "start_ms": 14265,
+      "end_ms": 16905
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बढ़िया। और नया stock बिक रहा है?",
+      "start_ms": 17699,
+      "end_ms": 20499
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "सच बताऊँ तो Lay's Magic Masala बहुत चल रहा है। बच्चे school से आते ही वही माँगते हैं। हफ़्ते में दो डिब्बे निकल जाते हैं।",
+      "start_ms": 21492,
+      "end_ms": 29732
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अरे वाह, ये तो अच्छी बात है। Doritos भी अच्छा चल रहा होगा ना?",
+      "start_ms": 30219,
+      "end_ms": 33659
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नहीं, Doritos का तो उल्टा है। पिछली बार जो डिब्बा आया था, उसमें आधे packet पिचके हुए थे। दो customer ने वापस कर दिए।",
+      "start_ms": 34103,
+      "end_ms": 41303
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पिचके हुए? मतलब फटे हुए थे?",
+      "start_ms": 41630,
+      "end_ms": 44110
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "फटे नहीं, पर हवा निकली हुई थी, अंदर सब चूरा हो गया था। मैंने अलग रख दिए हैं, आठ packet हैं। ये देखो।",
+      "start_ms": 44392,
+      "end_ms": 52152
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, ये तो ख़राब हैं। मैं इनको अगली delivery में replace करवा देता हूँ।",
+      "start_ms": 52766,
+      "end_ms": 56686
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, कर देना। ऐसा माल रखूँ तो मेरी दुकान का नाम ख़राब होता है।",
+      "start_ms": 57593,
+      "end_ms": 61753
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बिलकुल। और Kurkure कैसा है?",
+      "start_ms": 62672,
+      "end_ms": 64912
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है।",
+      "start_ms": 65827,
+      "end_ms": 66307
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Uncle Chipps?",
+      "start_ms": 67054,
+      "end_ms": 67854
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ठीक है, चल रहा है।",
+      "start_ms": 68666,
+      "end_ms": 70346
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अच्छा, order लिख लूँ?",
+      "start_ms": 70726,
+      "end_ms": 71766
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Lay's Magic Masala तीन डिब्बे लिखो, और Kurkure Green Chutney एक। Doritos अभी मत भेजना, पहले वो बदल दो।",
+      "start_ms": 72449,
+      "end_ms": 80769
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है। Pepsi की winter scheme भी शुरू हुई है, लेनी है?",
+      "start_ms": 81000,
+      "end_ms": 84280
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नहीं, अभी नहीं। भैया आएँगे तो उनसे बात कर लेना।",
+      "start_ms": 84786,
+      "end_ms": 88066
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है भाभी जी। Doritos वाले packet मैं ले जा रहा हूँ, receipt दे देता हूँ।",
+      "start_ms": 88515,
+      "end_ms": 92595
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, receipt दे दो, भैया पूछेंगे।",
+      "start_ms": 93574,
+      "end_ms": 96134
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये लीजिए। चलता हूँ, नमस्ते।",
+      "start_ms": 96948,
+      "end_ms": 99748
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते।",
+      "start_ms": 100635,
+      "end_ms": 101275
+    }
+  ]
+}

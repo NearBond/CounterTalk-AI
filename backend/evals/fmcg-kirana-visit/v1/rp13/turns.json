@@ -1,0 +1,200 @@
+{
+ "version": 1,
+ "recording": "rp13",
+ "org_pack": {
+  "id": "pepsico-india-demo",
+  "version": 1
+ },
+ "visited_at": "2026-11-02T20:29:05.588452+00:00",
+ "transcript": {
+  "provider": "meta",
+  "model": "muse-voice-transcribe-1.0",
+  "language_code": "hi,en"
+ },
+ "roles": {
+  "playbook": {
+   "id": "fmcg-kirana-visit",
+   "version": 1
+  },
+  "speakers": {
+   "c0:A": {
+    "role": "rep",
+    "confidence": 0.98
+   },
+   "c0:B": {
+    "role": "shopkeeper",
+    "confidence": 0.98
+   }
+  }
+ },
+ "turns": [
+  {
+   "turn_id": 0,
+   "label": "c0:A",
+   "start_ms": 460,
+   "end_ms": 2060,
+   "text": "नमस्ते शर्मा जी,"
+  },
+  {
+   "turn_id": 1,
+   "label": "c0:B",
+   "start_ms": 2140,
+   "end_ms": 5260,
+   "text": "आओ राहुल, बड़े दिन बाद आए।"
+  },
+  {
+   "turn_id": 2,
+   "label": "c0:A",
+   "start_ms": 5340,
+   "end_ms": 10060,
+   "text": "हाँ जी बीच में बीट बदल गया था। बाहर तो आज बहुत गर्मी है नवंबर में भी,"
+  },
+  {
+   "turn_id": 3,
+   "label": "c0:B",
+   "start_ms": 10060,
+   "end_ms": 12860,
+   "text": "हाँ इस साल ठंड आ ही नहीं रही। बैठो,"
+  },
+  {
+   "turn_id": 4,
+   "label": "c0:A",
+   "start_ms": 12940,
+   "end_ms": 14060,
+   "text": "कैसा चल रहा है सब?"
+  },
+  {
+   "turn_id": 5,
+   "label": "c0:B",
+   "start_ms": 14460,
+   "end_ms": 25180,
+   "text": "चल तो रहा है पर इस बार तुम्हारी तरफ से दिक्कत ही दिक्कत है। माल भी तीन दिन लेट आया। और पिछले महीने का ढाई हजार का क्रेडिट नोट भी अभी तक नहीं मिला।"
+  },
+  {
+   "turn_id": 6,
+   "label": "c0:A",
+   "start_ms": 25340,
+   "end_ms": 27420,
+   "text": "तीन दिन लेट, लेट? किस दिन आया?"
+  },
+  {
+   "turn_id": 7,
+   "label": "c0:B",
+   "start_ms": 27580,
+   "end_ms": 34700,
+   "text": "मंगलवार को आना था शुक्रवार को आया बीच में कुरकुरे खत्म हो गया था लोग खाली हाथ लौटे"
+  },
+  {
+   "turn_id": 8,
+   "label": "c0:A",
+   "start_ms": 34860,
+   "end_ms": 37180,
+   "text": "पर क्रेडिट नोट किस चीज़ का था"
+  },
+  {
+   "turn_id": 9,
+   "label": "c0:B",
+   "start_ms": 37500,
+   "end_ms": 47020,
+   "text": "वो जो एक्सपायर्ड माल वापस किया था ना चार डिब्बे Lay's और Kurkure उसका ढाई हजार बनता है हर बार बोलते हैं नेक्स्ट वीक नेक्स्ट वीक"
+  },
+  {
+   "turn_id": 10,
+   "label": "c0:A",
+   "start_ms": 47260,
+   "end_ms": 52060,
+   "text": "ठीक है ये मैं आज ही फाइनेंस वालों से पूछता हूँ लिख लिया मैंने ढाई हजार"
+  },
+  {
+   "turn_id": 11,
+   "label": "c0:B",
+   "start_ms": 52380,
+   "end_ms": 64780,
+   "text": "और एक बात Uncle Chipps पे मार्जिन बहुत कम है MCP बीस रुपए मुझे साढ़े सत्रह में मिलता है ढाई रुपए में क्या बचेगा दूसरी कंपनी वाले तीन साढ़े तीन रुपए देते हैं"
+  },
+  {
+   "turn_id": 12,
+   "label": "c0:A",
+   "start_ms": 65180,
+   "end_ms": 69020,
+   "text": "Uncle Chipps का रेट तो कंपनी तय करती है पर मैं ऊपर बात करूँगा"
+  },
+  {
+   "turn_id": 13,
+   "label": "c0:B",
+   "start_ms": 69100,
+   "end_ms": 72300,
+   "text": "बात करो वरना मैं उसका ऑर्डर कम कर दूँगा"
+  },
+  {
+   "turn_id": 14,
+   "label": "c0:A",
+   "start_ms": 72460,
+   "end_ms": 75500,
+   "text": "समझ गया अच्छा आज का ऑर्डर"
+  },
+  {
+   "turn_id": 15,
+   "label": "c0:B",
+   "start_ms": 75820,
+   "end_ms": 83020,
+   "text": "Kurkure Masala Munch पांच डिब्बे क्योंकि खत्म हो गया था Lay's Classic Salted दो और Cheetos एक"
+  },
+  {
+   "turn_id": 16,
+   "label": "c0:A",
+   "start_ms": 83180,
+   "end_ms": 84460,
+   "text": "Pepsi"
+  },
+  {
+   "turn_id": 17,
+   "label": "c0:B",
+   "start_ms": 84540,
+   "end_ms": 87900,
+   "text": "Pepsi डेढ़ क्रेट नहीं दो क्रेट"
+  },
+  {
+   "turn_id": 18,
+   "label": "c0:A",
+   "start_ms": 87980,
+   "end_ms": 92620,
+   "text": "दो क्रेट Pepsi कुल मिला के लगभग साढ़े चार हजार का ऑर्डर बना"
+  },
+  {
+   "turn_id": 19,
+   "label": "c0:B",
+   "start_ms": 92940,
+   "end_ms": 96620,
+   "text": "ठीक है और डिलीवरी इस बार टाइम पे भेजना"
+  },
+  {
+   "turn_id": 20,
+   "label": "c0:A",
+   "start_ms": 96700,
+   "end_ms": 100300,
+   "text": "पक्का मंगलवार को ही आएगा मैं खुद देखूंगा"
+  },
+  {
+   "turn_id": 21,
+   "label": "c0:B",
+   "start_ms": 100620,
+   "end_ms": 103500,
+   "text": "देख लेना पिछली बार भी यही बोला था"
+  },
+  {
+   "turn_id": 22,
+   "label": "c0:A",
+   "start_ms": 103740,
+   "end_ms": 107180,
+   "text": "इस बार नहीं होगा शर्मा जी चलता हूँ नमस्ते"
+  },
+  {
+   "turn_id": 23,
+   "label": "c0:B",
+   "start_ms": 107340,
+   "end_ms": 108220,
+   "text": "नमस्ते"
+  }
+ ]
+}

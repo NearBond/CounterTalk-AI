@@ -1,0 +1,263 @@
+{
+ "version": 1,
+ "recording": "rp11",
+ "org_pack": {
+  "id": "pepsico-india-demo",
+  "version": 1
+ },
+ "visited_at": "2026-11-02T20:29:04.847559+00:00",
+ "transcript": {
+  "provider": "meta",
+  "model": "muse-voice-transcribe-1.0",
+  "language_code": "hi,en"
+ },
+ "roles": {
+  "playbook": {
+   "id": "fmcg-kirana-visit",
+   "version": 1
+  },
+  "speakers": {
+   "c0:A": {
+    "role": "rep",
+    "confidence": 0.99
+   },
+   "c0:B": {
+    "role": "shopkeeper",
+    "confidence": 0.99
+   }
+  }
+ },
+ "turns": [
+  {
+   "turn_id": 0,
+   "label": "c0:A",
+   "start_ms": 300,
+   "end_ms": 3260,
+   "text": "नमस्ते गुप्ता जी, कैसे हैं आप?"
+  },
+  {
+   "turn_id": 1,
+   "label": "c0:B",
+   "start_ms": 3500,
+   "end_ms": 11580,
+   "text": "अरे नेहा जी, आइए आइए बस बढ़िया बैठिए"
+  },
+  {
+   "turn_id": 2,
+   "label": "c0:A",
+   "start_ms": 11900,
+   "end_ms": 16620,
+   "text": "आज थोड़ा जल्दी आ गई बाकी दुकानें बाद में करूंगी सब ठीक चल रहा है ना"
+  },
+  {
+   "turn_id": 3,
+   "label": "c0:B",
+   "start_ms": 16620,
+   "end_ms": 18940,
+   "text": "हाँ ठीक है"
+  },
+  {
+   "turn_id": 4,
+   "label": "c0:A",
+   "start_ms": 19340,
+   "end_ms": 22300,
+   "text": "Kurkure तो अच्छा चल रहा होगा ना Masala Munch"
+  },
+  {
+   "turn_id": 5,
+   "label": "c0:B",
+   "start_ms": 22700,
+   "end_ms": 25260,
+   "text": "हाँ हाँ चल रहा है"
+  },
+  {
+   "turn_id": 6,
+   "label": "c0:A",
+   "start_ms": 25660,
+   "end_ms": 28060,
+   "text": "और पिछली डिलीवरी टाइम पे आ गई थी ना"
+  },
+  {
+   "turn_id": 7,
+   "label": "c0:B",
+   "start_ms": 28140,
+   "end_ms": 29980,
+   "text": "हाँ आ गई थी"
+  },
+  {
+   "turn_id": 8,
+   "label": "c0:A",
+   "start_ms": 30060,
+   "end_ms": 33580,
+   "text": "Lay's का नया रैक लगा है अच्छा लग अच्छा लग रहा है ना"
+  },
+  {
+   "turn_id": 9,
+   "label": "c0:B",
+   "start_ms": 33820,
+   "end_ms": 35500,
+   "text": "हाँ ठीक है"
+  },
+  {
+   "turn_id": 10,
+   "label": "c0:A",
+   "start_ms": 35740,
+   "end_ms": 40780,
+   "text": "इस बार Doritos का Sweet Chilli फ्लेवर आया है एक डिब्बा रख के देखिए"
+  },
+  {
+   "turn_id": 11,
+   "label": "c0:B",
+   "start_ms": 41100,
+   "end_ms": 43660,
+   "text": "देखेंगे अगली बार"
+  },
+  {
+   "turn_id": 12,
+   "label": "c0:A",
+   "start_ms": 43980,
+   "end_ms": 48700,
+   "text": "ठीक है अगली बार पक्का तो आज का आज का ऑर्डर लिख लूँ"
+  },
+  {
+   "turn_id": 13,
+   "label": "c0:B",
+   "start_ms": 48780,
+   "end_ms": 55420,
+   "text": "लिखो Kurkure Masala Munch तीन डिब्बे Lay's Classic Salted दो डिब्बे"
+  },
+  {
+   "turn_id": 14,
+   "label": "c0:A",
+   "start_ms": 55500,
+   "end_ms": 57020,
+   "text": "और Pepsi Pepsi"
+  },
+  {
+   "turn_id": 15,
+   "label": "c0:B",
+   "start_ms": 57180,
+   "end_ms": 66620,
+   "text": "Pepsi दो क्रेट पर एक बात सुनो Pepsi का ही बताना था"
+  },
+  {
+   "turn_id": 16,
+   "label": "c0:B",
+   "start_ms": 66620,
+   "end_ms": 66700,
+   "text": "हाँ,"
+  },
+  {
+   "turn_id": 17,
+   "label": "c0:A",
+   "start_ms": 66700,
+   "end_ms": 67900,
+   "text": "हाँ, बोलिए।"
+  },
+  {
+   "turn_id": 18,
+   "label": "c0:B",
+   "start_ms": 68220,
+   "end_ms": 76860,
+   "text": "पिछली तीन डिलीवरी से हर क्रेट में दो बोतल कम निकल रही है, बिल में चौबीस लिखा होता है, है, क्रेट में बाईस होती हैं।"
+  },
+  {
+   "turn_id": 19,
+   "label": "c0:A",
+   "start_ms": 76940,
+   "end_ms": 79180,
+   "text": "अच्छा, हर हर क्रेट में?"
+  },
+  {
+   "turn_id": 20,
+   "label": "c0:B",
+   "start_ms": 79500,
+   "end_ms": 88700,
+   "text": "हाँ, हर बार मैंने लड़के से गिनवाया भी, तीन बार मैं बारह बोतल का नुकसान हो नुकसान हो गया।"
+  },
+  {
+   "turn_id": 21,
+   "label": "c0:A",
+   "start_ms": 89020,
+   "end_ms": 95020,
+   "text": "ये तो गलत है, मैं डिस्ट्रीब्यूटर से बात करती हूँ और अगली डिलीवरी डिलीवरी में खुद गिनवाऊंगी।"
+  },
+  {
+   "turn_id": 22,
+   "label": "c0:B",
+   "start_ms": 95100,
+   "end_ms": 101100,
+   "text": "हाँ देख लेना, हर बार मैं ही बोलूँ अच्छा नहीं लगता।"
+  },
+  {
+   "turn_id": 23,
+   "label": "c0:A",
+   "start_ms": 101100,
+   "end_ms": 103260,
+   "text": "बिल्कुल और कुछ?"
+  },
+  {
+   "turn_id": 24,
+   "label": "c0:B",
+   "start_ms": 103260,
+   "end_ms": 112380,
+   "text": "हाँ एक चीज़ और Sting के छोटे कैन मंगवा दो कॉलेज के लड़के बहुत मांगते हैं बॉटल नहीं लेते"
+  },
+  {
+   "turn_id": 25,
+   "label": "c0:A",
+   "start_ms": 112380,
+   "end_ms": 125900,
+   "text": "Sting का कैन ठीक है मैं देखती हूँ आपके डिस्ट्रीब्यूटर के पास आता है या नहीं और Pepsi और Mountain Dew पे winter scheme चल रही है दस क्रेट पे crate पे एक free बताया था ना आपको"
+  },
+  {
+   "turn_id": 26,
+   "label": "c0:B",
+   "start_ms": 126140,
+   "end_ms": 128060,
+   "text": "हाँ, बताया था।"
+  },
+  {
+   "turn_id": 27,
+   "label": "c0:A",
+   "start_ms": 128380,
+   "end_ms": 132300,
+   "text": "तो इस महीने दस क्रेट का टारगेट रखें।"
+  },
+  {
+   "turn_id": 28,
+   "label": "c0:B",
+   "start_ms": 132460,
+   "end_ms": 136060,
+   "text": "देखते हैं अगले हफ्ते बताता हूँ।"
+  },
+  {
+   "turn_id": 29,
+   "label": "c0:A",
+   "start_ms": 136220,
+   "end_ms": 146940,
+   "text": "ठीक है गुप्ता जी तो ऑर्डर हो गया कुरकुरे तीन Lay's दो Pepsi दो क्रेट बॉटल वाली बात मैं आज ही ही आगे बताती हूँ"
+  },
+  {
+   "turn_id": 30,
+   "label": "c0:B",
+   "start_ms": 147260,
+   "end_ms": 150940,
+   "text": "ठीक है बेटा धन्यवाद चाय पी के जाना"
+  },
+  {
+   "turn_id": 31,
+   "label": "c0:A",
+   "start_ms": 151020,
+   "end_ms": 155260,
+   "text": "अगली बार पक्का आज बहुत दुकानें हैं नमस्ते"
+  },
+  {
+   "turn_id": 32,
+   "label": "c0:B",
+   "start_ms": 155740,
+   "end_ms": 156860,
+   "text": "नमस्ते नमस्ते"
+  }
+ ]
+}

@@ -1,0 +1,29 @@
+# K2 for rp12: short answers, real praise, and crushed packets.
+# Answer key, checked 3 Nov 2026.
+# Set: held back.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+# "हाँ, वो मिल गई थी" (last month's display payment) and the short "ठीक है" answers on Kurkure
+# and Uncle Chipps are agreements, not praise. Declining the Pepsi winter scheme and the order
+# are not insights.
+recording: rp12
+insights:
+  - kind: praise
+    category: praise
+    severity: low                  # praise: nothing at risk
+    speaker: shopkeeper
+    phrase: "Lay's Magic Masala बहुत चल रहा है"
+    skus: [lays_magic_masala, lays] # either the product or its brand
+    competitors: []
+    scheme: null
+    teams: [area_manager]
+
+  - kind: problem
+    category: quality              # air gone, crushed inside: the codebook's quality example, as rp07; review: "damage" if you read it as a carton crushed on the way
+    severity: medium               # half a carton unsellable, two customers returned packets, Doritos held out of the order until replaced
+    speaker: shopkeeper
+    phrase: "उसमें आधे packet पिचके हुए थे"
+    skus: [doritos]
+    competitors: []
+    scheme: null
+    teams: [distribution]
+    # One insight for lines 010–014 and "Doritos अभी मत भेजना, पहले वो बदल दो" (line 020).

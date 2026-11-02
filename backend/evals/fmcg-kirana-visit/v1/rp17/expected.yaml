@@ -1,0 +1,39 @@
+# K2 for rp17: nicknames, pack colours and a brand nobody has heard of.
+# Answer key, checked 3 Nov 2026.
+# Set: tuning.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+# The order (Lay's blue and green, "कुरकुरेय" masala, चीटोज़ masala balls, Dew; "Pepsi नहीं") is
+# routine, not insights. Krunchora isn't in the catalog, and Bingo is named only by the rep, so
+# neither is linked.
+recording: rp17
+insights:
+  - kind: product_request
+    category: demand               # a flavour children ask for; review: "supply" if you read "distributor के पास आता ही नहीं" as stock not reaching the shop
+    severity: low                  # a request; as rp01's Doritos (low)
+    speaker: shopkeeper
+    phrase: "डोरीटो का sweet chilli वाला"
+    skus: [doritos_sweet_chilli, doritos] # "डोरीटो", misspoken; either the product or its brand
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]
+
+  - kind: competitor_preference    # reason: margin
+    category: pricing
+    severity: medium               # their stock goes to the front for three points more margin; as rp03 (medium)
+    speaker: shopkeeper
+    phrase: "तो मैं उनका माल आगे रखता हूँ"
+    skus: []
+    competitors: []                # "वो": only the rep says Bingo (line 010), and links take the speaker's own names
+    scheme: null
+    teams: [sales_ops]
+    # The "हाँ" adds his own numbers and what he does about them, so it isn't a bare yes.
+
+  - kind: competitor_preference    # reason: price
+    category: pricing              # a much bigger pack at ₹5; review: "demand" (a competitor's new product, trade_marketing) is a fair reading
+    severity: medium               # village customers now buy it instead, "बिकता खूब है"
+    speaker: shopkeeper
+    phrase: "उसके chips पाँच रुपये में इतना बड़ा packet देते हैं"
+    skus: []
+    competitors: []                # Krunchora is fictional, not in the catalog
+    scheme: null
+    teams: [sales_ops]

@@ -1,0 +1,39 @@
+# K2 for rp13: late stock and a pending credit note in one breath, and a thin margin.
+# Answer key, checked 3 Nov 2026.
+# Set: tuning.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov.
+# Line 006 holds two insights, the late stock and the credit note, so both phrases are from it,
+# listed in the order said.
+recording: rp13
+insights:
+  - kind: problem
+    category: supply
+    severity: medium               # three days late, and Kurkure ran out meanwhile, customers left empty-handed; as rp02 (medium); "high" if you count it as a fast seller out of stock (it has arrived since)
+    speaker: shopkeeper
+    phrase: "माल भी तीन दिन late आया"
+    skus: [kurkure]                # the stock that ran out, named by the shopkeeper in line 008
+    competitors: []
+    scheme: null
+    teams: [distribution]
+    # One insight for the late delivery, the Kurkure that ran out meanwhile (line 008) and
+    # "delivery इस बार time पे भेजना" (line 020).
+
+  - kind: problem
+    category: payments
+    severity: high                 # money owed to the shop: ₹2,500 for expired stock returned, "next week" every time
+    speaker: shopkeeper
+    phrase: "ढाई हज़ार का credit note भी अभी तक नहीं मिला"
+    skus: [lays, kurkure]          # the returned stock, named in line 010
+    competitors: []
+    scheme: null
+    teams: [finance, area_manager] # payments, high: the override adds the area manager
+
+  - kind: problem                  # review: "competitor_preference" (margin) is a fair reading, but no competitor is named and he only threatens to order less
+    category: pricing
+    severity: medium               # ₹2.50 on a ₹20 pack against ₹3–3.50 elsewhere, and he'll cut the order (line 014); as rp08's threat (medium)
+    speaker: shopkeeper
+    phrase: "Uncle Chipps पे margin बहुत कम है"
+    skus: [uncle_chipps]
+    competitors: []                # "दूसरी company वाले": no brand named
+    scheme: null
+    teams: [sales_ops]

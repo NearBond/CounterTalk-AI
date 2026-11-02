@@ -1,0 +1,185 @@
+{
+  "recording": "rp13",
+  "title": "Late stock and a pending credit note in one breath, and a thin margin",
+  "duration_ms": 108690,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "rahul_hi_conversational"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "mohit_hi_conversational"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते शर्मा जी!",
+      "start_ms": 500,
+      "end_ms": 1460
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आओ राहुल। बड़े दिन बाद आए।",
+      "start_ms": 2027,
+      "end_ms": 4427
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ जी, बीच में beat बदल गया था। बाहर तो आज बहुत गर्मी है, नवंबर में भी।",
+      "start_ms": 5384,
+      "end_ms": 9784
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, इस साल ठंड आ ही नहीं रही। बैठो।",
+      "start_ms": 10001,
+      "end_ms": 12721
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "कैसा चल रहा है सब?",
+      "start_ms": 13019,
+      "end_ms": 13899
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "चल तो रहा है, पर इस बार तुम्हारी तरफ़ से दिक्कत ही दिक्कत है। माल भी तीन दिन late आया, और पिछले महीने का ढाई हज़ार का credit note भी अभी तक नहीं मिला।",
+      "start_ms": 14145,
+      "end_ms": 24625
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "तीन दिन late? किस दिन आया?",
+      "start_ms": 25359,
+      "end_ms": 26959
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "मंगलवार को आना था, शुक्रवार को आया। बीच में Kurkure ख़त्म हो गया था, लोग ख़ाली हाथ लौटे।",
+      "start_ms": 27629,
+      "end_ms": 34589
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और credit note किस चीज़ का था?",
+      "start_ms": 34896,
+      "end_ms": 36496
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "वो जो expired माल वापस किया था ना, चार डिब्बे, Lay's और Kurkure, उसका। ढाई हज़ार बनता है। हर बार बोलते हैं next week, next week।",
+      "start_ms": 37266,
+      "end_ms": 46466
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, ये मैं आज ही finance वालों से पूछता हूँ। लिख लिया मैंने, ढाई हज़ार।",
+      "start_ms": 47169,
+      "end_ms": 51649
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और एक बात। Uncle Chipps पे margin बहुत कम है। MRP बीस रुपये, मुझे साढ़े सत्रह में मिलता है। ढाई रुपये में क्या बचेगा? दूसरी company वाले तीन, साढ़े तीन रुपये देते हैं।",
+      "start_ms": 52236,
+      "end_ms": 64476
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Uncle Chipps का rate तो company तय करती है, पर मैं ऊपर बात करूँगा।",
+      "start_ms": 64936,
+      "end_ms": 68616
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बात करो। वरना मैं उसका order कम कर दूँगा।",
+      "start_ms": 69155,
+      "end_ms": 71715
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "समझ गया। अच्छा, आज का order?",
+      "start_ms": 72245,
+      "end_ms": 74805
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Kurkure Masala Munch पाँच डिब्बे, क्योंकि ख़त्म हो गया था। Lay's Classic Salted दो, और Cheetos एक।",
+      "start_ms": 75616,
+      "end_ms": 82416
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Pepsi?",
+      "start_ms": 83078,
+      "end_ms": 83558
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Pepsi डेढ़ crate... नहीं, दो crate कर दो।",
+      "start_ms": 84412,
+      "end_ms": 87372
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दो crate Pepsi। कुल मिला के लगभग साढ़े चार हज़ार का order बना।",
+      "start_ms": 88001,
+      "end_ms": 92161
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक है। और delivery इस बार time पे भेजना।",
+      "start_ms": 93114,
+      "end_ms": 95994
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पक्का, मंगलवार को ही आएगा। मैं खुद देखूँगा।",
+      "start_ms": 96560,
+      "end_ms": 99600
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "देख लेना। पिछली बार भी यही बोला था।",
+      "start_ms": 100401,
+      "end_ms": 102801
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "इस बार नहीं होगा शर्मा जी। चलता हूँ, नमस्ते।",
+      "start_ms": 103460,
+      "end_ms": 106420
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नमस्ते।",
+      "start_ms": 107330,
+      "end_ms": 107890
+    }
+  ]
+}

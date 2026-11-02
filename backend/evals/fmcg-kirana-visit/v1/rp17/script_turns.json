@@ -1,0 +1,171 @@
+{
+  "recording": "rp17",
+  "title": "Nicknames, pack colours and a brand nobody has heard of",
+  "duration_ms": 94327,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "tarun_hi_conversational"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "mani_hi_conversational"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते चौधरी जी!",
+      "start_ms": 500,
+      "end_ms": 1540
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आओ दीपक। बोलो, क्या लाए आज?",
+      "start_ms": 2004,
+      "end_ms": 4484
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "order लेने आया हूँ। बताइए।",
+      "start_ms": 5455,
+      "end_ms": 7455
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "वो Lay's का नीला वाला, दस रुपये वाला, पाँच डिब्बे। और हरा वाला दो।",
+      "start_ms": 8012,
+      "end_ms": 14012
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, पाँच नीले, दो हरे।",
+      "start_ms": 14396,
+      "end_ms": 16716
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और कुरकुरेय चार डिब्बे, वो masala वाला।",
+      "start_ms": 17053,
+      "end_ms": 20253
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "masala वाला, चार। और?",
+      "start_ms": 20949,
+      "end_ms": 23189
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और वो डोरीटो का sweet chilli वाला, वो आपके distributor के पास आता ही नहीं। बच्चे पूछते हैं। वो मंगवा के दो।",
+      "start_ms": 23504,
+      "end_ms": 31984
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, मैं distributor से पूछता हूँ।",
+      "start_ms": 32400,
+      "end_ms": 34720
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "सुना है Bingo वाले आजकल ज़्यादा margin दे रहे हैं, सच है?",
+      "start_ms": 35478,
+      "end_ms": 38438
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, वो बारह percent देते हैं। आप लोग नौ देते हो। तीन percent का फ़र्क है, तो मैं उनका माल आगे रखता हूँ।",
+      "start_ms": 39101,
+      "end_ms": 47981
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "समझ गया। ये बात मैं ऊपर पहुँचाता हूँ।",
+      "start_ms": 48897,
+      "end_ms": 51617
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "और एक नया brand आया है, क्रंचोरा। उसके chips पाँच रुपये में इतना बड़ा packet देते हैं। गाँव वाले customer अब वही लेते हैं।",
+      "start_ms": 51839,
+      "end_ms": 62639
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "क्रंचोरा? पहली बार सुना। किस company का है?",
+      "start_ms": 63007,
+      "end_ms": 66367
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "पता नहीं, कोई local company है। पर बिकता खूब है।",
+      "start_ms": 67257,
+      "end_ms": 71257
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, मैं note कर लेता हूँ। और चीटोज़?",
+      "start_ms": 71509,
+      "end_ms": 73829
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "चीटोज़ एक डिब्बा, masala balls वाले।",
+      "start_ms": 74154,
+      "end_ms": 77354
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Pepsi?",
+      "start_ms": 78273,
+      "end_ms": 78833
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Pepsi नहीं। Dew दो crate।",
+      "start_ms": 79294,
+      "end_ms": 82014
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है चौधरी जी। तो order हो गया: Lay's पाँच नीले, दो हरे, Kurkure चार, Cheetos एक, Dew दो crate।",
+      "start_ms": 82542,
+      "end_ms": 90302
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाँ, ठीक है। नमस्ते।",
+      "start_ms": 90659,
+      "end_ms": 92499
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते।",
+      "start_ms": 92807,
+      "end_ms": 93527
+    }
+  ]
+}
