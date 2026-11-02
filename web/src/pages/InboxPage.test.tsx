@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { routes } from "../App";
-import { type Handler, fakeApi, jsonResponse as json } from "../testUtils";
+import { FINANCE_MEMBER, type Handler, fakeApi, jsonResponse as json } from "../testUtils";
 import type { InboxOptions, Insight, Issue, IssueDetail, Route, Untriaged } from "../types/api";
 
 const OPTIONS: InboxOptions = {
@@ -132,7 +132,7 @@ describe("InboxPage", () => {
     });
     await screen.findByRole("button", { name: /Credit and payments/ });
 
-    await userEvent.selectOptions(screen.getByLabelText("Team (for development)"), "sales_ops");
+    await userEvent.selectOptions(screen.getByLabelText("Team"), "sales_ops");
     await userEvent.selectOptions(screen.getByLabelText("Area"), "Old Market");
 
     expect(await screen.findByText("No issues here.")).toBeInTheDocument();
@@ -402,5 +402,26 @@ describe("TriagePage", () => {
     expect(await within(item).findByRole("alert")).toHaveTextContent("Someone gave it a team meanwhile.");
     expect(api.sent()).toEqual([{ route: "POST /api/insights/i-2/team", body: { team_id: "t-sales" } }]);
     expect(screen.getByRole("heading", { level: 1, name: "Triage" })).toBeInTheDocument();
+  });
+
+  it("asks a team member's first list with the address's filters", async () => {
+    const { api } = open("/inbox?category=payments", {
+      "GET /api/auth/me": () => json(200, FINANCE_MEMBER),
+      "GET /api/issues?category=payments": () => json(200, [ISSUE]),
+    });
+
+    expect(await screen.findByRole("button", { name: /Credit and payments/ })).toBeInTheDocument();
+    expect(api.gets()).toBe(2); // the options, then the filtered list: never an unfiltered one
+  });
+
+  it("is a team member's own team's, with no team to pick", async () => {
+    const { api } = open("/inbox?team=sales_ops", {
+      "GET /api/auth/me": () => json(200, FINANCE_MEMBER),
+      "GET /api/issues": () => json(200, [ISSUE]),
+    });
+
+    expect(await screen.findByRole("button", { name: /Credit and payments/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Team")).not.toBeInTheDocument();
+    expect(api.gets()).toBe(2); // the options, and their own team's issues: no other team asked
   });
 });

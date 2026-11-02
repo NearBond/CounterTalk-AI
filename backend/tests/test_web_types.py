@@ -11,6 +11,7 @@ import pytest
 from pydantic import BaseModel
 
 from countertalk import limits, narrative, storage, summaries
+from countertalk.api.auth import MeOut, SignInIn
 from countertalk.api.health import HealthOut
 from countertalk.api.insights import (
     ChoiceOut,
@@ -66,6 +67,8 @@ TYPES = BACKEND_DIR.parent / "web" / "src" / "types" / "api.ts"
 
 MIRRORS: dict[str, type[BaseModel]] = {
     "Health": HealthOut,
+    "Me": MeOut,
+    "SignIn": SignInIn,
     "Shop": ShopOut,
     "Visit": VisitOut,
     "NewVisit": VisitIn,

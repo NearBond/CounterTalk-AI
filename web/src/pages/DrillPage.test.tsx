@@ -172,6 +172,10 @@ describe("DrillPage", () => {
     expect(await screen.findByRole("heading", { level: 1, name: DRILL.title_en })).toBeInTheDocument();
     // The very period shown, and the way back to this team's summary.
     expect(router.state.location.search).toBe("?team=finance&team_id=t-finance&period=week&start=2026-10-26&issue=issue-1");
-    expect(screen.getByRole("link", { name: "Summaries" })).toHaveAttribute("href", "/summaries?team=finance&period=week");
+    // The page's own way back, not the header's Summaries.
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Summaries" })).toHaveAttribute(
+      "href",
+      "/summaries?team=finance&period=week",
+    );
   });
 });

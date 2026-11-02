@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { routes } from "../App";
-import { jsonResponse as json } from "../testUtils";
+import { REP, jsonResponse as json } from "../testUtils";
 import type { Review, Transcript, Visit } from "../types/api";
 
 const VISIT: Visit = {
@@ -39,6 +39,7 @@ const ANSWERS: Record<string, unknown> = {
   "/api/visits/v1/review": REVIEW,
   "/api/visits": { items: [] },
   "/api/shops": { items: [] },
+  "/api/auth/me": { ...REP, id: "r1" }, // the visit's rep: they review it
 };
 
 /** The visit page with the list behind it in history, as when the rep opened it from there. */
@@ -127,5 +128,13 @@ describe("VisitPage", () => {
     failing(4);
     fireEvent.error(player);
     expect(screen.getByRole("alert")).toHaveTextContent(message);
+  });
+
+  it("shows the review read-only to anyone but the visit's rep", async () => {
+    open({ ...ANSWERS, "/api/auth/me": { ...REP, id: "someone-else", role: "manager" } });
+
+    expect(await screen.findByRole("heading", { level: 2, name: "Findings" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Add a note")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Confirm/ })).not.toBeInTheDocument();
   });
 });

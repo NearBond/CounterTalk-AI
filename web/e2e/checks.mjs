@@ -1,6 +1,7 @@
 // The browser checks run by e2e/run.mjs (BUILD_PLAN batch 7; CODING_GUIDELINES §9.9 to §9.13).
-// Each gets a fresh browser context with a fake microphone, the API and web addresses, and the
-// seeded visits. A check throws to fail.
+// Each gets a fresh browser context with a fake microphone, signed in as the demo rep (or, with
+// `as: "k6"`, as K6's finance member), the web address, and the seeded visits. A check throws to
+// fail.
 
 import { COMPLETE_ATTEMPTS, POLL_MS } from "../src/lib/limits.ts";
 
@@ -36,8 +37,9 @@ function expect(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-async function visitCount(api) {
-  const response = await fetch(`${api}/api/visits`);
+/** The rep's visits, asked as the signed-in context (its session cookie). */
+async function visitCount(context, web) {
+  const response = await context.request.get(`${web}/api/visits`);
   return (await response.json()).items.length;
 }
 
@@ -63,8 +65,9 @@ const visitIdIn = (url) => new URL(url).pathname.split("/visits/")[1];
 /** Batch 15c's click check: K6 loaded, W6 is last week, and E's issue is merged into P1's. */
 const CLICK_CHECK = {
   name: "as finance, D2's 5 shops are a click from last week's summary, and each shop's ▶ plays its quote",
-  async run({ page, k6, seeded }) {
-    await page.goto(`${k6}/summaries?team=finance`);
+  as: "k6",
+  async run({ page, web, seeded }) {
+    await page.goto(`${web}/summaries`); // a team member's own team's
     const first = page.getByRole("list", { name: "Issues, ranked" }).getByRole("listitem").first();
     await first.waitFor();
     expect((await first.textContent()).includes("Kurkure Diwali payout"), "P1 isn't first on last week's summary");
@@ -93,7 +96,7 @@ const CLICK_CHECK = {
       );
     }
     // The same answer from the plain inbox, for the demo: its filters and clicks.
-    await page.goto(`${k6}/inbox?team=finance`);
+    await page.goto(`${web}/inbox`);
     await page.getByLabel("Category").selectOption({ label: "Schemes and promotions" });
     await page.getByLabel("Distributor").selectOption({ label: seeded.k6.d2 });
     await page.getByRole("button", { name: /Kurkure Diwali payout/ }).click();
@@ -109,9 +112,9 @@ const CLICK_CHECK = {
 export const CHECKS = [
   {
     name: "a recorder that fails to start releases the microphone, and no visit is created",
-    async run({ page, web, api }) {
+    async run({ context, page, web }) {
       await page.addInitScript(instrument, { failRecorder: true });
-      const before = await visitCount(api);
+      const before = await visitCount(context, web);
       await openRecorder(page, web);
       await page.getByRole("button", { name: "Start recording" }).click();
       await page
@@ -120,21 +123,21 @@ export const CHECKS = [
         })
         .waitFor();
       await released(page);
-      expect((await visitCount(api)) === before, "a visit was created");
+      expect((await visitCount(context, web)) === before, "a visit was created");
     },
   },
   {
     name: "leaving the page while starting stops everything",
-    async run({ page, web, api }) {
+    async run({ context, page, web }) {
       await page.addInitScript(instrument, { delayMs: 1_500 });
-      const before = await visitCount(api);
+      const before = await visitCount(context, web);
       await openRecorder(page, web);
       await page.getByRole("button", { name: "Start recording" }).click();
       await page.getByText("Starting…").waitFor();
       await page.goBack();
       await page.waitForTimeout(2_500); // past the slow microphone
       await released(page);
-      expect((await visitCount(api)) === before, "a visit was created after leaving");
+      expect((await visitCount(context, web)) === before, "a visit was created after leaving");
     },
   },
   {
@@ -204,12 +207,12 @@ export const CHECKS = [
   },
   {
     name: "the Upload panel sends a phone recording and completes it",
-    async run({ page, web, api }) {
+    async run({ context, page, web }) {
       await openRecorder(page, web);
       await page.getByLabel("Recording file").setInputFiles({ name: "phone.wav", mimeType: "audio/wav", buffer: silentWav(1) });
       await page.getByRole("button", { name: "Send" }).click();
       await page.waitForURL(/\/visits\//);
-      const visit = await (await fetch(`${api}/api/visits/${visitIdIn(page.url())}`)).json();
+      const visit = await (await context.request.get(`${web}/api/visits/${visitIdIn(page.url())}`)).json();
       expect(visit.client === "upload" && visit.completed_at !== null, `not completed: ${JSON.stringify(visit)}`);
     },
   },

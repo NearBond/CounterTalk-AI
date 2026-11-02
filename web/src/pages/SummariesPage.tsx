@@ -5,6 +5,7 @@ import { RetryAlert } from "../components/RetryAlert";
 import { SaveError } from "../components/SaveError";
 import { askSummary, getInboxOptions, getSummary, getSummaryPage, retrySummary } from "../lib/api";
 import { countOf, formatDateTime, formatPeriod, istDay } from "../lib/format";
+import { useMe, wholeOrg } from "../lib/session";
 import { usePolling, useSave } from "../lib/hooks";
 import { STATUS_LABELS } from "../lib/issues";
 import type {
@@ -32,15 +33,21 @@ const TREND_LABELS: Record<TrendLabel, string> = {
 
 /** `/summaries` (batch 15b): a team's last week, or the org's last week or month. The numbers
  * show at once, counted now; the summary's words come from a job, polled by its ID until it's
- * written, and then its own numbers show, as of when they were counted. The team is the dev
- * dropdown's until batch 16 signs a member in. */
+ * written, and then its own numbers show, as of when they were counted. A team member's are
+ * their own team's; a manager or admin picks a team, or the org's (batch 16). */
 export function SummariesPage() {
+  const me = useMe();
+  const picks = wholeOrg(me);
   const [params, setParams] = useSearchParams();
   const options = usePolling((signal) => getInboxOptions(signal), { key: "options", shouldPoll: () => false });
   const teams = options.data?.teams;
-  const scope: SummaryScope = params.get("scope") === "org" ? "org" : "team";
+  const scope: SummaryScope = picks && params.get("scope") === "org" ? "org" : "team";
   const period: PeriodKind = params.get("period") === "month" ? "month" : "week";
-  const team = teams === undefined ? null : (teams.find((t) => t.key === params.get("team")) ?? teams[0] ?? null);
+  const team = !picks
+    ? me.team
+    : teams === undefined
+      ? null
+      : (teams.find((t) => t.key === params.get("team")) ?? teams[0] ?? null);
   const teamId = scope === "team" ? (team?.id ?? null) : null;
   const pageKey = JSON.stringify([scope, teamId, period]);
   const page = usePolling((signal) => getSummaryPage(scope, teamId, period, signal), {
@@ -74,20 +81,13 @@ export function SummariesPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-4 px-4 py-8">
-      <div className="flex gap-4">
-        <Link to="/" className="text-blue-700 underline">
-          Visits
-        </Link>
-        <Link to="/inbox" className="text-blue-700 underline">
-          Inbox
-        </Link>
-      </div>
       <h1 className="text-2xl font-semibold">Summaries</h1>
       {options.error !== null && (
         <RetryAlert onRetry={options.reload}>The teams couldn't be loaded: {options.error.message}</RetryAlert>
       )}
       {teams !== undefined && (
         <section aria-label="Which summary" className="grid grid-cols-2 gap-2">
+          {picks && (
           <ChoiceSelect
             label="Summary"
             choices={[
@@ -97,6 +97,7 @@ export function SummariesPage() {
             value={scope}
             onChange={(value) => choose("scope", value)}
           />
+          )}
           <ChoiceSelect
             label="Period"
             choices={[
@@ -106,9 +107,9 @@ export function SummariesPage() {
             value={period}
             onChange={(value) => choose("period", value)}
           />
-          {scope === "team" && team !== null && (
+          {picks && scope === "team" && team !== null && (
             <ChoiceSelect
-              label="Team (for development)"
+              label="Team"
               choices={teams.map((t) => ({ key: t.key, label: t.name }))}
               value={team.key}
               onChange={(value) => choose("team", value)}

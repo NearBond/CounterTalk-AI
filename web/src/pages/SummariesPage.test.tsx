@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { routes } from "../App";
-import { type Handler, fakeApi, jsonResponse as json } from "../testUtils";
+import { FINANCE_MEMBER, type Handler, fakeApi, jsonResponse as json } from "../testUtils";
 import type { InboxOptions, Measures, OrgNumbers, Summary, SummaryPage, TeamNumbers } from "../types/api";
 
 const OPTIONS: InboxOptions = {
@@ -246,6 +246,18 @@ describe("SummariesPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("payments, Station Road: 1 cause, 3 shops")).toBeInTheDocument();
     expect(screen.getByText("Haldiram's Bhujia: 2 insights at 2 shops")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Team (for development)")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Team")).not.toBeInTheDocument();
+  });
+
+  it("is a team member's own team's: no org's summary, no team to pick", async () => {
+    open("/summaries?scope=org&team=sales_ops", {
+      "GET /api/auth/me": () => json(200, FINANCE_MEMBER),
+      [FINANCE_WEEK]: () => json(200, PAGE),
+    });
+
+    expect(await screen.findByRole("list", { name: "Issues, ranked" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Summary")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Team")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Period")).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useBlocker, useLocation, useParams } from "react-router";
+import { useBlocker, useLocation, useParams } from "react-router";
 import { ReviewPanel } from "../components/ReviewPanel";
 import { PagePlayer } from "../components/PagePlayer";
 import { RetryAlert } from "../components/RetryAlert";
@@ -8,6 +8,7 @@ import { audioUrl, getTranscript, getVisit } from "../lib/api";
 import { formatDateTime, formatDuration, shopLabel } from "../lib/format";
 import { usePlayer, usePolling, useShops } from "../lib/hooks";
 import type { Turn } from "../types/api";
+import { useMe } from "../lib/session";
 
 // One colour per speaker label, in the order they first speak. Until batch 9 decides roles, the
 // chips show speech-to-text's own labels (c0:A, c0:B, …).
@@ -33,6 +34,7 @@ function chipColours(turns: Turn[]): Map<string, string> {
 /** `/visits/:id`: the status, the audio, the review (batch 14) and the transcript. Polled only
  * while processing. */
 export function VisitPage() {
+  const me = useMe();
   const { visitId = "" } = useParams();
   // A summary's citation: /visits/<id>#insight-<insight id> (batch 15b).
   const { hash } = useLocation();
@@ -71,9 +73,6 @@ export function VisitPage() {
   const colours = chipColours(turns);
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-5 px-4 py-8">
-      <Link to="/" className="text-blue-700 underline">
-        Visits
-      </Link>
       <h1 className="text-2xl font-semibold">{shop === undefined ? "Visit" : shopLabel(shop)}</h1>
 
       {visit.error !== null && (
@@ -112,6 +111,7 @@ export function VisitPage() {
           onDirty={setDirty}
           onConfirmed={visit.reload}
           citedId={citedId}
+          readOnly={visit.data?.rep_id !== me.id}
         />
       )}
 

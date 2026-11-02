@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router";
 import { ChoiceSelect } from "../components/ChoiceSelect";
 import { PagePlayer } from "../components/PagePlayer";
 import { QuoteLine } from "../components/QuoteLine";
@@ -25,9 +24,6 @@ export function TriagePage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-4 px-4 py-8">
-      <Link to="/inbox" className="text-blue-700 underline">
-        Inbox
-      </Link>
       <h1 className="text-2xl font-semibold">Triage</h1>
       <p className="text-sm text-gray-600">Findings no team was found for. Give each one a team.</p>
       {options.error !== null && (

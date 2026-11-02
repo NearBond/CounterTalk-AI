@@ -38,6 +38,7 @@ BAD_INPUTS = {
     "write_summary.py": ([UNKNOWN, "--org", "--period", "week"], {}),
     "load_patterns.py": (["--world", "no-such-world.yaml"], {}),
     "set_password.py": (["nobody@example.com"], {"NEW_PASSWORD": ""}),
+    "add_user.py": ([UNKNOWN, "new@example.com", "New", "manager"], {"NEW_PASSWORD": ""}),
     "reprocess_failed.py": (
         ["--code", "llm_auth_failed", "--since", "2026-11-01"],
         {"DATABASE_URL": NO_SUCH_DATABASE},

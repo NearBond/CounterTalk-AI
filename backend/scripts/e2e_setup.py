@@ -1,16 +1,20 @@
 """Sets up the browser checks' own database and data folder: a dev tool for web/e2e (batch 7).
 
-    DATABASE_URL=…/countertalk_e2e DATA_DIR=<folder> uv run python scripts/e2e_setup.py
+    DATABASE_URL=…/countertalk_e2e DATA_DIR=<folder> E2E_PASSWORD=<password> \
+        uv run python scripts/e2e_setup.py
 
 It drops and recreates the database, and only one whose name ends in _e2e, so it can never wipe
 the dev or test database. Then it migrates it, seeds the demo org, and makes two visits:
 - a transcribed one: a few turns and a 20 s playback.m4a made with ffmpeg, never through Meta;
 - one still recording.
 It prints their IDs as JSON, for the runner. The words are made up, with no names. Then K6,
-the planted patterns, in an org of its own, for the click check (batch 15c): see k6().
+the planted patterns, in an org of its own, for the click check (batch 15c): see k6(). The
+demo rep and K6's finance member sign in with E2E_PASSWORD (batch 16): the runner makes a
+new one each run, so none is written down anywhere.
 """
 
 import json
+import os
 import subprocess
 import sys
 from datetime import timedelta
@@ -20,9 +24,10 @@ from alembic.config import Config
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 
-from countertalk import issues, storage, transcription
+from countertalk import auth, issues, storage, transcription
 from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import session_scope
+from countertalk.errors import DomainError, describe
 from countertalk.logs import configure_logging
 from countertalk.models import (
     Distributor,
@@ -116,6 +121,15 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+    password = os.environ.get("E2E_PASSWORD", "")
+    if not password:
+        print("no password: set E2E_PASSWORD (the runner makes one)", file=sys.stderr)
+        return 1
+    try:
+        auth.long_enough(password)  # before anything is dropped
+    except DomainError as error:
+        print(f"E2E_PASSWORD: {describe(error)}", file=sys.stderr)
+        return 1
     recreate(name)
     command.upgrade(Config(toml_file=str(BACKEND_DIR / "pyproject.toml")), "head")
     pack = load_org_pack(*DEMO_PACK)
@@ -148,7 +162,12 @@ def main() -> int:
         ]
         transcription.add_transcript(session, transcribed, "e2e", "seeded", "hi,en", turns)
     make_playback(transcribed.id)
-    print(json.dumps({"transcribed": transcribed.id, "recording": recording.id, "k6": k6()}))
+    found = k6()
+    with session_scope() as session:
+        for email in (DEMO_REP["email"], found["email"]):
+            assert auth.set_password(session, email, password), email  # seeded just now
+    seeded = {"transcribed": transcribed.id, "recording": recording.id, "rep": DEMO_REP["email"]}
+    print(json.dumps({**seeded, "k6": found}))
     return 0
 
 

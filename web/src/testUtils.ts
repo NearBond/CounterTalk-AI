@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import type { Me } from "./types/api";
 
 /** Helpers for tests that fake the API. */
 
@@ -16,8 +17,41 @@ export function rejectOnAbort(init: RequestInit | undefined, reject: (reason: un
 
 export type Handler = (body: unknown) => Response | Promise<Response>;
 
-/** A fake API: answers by "METHOD /path", recording each request's body; one may wait. */
-export function fakeApi(routes: Record<string, Handler | Handler[]>) {
+/** The signed-in user the fake API answers GET /api/auth/me with, unless a test says: a manager,
+ * who sees every page (batch 16). */
+export const MANAGER: Me = {
+  id: "u-manager",
+  name: "Demo Manager",
+  email: "manager@example.com",
+  role: "manager",
+  team: null,
+  org_name: "Demo Org",
+};
+
+export const FINANCE_MEMBER: Me = {
+  id: "u-finance",
+  name: "Finance Member",
+  email: "finance@example.com",
+  role: "team_member",
+  team: { id: "t-finance", key: "finance", name: "Finance" },
+  org_name: "Demo Org",
+};
+
+export const REP: Me = {
+  id: "u-rep",
+  name: "Demo Rep",
+  email: "rep@example.com",
+  role: "rep",
+  team: null,
+  org_name: "Demo Org",
+};
+
+const ME = "GET /api/auth/me";
+
+/** A fake API: answers by "METHOD /path", recording each request's body; one may wait. Who's
+ * signed in is MANAGER unless the routes answer GET /api/auth/me themselves. */
+export function fakeApi(given: Record<string, Handler | Handler[]>) {
+  const routes: Record<string, Handler | Handler[]> = { [ME]: () => jsonResponse(200, MANAGER), ...given };
   const sent: Array<{ route: string; body: unknown }> = [];
   const fake = vi.fn(
     (url: string, init?: RequestInit) =>
@@ -38,7 +72,8 @@ export function fakeApi(routes: Record<string, Handler | Handler[]>) {
   vi.stubGlobal("fetch", fake);
   return {
     sent: () => sent.filter((request) => !request.route.startsWith("GET")),
-    gets: () => sent.filter((request) => request.route.startsWith("GET")).length,
+    // Who's signed in is asked once per page load: not one of the page's own reads.
+    gets: () => sent.filter((request) => request.route.startsWith("GET") && request.route !== ME).length,
   };
 }
 

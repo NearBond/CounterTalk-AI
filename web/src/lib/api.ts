@@ -9,6 +9,7 @@ import type {
   FrameworkErrorCode,
   Health,
   InboxOptions,
+  Me,
   Insight,
   InsightChange,
   IssueChange,
@@ -27,6 +28,7 @@ import type {
   RouteTo,
   Segment,
   Shop,
+  SignIn,
   Summary,
   SummaryAsk,
   SummaryPage,
@@ -97,6 +99,13 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+/** The session ended (401 signed_out): set by the signed-in layout, which goes to /signin. */
+let onSignedOut: (() => void) | null = null;
+
+export function whenSignedOut(handler: (() => void) | null): void {
+  onSignedOut = handler;
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers({ Accept: "application/json", ...options.headers });
   if (options.body !== undefined) headers.set("Content-Type", "application/json");
@@ -119,7 +128,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   const body = parseJson(text);
-  if (!response.ok) throw errorFrom(response.status, body);
+  if (!response.ok) {
+    const error = errorFrom(response.status, body);
+    if (error.status === 401 && error.code === "signed_out") onSignedOut?.();
+    throw error;
+  }
   if (response.status === 204) return undefined as T;
   if (body === NOT_JSON) {
     throw new ApiError(
@@ -140,6 +153,22 @@ export async function getHealth(signal?: AbortSignal): Promise<Health> {
     if (error instanceof ApiError && error.status === 503 && isHealth(error.body)) return error.body;
     throw error;
   }
+}
+
+// --- signing in (batch 16). The session is an HttpOnly cookie: the app never sees it. -----
+
+/** 401 wrong_email_or_password, or 429 too_many_tries (its message says when to try again). */
+export function signIn(body: SignIn, signal?: AbortSignal): Promise<Me> {
+  return apiRequest("/auth/signin", { method: "POST", body, signal });
+}
+
+export function signOut(signal?: AbortSignal): Promise<void> {
+  return apiRequest("/auth/signout", { method: "POST", signal });
+}
+
+/** 401 signed_out without a session. */
+export function getMe(signal?: AbortSignal): Promise<Me> {
+  return apiRequest("/auth/me", { signal });
 }
 
 export function listShops(signal?: AbortSignal): Promise<Page<Shop>> {
@@ -227,13 +256,15 @@ export function getInboxOptions(signal?: AbortSignal): Promise<InboxOptions> {
   return apiRequest("/issues/options", { signal });
 }
 
-/** The team's issues: `team` is its key, the dev dropdown's until batch 16. */
-export function listIssues(team: string, filters: IssueFilters, signal?: AbortSignal): Promise<Issue[]> {
-  const query = new URLSearchParams({ team });
+/** A team's issues. `team` is its key: a manager's or admin's pick; null for a team member,
+ * whose team is their own. */
+export function listIssues(team: string | null, filters: IssueFilters, signal?: AbortSignal): Promise<Issue[]> {
+  const query = new URLSearchParams(team === null ? {} : { team });
   for (const [name, value] of Object.entries(filters)) {
     if (value) query.set(name, value);
   }
-  return apiRequest(`/issues?${query.toString()}`, { signal });
+  const asked = query.toString();
+  return apiRequest(asked ? `/issues?${asked}` : "/issues", { signal });
 }
 
 export function getIssue(issueId: string, signal?: AbortSignal): Promise<IssueDetail> {

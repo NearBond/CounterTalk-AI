@@ -12,6 +12,26 @@ export interface Health {
   database: "ok" | "error";
 }
 
+/** Who may do what (batch 16): countertalk/access.py. */
+export type Role = "rep" | "team_member" | "manager" | "admin";
+
+/** MeOut: the signed-in user (GET /api/auth/me, and sign-in's answer). */
+export interface Me {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  /** A team member's team; null for every other role. */
+  team: Team | null;
+  org_name: string;
+}
+
+/** SignInIn: POST /api/auth/signin. */
+export interface SignIn {
+  email: string;
+  password: string;
+}
+
 /** The framework's own error codes (countertalk/main.py). Domain errors bring their own. */
 export type FrameworkErrorCode =
   | "not_found"

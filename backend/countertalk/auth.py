@@ -82,14 +82,19 @@ def hash_password(password: str) -> str:
     return _hasher.hash(password)
 
 
-def set_password(session: Session, email: str, password: str) -> bool:
-    """Sets the user's password and ends their sessions: False if no user has the email.
-    Invalid if it's under PASSWORD_MIN_CHARS (never said back)."""
+def long_enough(password: str) -> None:
+    """Invalid if it's under PASSWORD_MIN_CHARS (the password itself never said back)."""
     if len(password) < limits.PASSWORD_MIN_CHARS:
         raise Invalid(
             "password_too_short",
             f"A password needs {limits.PASSWORD_MIN_CHARS} characters or more",
         )
+
+
+def set_password(session: Session, email: str, password: str) -> bool:
+    """Sets the user's password and ends their sessions: False if no user has the email.
+    Invalid if it's too short (long_enough)."""
+    long_enough(password)
     user = session.scalars(
         select(User).where(User.email == normal_email(email)).with_for_update()
     ).one_or_none()

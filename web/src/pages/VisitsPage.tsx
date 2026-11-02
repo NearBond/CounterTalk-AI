@@ -5,6 +5,7 @@ import { listVisits } from "../lib/api";
 import { formatDateTime, formatDuration, shopLabel } from "../lib/format";
 import { usePolling, useShops } from "../lib/hooks";
 import { anyProcessing } from "../lib/status";
+import { RECORDS, useMe } from "../lib/session";
 
 /** `/`: the rep's visits, newest first, polled only while one of them is processing (§9.12). */
 export function VisitsPage() {
@@ -12,6 +13,7 @@ export function VisitsPage() {
     key: "visits",
     shouldPoll: (page) => anyProcessing(page.items),
   });
+  const me = useMe();
   const shops = useShops();
   const shopName = new Map((shops.data?.items ?? []).map((shop) => [shop.id, shopLabel(shop)]));
 
@@ -19,12 +21,14 @@ export function VisitsPage() {
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Visits</h1>
-        <Link
-          to="/record"
-          className="rounded-md bg-red-700 px-4 py-2 font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          Record a visit
-        </Link>
+        {RECORDS.includes(me.role) && (
+          <Link
+            to="/record"
+            className="rounded-md bg-red-700 px-4 py-2 font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            Record a visit
+          </Link>
+        )}
       </div>
 
       {visits.error !== null && (
@@ -55,9 +59,6 @@ export function VisitsPage() {
       </ul>
 
       <div className="flex gap-4 text-sm">
-        <Link to="/inbox" className="text-blue-700 underline">
-          Team inbox
-        </Link>
         <Link to="/health" className="text-gray-500 underline">
           Server status
         </Link>

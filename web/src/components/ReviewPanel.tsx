@@ -20,10 +20,12 @@ interface Props {
   onConfirmed: (visit: Visit) => void;
   /** The finding a summary's citation points at (the address's #insight-<id>): focused once. */
   citedId?: string;
+  /** Not the visit's rep (a manager, a team member): they read it, and change nothing. */
+  readOnly?: boolean;
 }
 
 /** The report, tasks and insights of a visit in review or confirmed, and the rep's changes. */
-export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed, citedId }: Props) {
+export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed, citedId, readOnly = false }: Props) {
   const loaded = usePolling((signal) => getReview(visitId, signal), { key: visitId, shouldPoll: () => false });
   // The rep's changes, kept with the load they were made to; a fresh load (after confirm) wins.
   const [local, setLocal] = useState<{ from: Review; review: Review } | null>(null);
@@ -74,7 +76,7 @@ export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed
     if (from === undefined) return;
     setLocal((previous) => ({ from, review: change(previous?.from === from ? previous.review : from) }));
   };
-  const editable = review.visit.status === "review";
+  const editable = review.visit.status === "review" && !readOnly;
   const codebook = { kinds: review.kinds, categories: review.categories, severities: review.severities };
   const replace = (saved: Insight) =>
     update((r) => ({ ...r, insights: r.insights.map((found) => (found.id === saved.id ? saved : found)) }));

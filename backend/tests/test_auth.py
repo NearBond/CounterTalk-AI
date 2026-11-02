@@ -507,3 +507,17 @@ def test_sign_in_logs_no_email_password_or_token(
     for secret in (rep, rep.split("@")[0], PASSWORD, token, auth.token_hash(token)):
         assert secret not in logged
     assert "signed in user=" in logged
+
+
+def test_another_site_gets_no_cors_answer(client: TestClient) -> None:
+    """No CORS (batch 16): the API serves the web app from its own address, so another site's
+    page can't read its answers, or send a request with the session cookie that it can read."""
+    asked = client.options(
+        "/api/auth/me",
+        headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "GET"},
+    )
+    read = client.get("/api/health", headers={"Origin": "https://evil.example"})
+
+    for response in (asked, read):
+        assert "access-control-allow-origin" not in response.headers
+        assert "access-control-allow-credentials" not in response.headers
