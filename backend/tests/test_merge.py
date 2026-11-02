@@ -64,8 +64,7 @@ def refused(org: Org_, into: str, merged: str, **kwargs: Any) -> str:
     return error.value.code
 
 
-@pytest.fixture
-def two() -> tuple[Org_, str, str, str]:
+def two_issues() -> tuple[Org_, str, str, str]:
     """The tiny org's money team with two payment issues, a low one here and a high one in
     another area: the org, both issues' IDs, and the high one's visit."""
     org = tiny_org()
@@ -73,6 +72,11 @@ def two() -> tuple[Org_, str, str, str]:
     far = at_shop(org, "Far Shop", area="Far Area")
     high = visit_at(far, day(2), day(2), HIGH)
     return org, money_issue(low), money_issue(high), high
+
+
+@pytest.fixture
+def two() -> tuple[Org_, str, str, str]:
+    return two_issues()
 
 
 def test_a_merge_moves_the_routes_and_the_surviving_issue_takes_their_severity(

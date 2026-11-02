@@ -404,6 +404,12 @@ class LlmPurpose(StrEnum):
     QUOTE_REPAIR = "quote_repair"
     # Batch 15b's narrative: about a summary, never a visit.
     SUMMARY = "summary"
+    # Batch 15c's merge suggestions, asked in a team summary's job: about it too.
+    MERGE = "merge"
+
+
+# The purposes whose calls are a summary's.
+SUMMARY_PURPOSES = (LlmPurpose.SUMMARY, LlmPurpose.MERGE)
 
 
 class LlmCall(Base):
@@ -415,10 +421,10 @@ class LlmCall(Base):
         CheckConstraint(_one_of("purpose", LlmPurpose), name="purpose"),
         # An answered call has no error, and a failed one has its code.
         CheckConstraint("ok = (error IS NULL)", name="ok_or_error"),
-        # A summary's call, and only that, names its summary, and no visit: its cost stays
-        # countable (batch 15c's --patterns reports it).
+        # A summary's call (its narrative or its merge suggestions), and only that, names its
+        # summary, and no visit: its cost stays countable (batch 15c's --patterns reports it).
         CheckConstraint(
-            f"(purpose = '{LlmPurpose.SUMMARY}') = (summary_id IS NOT NULL)", name="summary"
+            f"({_one_of('purpose', SUMMARY_PURPOSES)}) = (summary_id IS NOT NULL)", name="summary"
         ),
         CheckConstraint("summary_id IS NULL OR visit_id IS NULL", name="visit_or_summary"),
     )
@@ -1232,6 +1238,9 @@ class Summary(Base):
     numbers: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
     counted_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     narrative: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
+    # A team's summary's merge suggestion step, once it ran (merges.py, batch 15c): how many
+    # calls it made and suggestions it kept and dropped. Set, a retried job doesn't ask again.
+    merge_step: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
     # The LLM that wrote the narrative; None without one.
     model: Mapped[str | None] = mapped_column(String)
     failure_reason: Mapped[str | None] = mapped_column(String)

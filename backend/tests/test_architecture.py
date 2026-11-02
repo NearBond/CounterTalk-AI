@@ -1026,6 +1026,8 @@ WRITTEN_ONCE = {
     "list(pack.playbook.severities)": "countertalk/issues.py",
     # An answer that didn't fit, as the caller's PermanentError: llm_calls.answer_of (15b-4).
     '.code == "llm_answer_invalid"': "countertalk/llm_calls.py",
+    # A summary job's lock on its summary: summary_jobs._locked (15c-2, R1 in 15c-1 and 15c-2).
+    ".where(Summary.id == summary_id)\n": "countertalk/summary_jobs.py",
     # The insights a summary counts: summaries.shown_in.
     "Visit.created_at >= period.start": "countertalk/summaries.py",
 }

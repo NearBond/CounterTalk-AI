@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import Select, exists, select, text
+from sqlalchemy import Select, exists, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -44,8 +44,10 @@ from countertalk.models import (
     Issue,
     IssueEvent,
     IssueEventField,
+    IssueMergeSuggestion,
     IssueStatus,
     Shop,
+    SuggestionStatus,
     Visit,
     new_id,
     parse_id,
@@ -561,10 +563,25 @@ def merge(
         for issue, field, before, after in events
     )
     source.status, source.merged_into_id = IssueStatus.MERGED.value, target.id
+    session.execute(
+        update(IssueMergeSuggestion)
+        .where(
+            IssueMergeSuggestion.org_id == org_id,
+            IssueMergeSuggestion.pair_key == pair_key(target.id, source.id),
+            IssueMergeSuggestion.status == SuggestionStatus.OPEN,
+        )
+        .values(status=SuggestionStatus.MERGED, decided_by_id=actor, decided_at=now)
+        .execution_options(synchronize_session=False)
+    )
     target.version += 1
     source.version += 1
     log.info("issue merged issue=%s into=%s routes=%d", source.id, target.id, len(routes))
     return target
+
+
+def pair_key(first: str, second: str) -> str:
+    """Two issues' IDs, sorted: a merge suggestion's pair, whichever way round (batch 15c)."""
+    return "|".join(sorted((first, second)))
 
 
 def missing_issue() -> NotFound:

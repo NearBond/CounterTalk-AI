@@ -140,6 +140,10 @@ NARRATIVE_ISSUES = 10
 NARRATIVE_QUOTES = 3
 OVERVIEW_SENTENCES = 3
 ISSUE_SENTENCES = 2
+# Merge suggestions (batch 15c): each issue's newest insights' summaries the AI sees.
+MERGE_INSIGHT_SUMMARIES = 3
+# ...and the longest reason shown with Merge and Dismiss: one plain sentence.
+MERGE_REASON_MAX_CHARS = 300
 
 # Linking (batch 12): a fuzzy match needs this rapidfuzz ratio or more on the linking key. From
 # the tests and K1 (1 Nov): misspellings of the right item scored 87 and up, and "Crunchy", in

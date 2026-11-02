@@ -8,9 +8,10 @@
 - find: one summary, for the page to poll by its ID until it's written: cheap (nothing is
   counted), and still the same summary after the week or month turns over.
 - retry: a failed summary back to writing, with a new job. One that isn't failed is left as it is.
-- run, the `summary` job's work: count the numbers and check them (summaries.check), have Muse
-  Spark write the narrative and check its sentences (narrative.py), then keep both with the
-  summary. A job that dies leaves its summary failed with why (jobs.py).
+- run, the `summary` job's work: count the numbers and check them (summaries.check); for a
+  team's, ask once for merge suggestions (merges.py, batch 15c); have Muse Spark write the
+  narrative and check its sentences (narrative.py), then keep both with the summary. A job
+  that dies leaves its summary failed with why (jobs.py).
 
 Lock order: the summary, then its job (jobs.py).
 """
@@ -28,9 +29,9 @@ from sqlalchemy import Select, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from countertalk import extraction, jobs, llm_calls, narrative, rows, summaries
+from countertalk import extraction, jobs, llm_calls, merges, narrative, rows, summaries
 from countertalk.db import session_scope
-from countertalk.errors import Invalid, NotFound, PermanentError
+from countertalk.errors import DomainError, Invalid, NotFound, PermanentError
 from countertalk.llm.base import StructuredLlm
 from countertalk.models import (
     JobKind,
@@ -149,6 +150,7 @@ def run(
             return
         org_id, team_id = found.org_id, found.team_id
         period = summaries.period_from(found.period_start, found.period_end)
+        stepped = found.merge_step is not None
     pack = extraction.pack_for(org_id, packs, playbooks)
     counted_at = utc_now()
     with session_scope(read_only=True) as session:
@@ -158,15 +160,13 @@ def run(
         log.error("summary numbers don't add up summary=%s problem=%s", summary_id, problem)
     if problems:
         raise PermanentError("summary_numbers_unchecked", "The numbers didn't pass their checks")
+    if team_id is not None and not stepped and llm is not None:
+        # Once, before the narrative: a retried job doesn't ask (or pay) again.
+        _keep_step(summary_id, _merge_step(summary_id, llm, claim_lost, pack, org_id, team_id))
     numbers_json = NUMBERS.dump_python(numbers, mode="json")
     written = _narrative(summary_id, llm, claim_lost, pack, org_id, numbers)
     with session_scope() as session:
-        found = session.scalars(
-            select(Summary)
-            .where(Summary.id == summary_id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        ).one()
+        found = _locked(session, summary_id)
         if found.status != SummaryStatus.WRITING:
             return
         found.numbers, found.counted_at = numbers_json, counted_at
@@ -175,6 +175,48 @@ def run(
         found.model = llm.model if written is not None and llm is not None else None
         found.status = SummaryStatus.READY
     log.info("summary ready summary=%s", summary_id)
+
+
+def _merge_step(
+    summary_id: str,
+    llm: StructuredLlm,
+    claim_lost: threading.Event | None,
+    pack: OrgPack,
+    org_id: str,
+    team_id: str,
+) -> dict[str, Any]:
+    """merges.suggest, which never fails the summary: an extra (merges.py). A lost claim
+    still stops the job; anything else is logged (its frames, never its words) and kept as
+    the step's error, so a retry doesn't ask again."""
+    failed = "merge suggestions failed summary=%s code=%s"
+    try:
+        return merges.suggest(summary_id, llm, claim_lost, pack, org_id, team_id)
+    except DomainError as error:
+        if error.code == "claim_lost":
+            raise
+        log.warning(failed, summary_id, error.code, exc_info=True)
+        return {"error": error.code}
+    except Exception:
+        log.warning(failed, summary_id, "unexpected_error", exc_info=True)
+        return {"error": "unexpected_error"}
+
+
+def _locked(session: Session, summary_id: str) -> Summary:
+    """The job's own summary, locked and read fresh (R6)."""
+    return session.scalars(
+        select(Summary)
+        .where(Summary.id == summary_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).one()
+
+
+def _keep_step(summary_id: str, step: dict[str, Any]) -> None:
+    """The merge suggestion step's counts, kept with the summary while it's being written."""
+    with session_scope() as session:
+        found = _locked(session, summary_id)
+        if found.status == SummaryStatus.WRITING:
+            found.merge_step = step
 
 
 def _narrative(
