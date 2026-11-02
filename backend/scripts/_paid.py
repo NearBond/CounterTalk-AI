@@ -19,7 +19,13 @@ from countertalk.errors import RetryableError
 from countertalk.llm import pricing
 from countertalk.llm.base import CallDetails, Message, StructuredLlm
 from countertalk.llm.client import MetaLlm
-from countertalk.models import Job, JobKind, LlmPurpose, Visit, VisitStatus
+from countertalk.models import Job, JobKind, JobState, LlmPurpose, Visit, VisitStatus
+
+# A dry run's estimate of a summary's answers (batch 15b, 15c), reasoning added on top:
+# the narrative, an overview and a sentence or two for each of up to ten issues, each citing
+# an insight or two by its ID; a merge suggestion call, a few pairs at most, each with a reason.
+NARRATIVE_ANSWER_TOKENS = 1_500
+MERGE_ANSWER_TOKENS = 400
 
 
 def model_llm() -> StructuredLlm | None:
@@ -155,3 +161,22 @@ def job_state(job_id: str) -> tuple[str, str | None]:
             select(Job.state, Job.last_error).where(Job.id == job_id)
         ).one()
         return state, last_error
+
+
+def stop_code(name: str, done: JobRun | None) -> int | None:
+    """After each job of a paid run of several (run_eval's cases, the pattern check's teams):
+    None to go on, or the run's exit code, said in one line, once no more is sent: no job to
+    claim (1), stopped by hand (130) or left to retry (1). A failed job goes on: the results
+    show it. The caller writes no results for a run it stops: they'd score what never ran."""
+    if done is None:
+        print(f"{name}: its job couldn't be claimed, so no more is sent", file=sys.stderr)
+        return 1
+    if done.stopped:
+        print(f"{name}: stopped, so no more is sent", file=sys.stderr)
+        return 130
+    if done.state == JobState.QUEUED:
+        print(f"{name}: {done.last_error}; no more is sent", file=sys.stderr)
+        return 1
+    if done.state != JobState.DONE:
+        print(f"{name}: failed: {done.last_error}", file=sys.stderr)
+    return None

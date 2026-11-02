@@ -19,17 +19,10 @@ from sqlalchemy import func, select
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.errors import DomainError, describe
 from countertalk.logs import configure_logging
-from countertalk.models import Org, User, Visit
+from countertalk.models import Org, Visit
 from scripts import _k6
 
 NAME = "K6 world (example)"
-
-
-def member_email(org_id: str) -> str:
-    """The finance member _k6 makes: its address is finance-<org id's start>@example.com."""
-    with session_scope(read_only=True) as session:
-        query = select(User.email).where(User.org_id == org_id, User.email.startswith("finance-"))
-        return session.scalars(query).one()
 
 
 def main(argv: list[str]) -> int:
@@ -60,7 +53,7 @@ def main(argv: list[str]) -> int:
             # One insight a visit; the shops map holds K6's letters too, so they're counted by ID.
             made = sum(len(ids) for ids in world.insights.values())
             print(f"loaded: org {found}, {len(set(world.shops.values()))} shops, {made} visits")
-        print(f"to see it in the app: DEBUG=1 and DEV_USER_EMAIL={member_email(found)}")
+        print(f"to see it in the app: DEBUG=1 and DEV_USER_EMAIL={_k6.finance_email(found)}")
     except SETUP_ERRORS as error:
         print(f"failed: {setup_trouble(error)}", file=sys.stderr)
         return 1

@@ -24,7 +24,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, TypedDict
 
-from sqlalchemy import distinct, exists, select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from countertalk import issues, limits, summaries
@@ -254,7 +254,7 @@ def _quoted(
 ) -> set[str]:
     """The items with a quote from the period: one row an issue, not every quote."""
     owner = _owners(items)
-    found = _quotable(org_id, period, owner, distinct(InsightRoute.issue_id))
+    found = _quotable(org_id, period, owner, InsightRoute.issue_id).distinct()
     return {owner[issue_id] for issue_id in session.scalars(found)}
 
 

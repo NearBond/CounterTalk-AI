@@ -48,3 +48,20 @@ def test_a_database_that_doesnt_answer_is_one_line(
     assert capsys.readouterr().err == (
         "what was paid can't be read: the database didn't answer (llm_calls has it)\n"
     )
+
+
+STOPS = [
+    (None, 1, "rp01: its job couldn't be claimed, so no more is sent\n"),
+    (_paid.JobRun("failed", "busy", stopped=True), 130, "rp01: stopped, so no more is sent\n"),
+    (_paid.JobRun("queued", "busy"), 1, "rp01: busy; no more is sent\n"),
+    (_paid.JobRun("failed", "bad"), None, "rp01: failed: bad\n"),
+    (_paid.JobRun("done", None), None, ""),
+]
+
+
+@pytest.mark.parametrize(("done", "code", "said"), STOPS)
+def test_a_run_of_jobs_stops_only_once_no_more_should_be_sent(
+    done: _paid.JobRun | None, code: int | None, said: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _paid.stop_code("rp01", done) == code
+    assert capsys.readouterr().err == said

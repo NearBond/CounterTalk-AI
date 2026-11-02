@@ -17,7 +17,7 @@ from countertalk import issues, merges, summary_jobs, worker
 from countertalk.db import session_scope
 from countertalk.errors import Conflict, NotFound, RetryableError
 from countertalk.llm.base import Message, Outcome
-from countertalk.models import Insight, Issue, IssueMergeSuggestion, Job, LlmCall, Visit
+from countertalk.models import Issue, IssueMergeSuggestion, Job, LlmCall
 from scripts import _k6
 from tests.conftest import ORG_PACK_FIXTURES, lock_waiters, open_transactions
 from tests.test_issue_changes import change, now_of
@@ -26,7 +26,6 @@ from tests.test_merge import LOW, money_issue, two_issues
 from tests.test_narrative import at_shop, day
 from tests.test_review import PACK
 from tests.test_roles import call, tiny_org
-from tests.test_summaries import issue_of as k6_issue_of
 from tests.test_summaries import visit_at
 from tests.test_summary_jobs import WORKER_ID, asked, jobs_of, summary_row, team
 from tests.test_visits import Org_
@@ -455,8 +454,8 @@ def test_a_retried_job_doesn_t_ask_for_suggestions_again(two: tuple[Org_, str, s
 
 def test_k6_s_finance_gets_one_suggestion_e_s_issue_into_p1() -> None:
     world = _k6.load()
-    p1 = k6_issue_of(world, world.insights["P1"][0], "finance")
-    e = e_issue_of(world)
+    p1 = _k6.issue_of(world, world.insights["P1"][0], "finance")
+    e = _k6.expected_merge(world)[1]
 
     def p1_only(payload: dict[str, Any]) -> dict[str, Any]:
         ids = {i["id"] for i in payload["issues"]}
@@ -477,13 +476,3 @@ def test_k6_s_finance_gets_one_suggestion_e_s_issue_into_p1() -> None:
     assert [(s.into_issue_id, s.merge_issue_id, s.status) for s in found] == [(p1, e, "open")]
     assert summary_row(summary_id).merge_step["kept"] == 1
     assert {name for name, _ in llm.asked} == {"merge_suggestions", "summary_narrative"}
-
-
-def e_issue_of(world: _k6.World) -> str:
-    with session_scope(read_only=True) as session:
-        e_insight = session.scalars(
-            select(Insight.id)
-            .join(Visit, Visit.id == Insight.visit_id)
-            .where(Insight.id.in_(world.insights["P1"]), Visit.shop_id == world.shops["E"])
-        ).one()
-    return k6_issue_of(world, e_insight, "finance")

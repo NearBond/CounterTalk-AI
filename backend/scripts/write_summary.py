@@ -42,11 +42,14 @@ from countertalk.models import (
 )
 from countertalk.playbooks import ORG_PACKS_DIR, PLAYBOOKS_DIR
 from countertalk.summaries import Period, PeriodKind
-from scripts._paid import Stopped, estimate, model_llm, paid_run, run_claimed
-
-# A dry run's estimate of the answer's tokens: an overview, and a sentence or two for each of
-# up to ten issues, each citing an insight or two by its ID. Reasoning is added on top (pricing).
-ANSWER_TOKENS = 1_500
+from scripts._paid import (
+    NARRATIVE_ANSWER_TOKENS,
+    Stopped,
+    estimate,
+    model_llm,
+    paid_run,
+    run_claimed,
+)
 
 
 def described(period: Period) -> str:
@@ -81,7 +84,7 @@ def dry_run(
     if not request.offered:
         print("nothing to cite: --yes would keep only its numbers, and pay nothing")
         return 0
-    cost = estimate(request.messages, request.schema, ANSWER_TOKENS)
+    cost = estimate(request.messages, request.schema, NARRATIVE_ANSWER_TOKENS)
     print(
         f"to send: {len(request.sections)} issues, {len(request.offered)} quotes;"
         f" {cost.chars:,} characters; about {cost.tokens_in:,} input and {cost.tokens_out:,}"

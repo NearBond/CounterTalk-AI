@@ -1,6 +1,7 @@
 // The browser checks (BUILD_PLAN batch 7): `npm run e2e`, locally (not in CI yet).
 //
 // Starts the API, the worker and Vite on a throwaway database (countertalk_e2e) and data folder,
+// and a second API for K6 serving the built app (batch 15c's click check),
 // with MODEL_API_KEY empty so nothing can call Meta. Seeds them (scripts/e2e_setup.py makes a
 // transcribed visit without Meta), runs the checks in Chrome or Edge with a fake microphone, and
 // stops everything on every path: a failed check, an error, or Ctrl+C.
@@ -15,8 +16,11 @@ const WEB_DIR = resolve(import.meta.dirname, "..");
 const BACKEND_DIR = resolve(WEB_DIR, "..", "backend");
 const API_PORT = 8011;
 const WEB_PORT = 5183;
+// K6's own API (batch 15c's click check), serving the built app as K6's finance member.
+const K6_PORT = 8012;
 const API = `http://127.0.0.1:${API_PORT}`;
 const WEB = `http://127.0.0.1:${WEB_PORT}`;
+const K6 = `http://127.0.0.1:${K6_PORT}`;
 // The compose database's server, as the backend tests use it; E2E_DATABASE_SERVER overrides it.
 const SERVER = process.env.E2E_DATABASE_SERVER ?? "postgresql+psycopg://countertalk:countertalk@127.0.0.1:5432";
 const BROWSERS = [
@@ -48,9 +52,14 @@ let stopping = false;
 /** Set when a server or the worker exits by itself: the run stops instead of testing a ghost. */
 let died = null;
 
-function start(name, command, args, cwd) {
+function start(name, command, args, cwd, more = {}) {
   const log = createWriteStream(join(dataDir, `${name}.log`));
-  const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
+  const child = spawn(command, args, {
+    cwd,
+    env: { ...env, ...more },
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: process.platform !== "win32",
+  });
   child.stdout.pipe(log);
   child.stderr.pipe(log);
   const closed = new Promise((done) => child.on("close", () => log.end(done)));
@@ -126,7 +135,7 @@ async function portFree(url) {
 }
 
 async function main() {
-  for (const url of [API, WEB]) {
+  for (const url of [API, WEB, K6]) {
     if (!(await portFree(url))) throw new Error(`${url} is already taken: stop what's running there`);
   }
   const setup = spawnSync("uv", ["run", "python", "scripts/e2e_setup.py"], { cwd: BACKEND_DIR, env, encoding: "utf8" });
@@ -138,6 +147,21 @@ async function main() {
   start("vite", process.execPath, [join(WEB_DIR, "node_modules", "vite", "bin", "vite.js"), "--port", String(WEB_PORT), "--strictPort"], WEB_DIR);
   await waitFor(`${API}/api/health`, async (response) => response.ok && (await response.json()).database === "ok");
   await waitFor(`${WEB}/`, async (response) => response.ok);
+  // K6's API: the built app as K6's finance member (DEV_USER_EMAIL needs DEBUG=1), so the
+  // other checks keep the demo rep.
+  const dist = join(dataDir, "dist");
+  const vite = join(WEB_DIR, "node_modules", "vite", "bin", "vite.js");
+  const build = spawnSync(process.execPath, [vite, "build", "--outDir", dist, "--emptyOutDir"], {
+    cwd: WEB_DIR,
+    encoding: "utf8",
+  });
+  if (build.status !== 0) throw new Error(`the web app didn't build:\n${build.stderr}`);
+  start("api-k6", "uv", ["run", "uvicorn", "countertalk.main:app", "--port", String(K6_PORT)], BACKEND_DIR, {
+    DEBUG: "1",
+    DEV_USER_EMAIL: seeded.k6.email,
+    WEB_DIST_DIR: dist,
+  });
+  await waitFor(`${K6}/api/health`, async (response) => response.ok && (await response.json()).database === "ok");
 
   // By its file: on Windows, `chrome.exe --version` would open the browser instead.
   const executablePath = BROWSERS.find((path) => existsSync(path));
@@ -155,7 +179,7 @@ async function main() {
     const started = Date.now();
     try {
       if (died !== null) throw new Error(died);
-      await withTimeout(check.run({ context, page: await context.newPage(), api: API, web: WEB, seeded }), CHECK_MS, check.name);
+      await withTimeout(check.run({ context, page: await context.newPage(), api: API, web: WEB, k6: K6, seeded }), CHECK_MS, check.name);
       print(`ok    ${check.name} (${((Date.now() - started) / 1000).toFixed(1)} s)`);
     } catch (error) {
       failed += 1;

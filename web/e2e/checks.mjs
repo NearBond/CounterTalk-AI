@@ -60,6 +60,52 @@ async function startRecording(page) {
 
 const visitIdIn = (url) => new URL(url).pathname.split("/visits/")[1];
 
+/** Batch 15c's click check: K6 loaded, W6 is last week, and E's issue is merged into P1's. */
+const CLICK_CHECK = {
+  name: "as finance, D2's 5 shops are a click from last week's summary, and each shop's ▶ plays its quote",
+  async run({ page, k6, seeded }) {
+    await page.goto(`${k6}/summaries?team=finance`);
+    const first = page.getByRole("list", { name: "Issues, ranked" }).getByRole("listitem").first();
+    await first.waitFor();
+    expect((await first.textContent()).includes("Kurkure Diwali payout"), "P1 isn't first on last week's summary");
+    await first.getByRole("link", { name: "Its reps, shops and quotes" }).click(); // click 1
+    const shops = page.locator('ul[aria-label$="\'s shops"] > li');
+    await shops.first().waitFor();
+    const count = await shops.count();
+    expect(count === 5, `the drill-down shows ${count} shops, not P1's 5`);
+    for (let i = 0; i < count; i += 1) {
+      const shop = shops.nth(i);
+      expect((await shop.textContent()).includes(seeded.k6.d2), `shop ${i + 1} isn't D2's`);
+      const before = await page.evaluate(() => {
+        const audio = document.querySelector("audio");
+        audio?.pause();
+        return audio?.currentSrc ?? "";
+      });
+      await shop.getByRole("button", { name: /^Play from/ }).first().click(); // click 2: it plays
+      // Its own visit's recording (each shop's is another visit), playing, past its start (0 s).
+      await page.waitForFunction(
+        (previous) => {
+          const audio = document.querySelector("audio");
+          return audio !== null && audio.currentSrc !== previous && !audio.paused && audio.currentTime > 0.2;
+        },
+        before,
+        { timeout: 15_000 },
+      );
+    }
+    // The same answer from the plain inbox, for the demo: its filters and clicks.
+    await page.goto(`${k6}/inbox?team=finance`);
+    await page.getByLabel("Category").selectOption({ label: "Schemes and promotions" });
+    await page.getByLabel("Distributor").selectOption({ label: seeded.k6.d2 });
+    await page.getByRole("button", { name: /Kurkure Diwali payout/ }).click();
+    const insights = page.getByRole("list", { name: "Its insights" }).getByRole("listitem");
+    await insights.first().waitFor();
+    process.stdout.write(
+      `      the summary: 1 click to D2's ${count} shops, 1 more to play a quote; ` +
+        `the inbox: 2 filters and 1 click to ${await insights.count()} insights, with no week marked\n`,
+    );
+  },
+};
+
 export const CHECKS = [
   {
     name: "a recorder that fails to start releases the microphone, and no visit is created",
@@ -204,6 +250,7 @@ export const CHECKS = [
       expect(reads === 1, `it was read ${reads} times`);
     },
   },
+  CLICK_CHECK,
 ];
 
 /** A WAV of silence, as a phone's voice recorder might save. */

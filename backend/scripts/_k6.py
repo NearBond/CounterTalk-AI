@@ -62,6 +62,8 @@ class World:
     pack: OrgPack
     w1_start: date
     teams: dict[str, str]
+    # The finance team member, who merges and resolves: finance_email(org_id) is theirs.
+    finance: str
     # S01-S30 and K6's letters, to shop IDs.
     shops: dict[str, str]
     # P1-P5 to their insights' IDs, in the world's order.
@@ -73,8 +75,24 @@ class World:
         return period_of("week", self.w1_start + timedelta(weeks=number - 1))
 
 
-def load(path: Path = WORLD, packs: Path = ORG_PACKS_DIR, playbooks: Path = PLAYBOOKS_DIR) -> World:
+def finance_email(org_id: str) -> str:
+    """The finance member's example address, for DEV_USER_EMAIL (with DEBUG=1)."""
+    return f"finance-{org_id[:8]}@example.com"
+
+
+def load(
+    path: Path = WORLD,
+    packs: Path = ORG_PACKS_DIR,
+    playbooks: Path = PLAYBOOKS_DIR,
+    w1_start: date | None = None,
+) -> World:
+    """The world, from its own W1 (21 Sep 2026), or from `w1_start` (a Monday): the click check
+    (batch 15c) moves it so its W6 is always last week, as the summaries page shows it."""
     spec = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if w1_start is not None:
+        if w1_start.weekday() != 0:
+            raise ValueError("the world starts on a Monday")
+        spec["w1_start"] = w1_start
     pack = load_org_pack(spec["org_pack"]["id"], spec["org_pack"]["version"], packs, playbooks)
     world, people = _org(spec, pack)
     events = [("visit", _moment(spec, v["week"], v["day"], VISIT_AT), v) for v in spec["visits"]]
@@ -86,7 +104,7 @@ def load(path: Path = WORLD, packs: Path = ORG_PACKS_DIR, playbooks: Path = PLAY
             if kind == "visit":
                 _visit(world, people, event, moment)
             else:
-                _resolve(world, people["finance"], event)
+                _resolve(world, world.finance, event)
     return world
 
 
@@ -125,13 +143,12 @@ def _org(spec: dict[str, Any], pack: OrgPack) -> tuple[World, dict[str, str]]:
             people[rep] = user.id
         member = User(
             org_id=org.id,
-            email=f"finance-{org.id[:8]}@example.com",
+            email=finance_email(org.id),
             name="Finance member (example)",
             role=Role.TEAM_MEMBER,
         )
         session.add(member)
         session.flush()
-        people["finance"] = member.id
         distributors = {
             key: session.scalars(
                 select(Distributor).where(Distributor.org_id == org.id, Distributor.key == key)
@@ -159,7 +176,7 @@ def _org(spec: dict[str, Any], pack: OrgPack) -> tuple[World, dict[str, str]]:
                 select(CatalogItem.key, CatalogItem.id).where(CatalogItem.org_id == org.id)
             )
         }
-        world = World(org.id, pack, spec["w1_start"], teams, shops)
+        world = World(org.id, pack, spec["w1_start"], teams, member.id, shops)
         world.items = items
         return world, people
 
@@ -271,3 +288,27 @@ def _resolve(world: World, actor: str, event: dict[str, Any]) -> None:
             status="resolved",
             note=event["note"],
         )
+
+
+def issue_of(world: World, insight_id: str, team: str) -> str:
+    """The issue an insight is in, in a team's inbox."""
+    with session_scope(read_only=True) as session:
+        return session.scalars(
+            select(InsightRoute.issue_id).where(
+                InsightRoute.insight_id == insight_id, InsightRoute.team_id == world.teams[team]
+            )
+        ).one()
+
+
+def expected_merge(world: World) -> tuple[str, str]:
+    """K6's one expected merge suggestion: E's issue (its scheme isn't linked) into P1's, both
+    finance's. (P1's issue, E's issue)."""
+    with session_scope(read_only=True) as session:
+        e_insight = session.scalars(
+            select(Insight.id)
+            .join(Visit, Visit.id == Insight.visit_id)
+            .where(Insight.id.in_(world.insights["P1"]), Visit.shop_id == world.shops["E"])
+        ).one()
+    return issue_of(world, world.insights["P1"][0], "finance"), issue_of(
+        world, e_insight, "finance"
+    )

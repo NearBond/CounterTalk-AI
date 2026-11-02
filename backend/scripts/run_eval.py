@@ -4,6 +4,10 @@ paid runs are the planner's.
 
     uv run python scripts/run_eval.py [rp01 rp02 …] [--yes] [--cases <folder>]
         [--root <folder>] [--playbooks <folder>]
+    uv run python scripts/run_eval.py --patterns [--yes] [--root <folder>] [--playbooks <folder>]
+
+--patterns runs K6's pattern check instead (batch 15c, scripts/_patterns.py): every team's
+W6 summary, its merge suggestions and narrative, scored against K6.
 
 Only the database countertalk_eval: DATABASE_URL's server, with the name swapped before
 anything connects, created and migrated if need be. A guard refuses any other before a write,
@@ -81,7 +85,16 @@ from countertalk.playbooks import (
 )
 from countertalk.reporting import buckets, share
 from countertalk.transcription import add_transcript
-from scripts._paid import Paid, Stopped, estimate, model_llm, paid_run, run_extract_job
+from scripts import _patterns
+from scripts._paid import (
+    Paid,
+    Stopped,
+    estimate,
+    model_llm,
+    paid_run,
+    run_extract_job,
+    stop_code,
+)
 from scripts.compare_extraction import (
     Expected,
     Extracted,
@@ -514,17 +527,10 @@ def run(
         with session_scope(read_only=True) as session:
             visit = session.get_one(Visit, visits[case.name])
         done = run_extract_job(visit, False, llm, folders)
-        if done is None:
-            print(f"{case.name}: its visit had no job to run", file=sys.stderr)
-            return 1
-        if done.stopped:
-            print(f"{case.name}: stopped, so no more is sent", file=sys.stderr)
-            return 130
-        if done.state == JobState.QUEUED:
-            print(f"{case.name}: {done.last_error}; no more is sent", file=sys.stderr)
-            return 1
-        if done.state != JobState.DONE:
-            print(f"{case.name}: failed: {done.last_error}", file=sys.stderr)
+        code = stop_code(case.name, done)
+        if code is not None:
+            return code
+        assert done is not None
         states[case.name] = done.state
     return states
 
@@ -629,6 +635,11 @@ def main(argv: list[str], llm: StructuredLlm | None = None) -> int:
     parser = argparse.ArgumentParser(prog="run_eval.py")
     parser.add_argument("names", nargs="*", help="the cases to run (every one if none)")
     parser.add_argument("--yes", action="store_true", help="send them, and pay")
+    parser.add_argument(
+        "--patterns",
+        action="store_true",
+        help="the K6 pattern check (batch 15c): merge suggestions and narratives, not cases",
+    )
     parser.add_argument("--cases", type=Path, default=CASES, help="the eval cases' folder")
     parser.add_argument("--root", type=Path, default=ORG_PACKS_DIR, help="the org packs' folder")
     parser.add_argument(
@@ -637,6 +648,17 @@ def main(argv: list[str], llm: StructuredLlm | None = None) -> int:
     args = parser.parse_args(argv)
     folders = {"packs": args.root, "playbooks": args.playbooks}
     try:
+        if args.patterns:
+            if args.names or args.cases != CASES:
+                print("--patterns runs K6, not cases: no case names or --cases", file=sys.stderr)
+                return 1
+            if args.yes:
+                llm = llm or model_llm()
+                if llm is None:
+                    return 1
+            use_eval_database()
+            prepare_database()
+            return _patterns.check(args.yes, llm, folders, write_results)
         cases = load_cases(args.cases, args.names)
         keys = sorted({(c.file.org_pack.id, c.file.org_pack.version) for c in cases})
         packs = {key: load_org_pack(*key, args.root, args.playbooks) for key in keys}

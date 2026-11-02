@@ -17,6 +17,7 @@ from countertalk.llm.base import Outcome
 from countertalk.main import create_app
 from countertalk.models import Org, Summary, User, ist_date
 from scripts import load_patterns, write_summary
+from scripts._paid import NARRATIVE_ANSWER_TOKENS
 from tests.conftest import ORG_PACK_FIXTURES
 from tests.test_narrative import day, paid, request, said
 from tests.test_review_api import seeded_demo
@@ -61,10 +62,10 @@ def test_a_dry_run_says_what_would_be_sent_and_sends_and_writes_nothing(
     cost = pricing.cost(
         pricing.input_tokens(found.messages, found.schema),
         0,
-        pricing.output_tokens(write_summary.ANSWER_TOKENS),
+        pricing.output_tokens(NARRATIVE_ANSWER_TOKENS),
     )
     tokens_in = pricing.input_tokens(found.messages, found.schema)
-    tokens_out = pricing.output_tokens(write_summary.ANSWER_TOKENS)
+    tokens_out = pricing.output_tokens(NARRATIVE_ANSWER_TOKENS)
     first, last = ist_date(LAST_WEEK.start), ist_date(LAST_WEEK.end - timedelta(days=1))
     assert (code, llm.asked, summaries_of(org)) == (0, [], 0)
     assert out.splitlines() == [

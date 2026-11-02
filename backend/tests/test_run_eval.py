@@ -15,12 +15,13 @@ from countertalk.db import session_scope
 from countertalk.errors import RetryableError
 from countertalk.llm import pricing
 from countertalk.llm.base import Outcome
-from countertalk.models import LlmCall, Org, Visit, VisitStatus
+from countertalk.models import LlmCall, Org, Summary, Visit, VisitStatus
 from countertalk.routing import decide
 from scripts import run_eval
 from scripts.compare_extraction import Expected, Extracted
 from tests.conftest import ORG_PACK_FIXTURES, PINNED_SETTINGS, TEST_DATABASE
 from tests.test_extraction import VISITED, answer, insight
+from tests.test_merges import Answer, ByName
 from tests.test_roles import VISIT, FakeLlm, call, tiny
 
 BUSY = Outcome(calls=(call("llm_unavailable"),), error=RetryableError("llm_unavailable", "B"))
@@ -381,3 +382,113 @@ def test_an_unverified_insight_is_left_out_of_the_routing_s_whole() -> None:
         "routing, rule: 0/0 of matched and verified",
         "routing: 1 matched but unverified, not counted",
     ]
+
+
+# --- the K6 pattern check (batch 15c) --------------------------------------------------------
+
+P1_TITLE = "Schemes and promotions · Kurkure Diwali payout · Riverbend Traders (example)"
+E_TITLE = "Schemes and promotions · Riverbend Traders (example)"
+
+
+def the_pair(payload: dict[str, Any]) -> dict[str, Any]:
+    """Finance's schemes: E's issue into P1's, as K6 expects; anything else, nothing."""
+    ids = {issue["title"]: issue["id"] for issue in payload["issues"]}
+    if P1_TITLE in ids and E_TITLE in ids:
+        return {
+            "suggestions": [{"into": ids[P1_TITLE], "merge": [ids[E_TITLE]], "reason": "Same."}]
+        }
+    return {"suggestions": []}
+
+
+def one_sentence(payload: dict[str, Any]) -> dict[str, Any]:
+    """An overview sentence citing the first quote it was given, with no number."""
+    first = payload["issues"][0]["quotes"][0]["insight_id"]
+    return {"overview": [{"text": "Shopkeepers raised these.", "cites": [first]}], "issues": []}
+
+
+def test_the_pattern_check_s_dry_run_prices_every_team_s_w6_and_sends_nothing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert run_eval.main(["--patterns"]) == 0
+
+    out = capsys.readouterr().out.splitlines()
+    assert out[0].endswith("every team's summary of week 2026-10-26 to 2026-11-01 (W6)")
+    assert [line.split(":")[0] for line in out[1:]] == [
+        "area_manager",
+        "distribution",
+        "finance",
+        "sales_ops",
+        "trade_marketing",
+        "in all",
+    ]
+    assert out[-1].endswith("(an estimate: --patterns --yes sends it)")
+    with session_scope(read_only=True) as session:
+        assert session.scalar(select(func.count()).select_from(Summary)) == 0
+    assert calls_made() == 0
+
+
+def test_the_pattern_check_scores_the_merge_and_the_narratives(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    llm = ByName(merge_suggestions=the_pair, summary_narrative=one_sentence)
+
+    assert run_eval.main(["--patterns", "--yes"], llm=llm) == 0
+
+    [results] = (tmp_path / "evals" / "results").glob("*.json")
+    found = json.loads(results.read_text(encoding="utf-8"))
+    assert found["kind"] == "patterns"
+    assert {
+        k: found["merge"][k] for k in ("suggested", "right", "precision", "recall", "keeps_p1")
+    } == {
+        "suggested": 1,
+        "right": 1,
+        "precision": 1.0,
+        "recall": 1.0,
+        "keeps_p1": True,
+    }
+    asked = sum(1 for name, _ in llm.asked if name == "summary_narrative")
+    assert (found["narrative"]["kept"], found["narrative"]["drop_rate"]) == (asked, 0.0)
+    assert set(found["statuses"].values()) == {"ready"}
+    assert found["cost_usd"]["total"] == pytest.approx(calls_made() * pricing.cost(900, 0, 60))
+    assert "Paid:" in capsys.readouterr().out
+
+
+def test_a_pattern_job_left_to_retry_stops_the_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    busy = Outcome(
+        calls=(call("llm_busy"),), error=RetryableError("llm_busy", "Muse Spark is busy")
+    )
+    llm = ByName(merge_suggestions={"suggestions": []}, summary_narrative=busy)
+
+    assert run_eval.main(["--patterns", "--yes"], llm=llm) == 1
+
+    narratives = [name for name, _ in llm.asked if name == "summary_narrative"]
+    assert len(narratives) == 1  # the first team's, then no more
+    err = capsys.readouterr().err
+    assert err == "area_manager: RetryableError: llm_busy: Muse Spark is busy; no more is sent\n"
+    assert not (tmp_path / "evals" / "results").exists()  # it would score what never ran
+
+
+def finance_fails(payload: dict[str, Any]) -> Answer:
+    """Finance's schemes call fails; the rest suggest nothing."""
+    if P1_TITLE in {issue["title"] for issue in payload["issues"]}:
+        return Outcome(calls=(call("llm_busy"),), error=RetryableError("llm_busy", "busy"))
+    return {"suggestions": []}
+
+
+def test_a_merge_step_with_no_full_answer_is_its_own_bucket_not_a_miss(tmp_path: Path) -> None:
+    llm = ByName(merge_suggestions=finance_fails, summary_narrative=one_sentence)
+
+    assert run_eval.main(["--patterns", "--yes"], llm=llm) == 0
+
+    [results] = (tmp_path / "evals" / "results").glob("*.json")
+    merge = json.loads(results.read_text(encoding="utf-8"))["merge"]
+    assert merge["unanswered"] == {"finance": "1 of 2 calls failed"}
+    assert (merge["recall"], merge["keeps_p1"], merge["precision"]) == (None, None, None)
+
+
+def test_patterns_takes_no_cases(capsys: pytest.CaptureFixture[str]) -> None:
+    assert run_eval.main(["--patterns", "rp01"]) == 1
+
+    assert capsys.readouterr().err == "--patterns runs K6, not cases: no case names or --cases\n"

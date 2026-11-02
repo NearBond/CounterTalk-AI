@@ -16,14 +16,13 @@ from scripts import _k6
 from tests.test_extraction import insight
 from tests.test_inbox_api import confirmed, inbox, shop
 from tests.test_issue_changes import now_of
-from tests.test_merge import k6_member, money_issue
-from tests.test_merges import NOTHING, ByName, e_issue_of, suggesting
+from tests.test_merge import money_issue
+from tests.test_merges import NOTHING, ByName, suggesting
 from tests.test_narrative import at_shop, day
 from tests.test_review import PACK
 from tests.test_review_api import error_of, seeded_demo
 from tests.test_roles import tiny_org
 from tests.test_summaries import EXPECTED, reopened_by_a_low_one, resolve, visit_at
-from tests.test_summaries import issue_of as k6_issue_of
 from tests.test_summary_jobs import LAST_WEEK, summary_row, team
 from tests.test_visits import Org_
 
@@ -31,8 +30,8 @@ from tests.test_visits import Org_
 def test_k6_s_p1_merged_then_summarised_drills_down_to_the_summary_s_own_numbers() -> None:
     world = _k6.load()
     finance = world.teams["finance"]
-    p1, e = k6_issue_of(world, world.insights["P1"][0], "finance"), e_issue_of(world)
-    member = k6_member(world)
+    p1, e = _k6.issue_of(world, world.insights["P1"][0], "finance"), _k6.expected_merge(world)[1]
+    member = world.finance
     with session_scope() as session:  # 1. the merge
         issues.merge(
             session,
@@ -82,13 +81,13 @@ def test_k6_s_p1_merged_then_summarised_drills_down_to_the_summary_s_own_numbers
 
 def test_another_team_s_issue_or_a_merged_one_is_404() -> None:
     world = _k6.load()
-    p1, e = k6_issue_of(world, world.insights["P1"][0], "finance"), e_issue_of(world)
+    p1, e = _k6.issue_of(world, world.insights["P1"][0], "finance"), _k6.expected_merge(world)[1]
     with session_scope() as session:
         issues.merge(
             session,
             lambda: world.pack,
             world.org_id,
-            k6_member(world),
+            world.finance,
             (p1, now_of(p1).version),
             (e, now_of(e).version),
         )

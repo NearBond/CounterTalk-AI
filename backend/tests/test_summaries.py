@@ -42,16 +42,6 @@ def world() -> _k6.World:
     return _k6.load()
 
 
-def issue_of(world: _k6.World, insight_id: str, team: str) -> str:
-    with session_scope(read_only=True) as session:
-        query = select(InsightRoute.issue_id).where(
-            InsightRoute.insight_id == insight_id, InsightRoute.team_id == world.teams[team]
-        )
-        found = session.scalar(query)
-        assert found is not None
-        return found
-
-
 def summary(world: _k6.World, team: str, week: int) -> list[IssueNumbers]:
     with session_scope(read_only=True) as session:
         found = team_numbers(session, world.pack, world.org_id, world.teams[team], world.week(week))
@@ -67,10 +57,10 @@ def row(numbers: list[IssueNumbers], issue_id: str) -> tuple[int, Measures]:
 
 def test_k6_before_15c_s_merge(world: _k6.World) -> None:
     before = EXPECTED["before_merge"]
-    p1 = issue_of(world, world.insights["P1"][0], "finance")
-    p1_e = issue_of(world, world.insights["P1"][4], "finance")  # E's: its scheme isn't linked
-    p2 = issue_of(world, world.insights["P2"][0], "distribution")
-    p3 = issue_of(world, world.insights["P3"][0], "finance")
+    p1 = _k6.issue_of(world, world.insights["P1"][0], "finance")
+    p1_e = _k6.issue_of(world, world.insights["P1"][4], "finance")  # E's: its scheme isn't linked
+    p2 = _k6.issue_of(world, world.insights["P2"][0], "distribution")
+    p3 = _k6.issue_of(world, world.insights["P3"][0], "finance")
 
     finance_w5, finance_w6 = summary(world, "finance", 5), summary(world, "finance", 6)
     distribution_w5 = summary(world, "distribution", 5)
@@ -144,11 +134,13 @@ def test_k6_before_15c_s_merge(world: _k6.World) -> None:
 def test_k6_s_noise_never_grows_or_outranks_a_pattern(world: _k6.World) -> None:
     written = EXPECTED["written"]["P4"]
     patterns = {
-        issue_of(world, insight_id, team)
+        _k6.issue_of(world, insight_id, team)
         for pattern, team in (("P1", "finance"), ("P2", "distribution"), ("P3", "finance"))
         for insight_id in world.insights[pattern]
-    } | {issue_of(world, world.insights["P3"][0], "area_manager")}
-    patterns |= {issue_of(world, world.insights["P5"][0], t) for t in ("finance", "area_manager")}
+    } | {_k6.issue_of(world, world.insights["P3"][0], "area_manager")}
+    patterns |= {
+        _k6.issue_of(world, world.insights["P5"][0], t) for t in ("finance", "area_manager")
+    }
 
     for team in world.teams:
         for week in range(1, 7):
@@ -164,10 +156,10 @@ def test_k6_s_noise_never_grows_or_outranks_a_pattern(world: _k6.World) -> None:
             assert max((n.measures.score for n in noise), default=0) <= highest
     # W6: P1 and P3 head finance's list, P2 distribution's.
     assert [n.issue_id for n in summary(world, "finance", 6)[:2]] == [
-        issue_of(world, world.insights["P1"][0], "finance"),
-        issue_of(world, world.insights["P3"][0], "finance"),
+        _k6.issue_of(world, world.insights["P1"][0], "finance"),
+        _k6.issue_of(world, world.insights["P3"][0], "finance"),
     ]
-    assert summary(world, "distribution", 6)[0].issue_id == issue_of(
+    assert summary(world, "distribution", 6)[0].issue_id == _k6.issue_of(
         world, world.insights["P2"][0], "distribution"
     )
 
@@ -177,7 +169,7 @@ def test_k6_s_p5_is_one_insight_in_each_of_its_two_teams(world: _k6.World) -> No
     [insight_id] = world.insights["P5"]
 
     for team in written["teams"]:
-        _, numbers = row(summary(world, team, 6), issue_of(world, insight_id, team))
+        _, numbers = row(summary(world, team, 6), _k6.issue_of(world, insight_id, team))
         assert (numbers.insights, numbers.shops, numbers.score) == (
             written["W6_each_team"]["insights"],
             written["W6_each_team"]["shops"],
@@ -424,7 +416,7 @@ def leadership(world: _k6.World, week: int) -> OrgNumbers:
 
 def test_k6_s_p5_is_one_cause_counted_once_across_its_two_teams(world: _k6.World) -> None:
     written = EXPECTED["written"]["P5"]["W6_org"]
-    p5 = issue_of(world, world.insights["P5"][0], "finance")
+    p5 = _k6.issue_of(world, world.insights["P5"][0], "finance")
 
     org = leadership(world, 6)
 
@@ -528,7 +520,7 @@ def test_k6_s_w3_counts_p3_s_resolve_apart_from_the_issues_still_open(world: _k6
     p3_causes = [
         c
         for c in org.causes
-        if issue_of(world, world.insights["P3"][0], "finance") in {w.issue_id for w in c.teams}
+        if _k6.issue_of(world, world.insights["P3"][0], "finance") in {w.issue_id for w in c.teams}
     ]
     assert [(w.team_key, w.status) for w in p3_causes[0].teams] == [
         ("area_manager", "open"),

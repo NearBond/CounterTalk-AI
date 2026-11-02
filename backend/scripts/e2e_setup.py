@@ -6,32 +6,40 @@ It drops and recreates the database, and only one whose name ends in _e2e, so it
 the dev or test database. Then it migrates it, seeds the demo org, and makes two visits:
 - a transcribed one: a few turns and a 20 s playback.m4a made with ffmpeg, never through Meta;
 - one still recording.
-It prints their IDs as JSON, for the runner. The words are made up, with no names.
+It prints their IDs as JSON, for the runner. The words are made up, with no names. Then K6,
+the planted patterns, in an org of its own, for the click check (batch 15c): see k6().
 """
 
 import json
 import subprocess
 import sys
+from datetime import timedelta
 
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 
-from countertalk import storage, transcription
+from countertalk import issues, storage, transcription
 from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import session_scope
 from countertalk.logs import configure_logging
 from countertalk.models import (
+    Distributor,
+    Insight,
+    Issue,
     Shop,
     Visit,
     VisitClient,
     VisitKind,
     VisitStatus,
+    ist_date,
     utc_now,
 )
 from countertalk.playbooks import load_org_pack
+from countertalk.summaries import last_complete
 from countertalk.users import demo_rep
+from scripts import _k6
 from scripts.seed_dev import DEMO_PACK, seed
 
 E2E_SUFFIX = "_e2e"
@@ -65,6 +73,39 @@ def make_playback(visit_id: str) -> None:
         check=True,
         timeout=60,
     )
+
+
+def k6() -> dict[str, str]:
+    """K6, the planted patterns (batch 15c's click check), in an org of its own, moved so its
+    W6 is last week, as the summaries page shows it; E's issue merged into P1's, as a person
+    would from the suggestion; and a tone as each of P1's visits' recording, so ▶ plays.
+    What the check needs: the finance member's address (DEV_USER_EMAIL), and D2's name."""
+    last_week = ist_date(last_complete("week", utc_now()).start)
+    world = _k6.load(w1_start=last_week - timedelta(weeks=5))
+    p1, e = _k6.expected_merge(world)
+    with session_scope() as session:
+        versions = {
+            i.id: i.version for i in session.scalars(select(Issue).where(Issue.id.in_([p1, e])))
+        }
+        issues.merge(
+            session,
+            lambda: world.pack,
+            world.org_id,
+            world.finance,
+            (p1, versions[p1]),
+            (e, versions[e]),
+        )
+        d2 = session.scalars(
+            select(Distributor.name).where(
+                Distributor.org_id == world.org_id, Distributor.key == "d2"
+            )
+        ).one()
+        visits = session.scalars(
+            select(Insight.visit_id).where(Insight.id.in_(world.insights["P1"]))
+        ).all()
+    for visit_id in visits:
+        make_playback(visit_id)
+    return {"email": _k6.finance_email(world.org_id), "d2": d2, "p1": p1}
 
 
 def main() -> int:
@@ -107,7 +148,7 @@ def main() -> int:
         ]
         transcription.add_transcript(session, transcribed, "e2e", "seeded", "hi,en", turns)
     make_playback(transcribed.id)
-    print(json.dumps({"transcribed": transcribed.id, "recording": recording.id}))
+    print(json.dumps({"transcribed": transcribed.id, "recording": recording.id, "k6": k6()}))
     return 0
 
 

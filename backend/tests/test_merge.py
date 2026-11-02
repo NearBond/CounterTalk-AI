@@ -11,7 +11,7 @@ from sqlalchemy import select, update
 from countertalk import inbox, issues
 from countertalk.db import session_scope
 from countertalk.errors import Conflict, Invalid, NotFound
-from countertalk.models import Insight, InsightRoute, Issue, IssueEvent, Team, User, Visit
+from countertalk.models import Insight, InsightRoute, Issue, IssueEvent, Team, Visit
 from countertalk.summaries import CategoryArea, check, org_numbers, team_numbers
 from scripts import _k6
 from tests.conftest import lock_waiters
@@ -22,7 +22,6 @@ from tests.test_narrative import at_shop, day
 from tests.test_review import PACK
 from tests.test_roles import tiny_org
 from tests.test_summaries import EXPECTED, visit_at
-from tests.test_summaries import issue_of as k6_issue_of
 from tests.test_summary_jobs import LAST_WEEK, team
 from tests.test_visits import Org_
 from tests.test_worker import wait_for
@@ -291,11 +290,11 @@ def test_k6_s_p1_after_e_s_issue_is_merged_into_it() -> None:
             .join(Visit, Visit.id == Insight.visit_id)
             .where(Insight.id.in_(world.insights["P1"]), Visit.shop_id == world.shops["E"])
         ).one()
-    p1 = k6_issue_of(world, world.insights["P1"][0], "finance")
-    e_issue = k6_issue_of(world, e_insight, "finance")
+    p1 = _k6.issue_of(world, world.insights["P1"][0], "finance")
+    e_issue = _k6.issue_of(world, e_insight, "finance")
     assert e_issue != p1  # its scheme isn't linked: an issue of its own
 
-    member = k6_member(world)
+    member = world.finance
     with session_scope() as session:
         issues.merge(
             session,
@@ -329,10 +328,3 @@ def test_k6_s_p1_after_e_s_issue_is_merged_into_it() -> None:
         written["W6"],
         written["W6_shops"],
     )
-
-
-def k6_member(world: _k6.World) -> str:
-    with session_scope(read_only=True) as session:
-        return session.scalars(
-            select(User.id).where(User.org_id == world.org_id, User.email.startswith("finance-"))
-        ).one()
