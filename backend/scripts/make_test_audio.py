@@ -6,7 +6,9 @@
     uv run python scripts/make_test_audio.py --chrome rp09 # record rp09.wav through Chrome
 
 - Scripts are data/samples/scripts/rpNN.toml at the repo root, git-ignored like all of data/.
-- Each turn goes to Sarvam's text-to-speech (Bulbul). Each reply is cached under
+- Each turn goes to Sarvam's text-to-speech (Bulbul): bulbul:v3, or the script's own `model`
+  (batch T2: bulbul:v4-flash, whose voices are persona IDs such as kavya_hi_conversational).
+  Each reply is cached under
   data/samples/tts_cache/, keyed by everything the request sends, so a rerun pays only for what's
   missing (§9.4). Without --yes nothing is sent: it prints the characters and the cost.
 - ffmpeg mixes the turns into rpNN.wav (the master), rpNN.m4a (like a phone's voice recorder)
@@ -30,7 +32,7 @@ import threading
 import time
 import tomllib
 import wave
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -47,10 +49,13 @@ SAMPLES_DIR = BACKEND_DIR.parent / "data" / "samples"
 
 # Sarvam's text-to-speech, as its docs gave it on 1 Nov 2026.
 API_URL = "https://api.sarvam.ai/text-to-speech"
-MODEL = "bulbul:v3"
+# The models a script may name (`model`), and what each costs: ₹ per 1,000 characters, pay as
+# you go, before GST, from Sarvam's pricing page (read 3 Nov 2026). v4-flash has "the same
+# request and response contract as bulbul:v3" (its docs, 3 Nov).
+DEFAULT_MODEL = "bulbul:v3"
+RUPEES_PER_1000_CHARS = {"bulbul:v3": 3.00, "bulbul:v4-flash": 1.00}
 LANGUAGE = "hi-IN"
 MAX_CHARS_PER_REQUEST = 2_500
-RUPEES_PER_1000_CHARS = 3.00  # bulbul:v3, pay as you go
 SAMPLE_RATE = 22_050  # Sarvam's default, kept through the mix
 REQUEST_TIMEOUT_S = 60
 MAX_TRIES = 5
@@ -118,6 +123,7 @@ class Script:
     speakers: dict[str, Speaker]
     turns: list[Turn]
     noise_db: float | None = None
+    model: str = DEFAULT_MODEL
 
 
 def load_script(path: Path) -> Script:
@@ -132,7 +138,10 @@ def load_script(path: Path) -> Script:
         raise problem("there's no such script") from None
     except tomllib.TOMLDecodeError as error:
         raise problem(f"isn't valid TOML ({error})") from None
-    _only(data, {"title", "noise_db", "speakers", "turns"}, problem, "the script")
+    _only(data, {"title", "model", "noise_db", "speakers", "turns"}, problem, "the script")
+    model = data.get("model", DEFAULT_MODEL)
+    if not isinstance(model, str) or model not in RUPEES_PER_1000_CHARS:
+        raise problem(f"model {model!r} isn't one of {', '.join(RUPEES_PER_1000_CHARS)}")
     speakers = {}
     for key, value in dict(data.get("speakers", {})).items():
         _only(value, {"role", "voice", "pace"}, problem, f"speaker {key}")
@@ -176,6 +185,7 @@ def load_script(path: Path) -> Script:
         speakers,
         turns,
         None if noise is None else float(noise),
+        model,
     )
 
 
@@ -223,9 +233,11 @@ class Request:
     text: str
     voice: str
     pace: float
+    model: str
 
     def cache_name(self) -> str:
-        sent = {"model": MODEL, "language": LANGUAGE, "voice": self.voice, "pace": self.pace}
+        # A v3 request's name is as it was before models could be chosen: rp01–rp10's cache holds.
+        sent = {"model": self.model, "language": LANGUAGE, "voice": self.voice, "pace": self.pace}
         sent |= {"sample_rate": SAMPLE_RATE, "text": self.text}
         return hashlib.sha256(json.dumps(sent, sort_keys=True).encode()).hexdigest() + ".wav"
 
@@ -234,31 +246,42 @@ def requests_for(script: Script) -> list[list[Request]]:
     """Each turn's requests: one, or several if it's over the API's limit."""
     return [
         [
-            Request(part, script.speakers[turn.speaker].voice, script.speakers[turn.speaker].pace)
+            Request(
+                part,
+                script.speakers[turn.speaker].voice,
+                script.speakers[turn.speaker].pace,
+                script.model,
+            )
             for part in split_text(turn.text)
         ]
         for turn in script.turns
     ]
 
 
-def characters_to_send(scripts: list[Script], cache: Path) -> int:
+def _missing(scripts: list[Script], cache: Path) -> dict[str, Request]:
     """What isn't cached yet, each distinct request once, as fetch_missing will send it."""
-    missing = {
-        request.cache_name(): len(request.text)
+    return {
+        request.cache_name(): request
         for script in scripts
         for parts in requests_for(script)
         for request in parts
         if not (cache / request.cache_name()).exists()
     }
-    return sum(missing.values())
 
 
-def cost_rupees(characters: int) -> float:
-    return characters / 1000 * RUPEES_PER_1000_CHARS
+def characters_to_send(scripts: list[Script], cache: Path) -> int:
+    return sum(len(request.text) for request in _missing(scripts, cache).values())
+
+
+def cost_rupees(requests: Iterable[Request]) -> float:
+    """What sending these requests costs, before GST, each at its own model's price."""
+    return sum(
+        len(request.text) / 1000 * RUPEES_PER_1000_CHARS[request.model] for request in requests
+    )
 
 
 class Tts(Protocol):
-    def synthesize(self, text: str, voice: str, pace: float) -> bytes: ...
+    def synthesize(self, text: str, voice: str, pace: float, model: str) -> bytes: ...
 
 
 class SarvamTts:
@@ -279,12 +302,12 @@ class SarvamTts:
         self._client = client or httpx.Client()
         self._sleep = sleep
 
-    def synthesize(self, text: str, voice: str, pace: float) -> bytes:
+    def synthesize(self, text: str, voice: str, pace: float, model: str) -> bytes:
         body = {
             "text": text,
             "target_language_code": LANGUAGE,
             "speaker": voice,
-            "model": MODEL,
+            "model": model,
             "pace": pace,
             "speech_sample_rate": SAMPLE_RATE,
         }
@@ -360,7 +383,7 @@ def fetch_missing(script: Script, cache: Path, tts: Tts) -> int:
             path = cache / request.cache_name()
             if path.exists():
                 continue
-            audio = tts.synthesize(request.text, request.voice, request.pace)
+            audio = tts.synthesize(request.text, request.voice, request.pace, request.model)
             partial = path.with_suffix(".part")
             partial.write_bytes(audio)
             os.replace(partial, path)
@@ -653,10 +676,16 @@ def main(argv: list[str], *, tts: Tts | None = None) -> int:
         cache = samples / "tts_cache"
         for script in scripts:
             characters = characters_to_send([script], cache)
-            print(f"{script.name}: {len(script.turns)} turns, {characters} characters to send")
-        total = characters_to_send(scripts, cache)
-        rate = f"{MODEL} at ₹{RUPEES_PER_1000_CHARS:.2f} per 1,000"
-        print(f"total: {total} characters to send, about ₹{cost_rupees(total):.2f} ({rate})")
+            print(
+                f"{script.name}: {len(script.turns)} turns, {characters} characters to send"
+                f" ({script.model})"
+            )
+        missing = _missing(scripts, cache).values()
+        total = sum(len(request.text) for request in missing)
+        used = sorted({script.model for script in scripts})
+        rate = ", ".join(f"{m} at ₹{RUPEES_PER_1000_CHARS[m]:.2f} per 1,000" for m in used)
+        rupees = cost_rupees(missing)
+        print(f"total: {total} characters to send, about ₹{rupees:.2f} before GST ({rate})")
         if total and not args.yes:
             print("Nothing was sent. Run again with --yes to send it and pay.")
             return 0

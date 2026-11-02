@@ -8,6 +8,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 import pytest
 from sqlalchemy import func, select
@@ -27,7 +28,6 @@ from tests.conftest import ORG_PACK_FIXTURES, PINNED_SETTINGS, TEST_DATABASE
 from tests.test_extraction import VISITED, answer, insight
 from tests.test_merges import Answer, ByName
 from tests.test_roles import VISIT, FakeLlm, call, tiny
-from tests.test_summaries import at
 
 BUSY = Outcome(calls=(call("llm_unavailable"),), error=RetryableError("llm_unavailable", "B"))
 ROLES = {"c0:A": "rep", "c0:B": "shopkeeper", "c0:C": "shopkeeper"}
@@ -503,7 +503,7 @@ def test_a_cases_run_and_a_patterns_run_on_one_day_never_share_a_file() -> None:
     packs = {("pepsico-india-demo", 1): load_org_pack("pepsico-india-demo", 1)}
     noon = datetime(2026, 11, 2, 6, 30, tzinfo=UTC)
 
-    with at(noon):  # one day for both, and for the names
+    with mock.patch.object(run_eval, "utc_now", lambda: noon):  # one day for both, and the names
         patterns = run_eval.write_results({"kind": "patterns"}, packs, "fake-spark-1")
         cases = run_eval.write_results({"cases": {}}, packs, "fake-spark-1")
 

@@ -5,6 +5,8 @@ nothing here uses the network (§3.2). The mix is real ffmpeg.
 """
 
 import base64
+import dataclasses
+import hashlib
 import io
 import json
 import math
@@ -66,9 +68,11 @@ class FakeTts:
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
+        self.models: list[str] = []
 
-    def synthesize(self, text: str, voice: str, pace: float) -> bytes:
+    def synthesize(self, text: str, voice: str, pace: float, model: str) -> bytes:
         self.calls.append((text, voice))
+        self.models.append(model)
         return tone_wav(20 * len(text))
 
 
@@ -142,7 +146,7 @@ def test_a_second_copy_wont_start_while_one_is_running(
 
 
 class RefusingTts:
-    def synthesize(self, text: str, voice: str, pace: float) -> bytes:
+    def synthesize(self, text: str, voice: str, pace: float, model: str) -> bytes:
         raise tool.StopRun("Sarvam said HTTP 401: check SARVAM_API_KEY in backend/.env")
 
 
@@ -172,7 +176,7 @@ def sarvam(responses: list[httpx.Response], slept: list[float]) -> tool.SarvamTt
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["api-subscription-key"] == FAKE_KEY
-        assert json.loads(request.content)["model"] == tool.MODEL
+        assert json.loads(request.content)["model"] == tool.DEFAULT_MODEL
         return pending.pop(0)
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
@@ -190,7 +194,7 @@ def test_a_passing_failure_is_retried_with_backoff(status: int) -> None:
     slept: list[float] = []
     tts = sarvam([httpx.Response(status), httpx.Response(status), audio_reply()], slept)
 
-    audio = tts.synthesize("नमस्ते", "shubh", 1.0)
+    audio = tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
 
     assert audio.startswith(b"RIFF")
     assert len(slept) == 2
@@ -201,7 +205,7 @@ def test_a_wait_the_api_asks_for_is_honoured() -> None:
     slept: list[float] = []
     tts = sarvam([httpx.Response(429, headers={"Retry-After": "7"}), audio_reply()], slept)
 
-    tts.synthesize("नमस्ते", "shubh", 1.0)
+    tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
 
     assert slept == [7.0]
 
@@ -217,7 +221,9 @@ def test_a_request_that_never_left_is_retried() -> None:
         return outcome  # type: ignore[return-value]
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
-    tool.SarvamTts(FAKE_KEY, client=client, sleep=slept.append).synthesize("नमस्ते", "shubh", 1.0)
+    tool.SarvamTts(FAKE_KEY, client=client, sleep=slept.append).synthesize(
+        "नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL
+    )
 
     assert len(slept) == 1
 
@@ -234,7 +240,7 @@ def test_a_lost_reply_stops_the_run_instead_of_paying_again() -> None:
     tts = tool.SarvamTts(FAKE_KEY, client=client, sleep=lambda s: None)
 
     with pytest.raises(tool.StopRun):
-        tts.synthesize("नमस्ते", "shubh", 1.0)
+        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
 
     assert sends == [1]
 
@@ -243,7 +249,7 @@ def test_retries_end_and_the_run_stops() -> None:
     tts = sarvam([httpx.Response(429)] * tool.MAX_TRIES, [])
 
     with pytest.raises(tool.StopRun):
-        tts.synthesize("नमस्ते", "shubh", 1.0)
+        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
 
 
 @pytest.mark.parametrize("status", [400, 401, 402, 403, 422])
@@ -253,7 +259,7 @@ def test_a_refusal_stops_the_run_at_once_without_the_key(status: int) -> None:
     tts = sarvam([httpx.Response(status, json=body)], slept)
 
     with pytest.raises(tool.StopRun) as stopped:
-        tts.synthesize("नमस्ते", "shubh", 1.0)
+        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
 
     assert slept == []
     assert str(status) in str(stopped.value)
@@ -279,7 +285,7 @@ def test_a_reply_without_usable_audio_stops_the_run(reply: dict) -> None:
     tts = sarvam([httpx.Response(200, json=reply)], [])
 
     with pytest.raises(tool.StopRun):
-        tts.synthesize("नमस्ते", "shubh", 1.0)
+        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
 
 
 # --- scripts and long turns -----------------------------------------------------------------------
@@ -423,3 +429,102 @@ def test_the_mix_has_each_turn_where_turns_json_says(samples: Path) -> None:
         assert window_rms(samples_, turn["start_ms"] - 120, turn["start_ms"] - 20) < 50
     assert (samples / "rp01.m4a").exists()
     assert turns["duration_ms"] >= turns["turns"][-1]["end_ms"]
+
+
+# --- the model a script names (batch T2) ------------------------------------------------------
+
+V4 = 'model = "bulbul:v4-flash"\n'
+
+
+def with_model(samples: Path, line: str) -> Path:
+    script = samples / "scripts" / "rp01.toml"
+    script.write_text(line + script.read_text(encoding="utf-8"), encoding="utf-8")
+    return script
+
+
+def test_a_script_naming_no_model_is_bulbul_v3_as_before(samples: Path) -> None:
+    loaded = tool.load_script(samples / "scripts" / "rp01.toml")
+    [first, *_] = tool.requests_for(loaded)[0]
+    as_before = {"model": "bulbul:v3", "language": tool.LANGUAGE, "voice": first.voice}
+    as_before |= {"pace": first.pace, "sample_rate": tool.SAMPLE_RATE, "text": first.text}
+    hashed = hashlib.sha256(json.dumps(as_before, sort_keys=True).encode()).hexdigest()
+
+    assert loaded.model == "bulbul:v3"
+    assert first.cache_name() == f"{hashed}.wav"  # rp01–rp10's cached replies still fit
+
+
+def test_bulbul_v4_flash_is_sent_and_cached_apart(samples: Path) -> None:
+    script = with_model(samples, V4)
+    loaded = tool.load_script(script)
+    first = tool.requests_for(loaded)[0][0]
+    tts = FakeTts()
+
+    run(samples, "rp01", "--yes", tts=tts)
+
+    assert loaded.model == "bulbul:v4-flash"
+    assert set(tts.models) == {"bulbul:v4-flash"}
+    v3 = dataclasses.replace(first, model=tool.DEFAULT_MODEL)
+    assert first.cache_name() != v3.cache_name()
+
+
+@pytest.mark.parametrize(
+    ("value", "shown"),
+    [('"bulbul:v9"', "'bulbul:v9'"), ('["bulbul:v4-flash"]', "['bulbul:v4-flash']")],
+)
+def test_an_unknown_model_is_refused(samples: Path, value: str, shown: str) -> None:
+    script = with_model(samples, f"model = {value}\n")
+
+    with pytest.raises(tool.ScriptError) as refused:
+        tool.load_script(script)
+
+    assert str(refused.value) == f"rp01.toml: model {shown} isn't one of bulbul:v3, bulbul:v4-flash"
+
+
+@pytest.mark.parametrize(("line", "rate"), [("", 3.00), (V4, 1.00)])
+def test_the_estimate_is_at_the_model_s_price(
+    samples: Path, capsys: pytest.CaptureFixture[str], line: str, rate: float
+) -> None:
+    with_model(samples, line)
+    loaded = tool.load_script(samples / "scripts" / "rp01.toml")
+    characters = tool.characters_to_send([loaded], samples / "tts_cache")
+
+    run(samples, "rp01")
+
+    total = capsys.readouterr().out.splitlines()[1]
+    assert total == (
+        f"total: {characters} characters to send, about ₹{characters / 1000 * rate:.2f} before GST"
+        f" ({loaded.model} at ₹{rate:.2f} per 1,000)"
+    )
+
+
+def test_scripts_on_both_models_are_each_priced_at_their_own(
+    samples: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    v4 = samples / "scripts" / "rp02.toml"
+    v4.write_text(V4 + SCRIPT, encoding="utf-8")
+    loaded = tool.load_script(v4)
+    characters = tool.characters_to_send([loaded], samples / "tts_cache")
+
+    run(samples, "rp01", "rp02")
+
+    # The same lines on two models are two requests each, at ₹3.00 and ₹1.00 per 1,000.
+    total = capsys.readouterr().out.splitlines()[2]
+    assert total == (
+        f"total: {2 * characters} characters to send, about ₹{characters / 1000 * 4:.2f} before GST"
+        " (bulbul:v3 at ₹3.00 per 1,000, bulbul:v4-flash at ₹1.00 per 1,000)"
+    )
+
+
+def test_the_api_is_sent_the_script_s_model(samples: Path) -> None:
+    sent: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content)["model"])
+        return httpx.Response(200, json={"audios": [base64.b64encode(tone_wav(100)).decode()]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    tool.SarvamTts(FAKE_KEY, client=client).synthesize(
+        "नमस्ते", "kavya_hi_conversational", 1.0, "bulbul:v4-flash"
+    )
+
+    assert sent == ["bulbul:v4-flash"]
