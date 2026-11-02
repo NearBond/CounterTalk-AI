@@ -13,8 +13,9 @@ from sqlalchemy import select, update
 from countertalk import extraction
 from countertalk.db import session_scope
 from countertalk.models import Distributor, InsightRoute, Shop, utc_now
+from tests.conftest import signed_in_as
 from tests.test_extraction import answer, insight, transcribed
-from tests.test_review_api import PAYMENT, error_of, signed_in_demo, the_review
+from tests.test_review_api import PAYMENT, error_of, signed_in_manager, the_review
 from tests.test_roles import ALL_PLACED, FakeLlm
 from tests.test_visits import Org_
 
@@ -24,7 +25,7 @@ OTHER = insight(category="other", severity="low", suggested_team=None)  # no tea
 
 @pytest.fixture(autouse=True)
 def demo(client: TestClient) -> Org_:
-    return signed_in_demo(client)
+    return signed_in_manager(client)
 
 
 def shop(demo: Org_, name: str) -> Org_:
@@ -44,7 +45,8 @@ def confirmed(client: TestClient, at: Org_, *found: dict[str, Any]) -> str:
     """A visit at that shop with these insights, confirmed through the API: its ID."""
     visit_id = transcribed(at)
     extraction.extract(visit_id, FakeLlm(ALL_PLACED, answer(*(found or (PAYMENT,)))))
-    response = client.post(f"/api/visits/{visit_id}/confirm")
+    with signed_in_as(client, at.rep_id):  # the visit's rep confirms it
+        response = client.post(f"/api/visits/{visit_id}/confirm")
     assert response.status_code == 200, response.text
     return visit_id
 
@@ -139,7 +141,8 @@ def test_the_team_is_a_query_parameter_and_must_be_one_of_the_org_s(
         404,
         "team_not_found",
     )
-    assert client.get("/api/issues").status_code == 422
+    # A manager names the team; a team member's is their own (test_access).
+    assert error_of(client.get("/api/issues")) == (400, "team_required")
 
 
 def test_the_options_are_the_org_s_teams_categories_areas_and_distributors(
@@ -203,7 +206,7 @@ def test_finance_assigns_works_and_resolves_and_the_rep_sees_the_note(
         url, json={"version": 3, "status": "resolved", "note": "Credit note sent today."}
     )
 
-    assert mine.json()["issue"]["owner_name"] == "Demo Rep"
+    assert mine.json()["issue"]["owner_name"] == "Demo Manager"
     assert started.json()["issue"]["status"] == "in_progress"
     assert (done.json()["issue"]["status"], done.json()["issue"]["resolution_note"]) == (
         "resolved",

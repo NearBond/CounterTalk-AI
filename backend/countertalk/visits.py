@@ -188,10 +188,14 @@ def fail_abandoned_uploads(session: Session) -> int:
     return failed
 
 
+def missing_visit() -> NotFound:
+    """A fresh one each time (errors_are_raised_fresh)."""
+    return NotFound("visit_not_found", "There's no such visit")
+
+
 def _find_visit(session: Session, org_id: str, visit_id: str, *, for_update: bool) -> Visit:
     """One visit of this org. Another org's visit is 404, never 403 (§2.10)."""
-    missing = NotFound("visit_not_found", "There's no such visit")
-    return rows.find_one(session, Visit, org_id, visit_id, missing, for_update=for_update)
+    return rows.find_one(session, Visit, org_id, visit_id, missing_visit(), for_update=for_update)
 
 
 def lock_visit(session: Session, org_id: str, visit_id: str) -> Visit:
@@ -397,10 +401,13 @@ def playback_file(session: Session, org_id: str, visit_id: str) -> Path:
 
 
 def list_visits(
-    session: Session, org_id: str, cursor: str | None
+    session: Session, org_id: str, cursor: str | None, rep_id: str | None = None
 ) -> tuple[list[Visit], str | None]:
-    """A page of the org's visits, newest first, and the cursor for the next page, if any."""
+    """A page of the org's visits, or one rep's, newest first, and the cursor for the next
+    page, if any."""
     query = select(Visit).where(Visit.org_id == org_id)
+    if rep_id is not None:
+        query = query.where(Visit.rep_id == rep_id)
     if cursor is not None:
         created_at, seq = _decode_cursor(cursor)
         query = query.where(tuple_(Visit.created_at, Visit.seq) < tuple_(created_at, seq))

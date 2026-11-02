@@ -11,7 +11,7 @@ nothing (§2.5).
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from sqlalchemy import func, select, update
@@ -65,18 +65,23 @@ def next_seq(session: Session, visit_id: str) -> int:
     return last + 1 if last is not None else 0
 
 
+def missing_insight() -> NotFound:
+    """A fresh one each time (errors_are_raised_fresh)."""
+    return NotFound("insight_not_found", "There's no such insight")
+
+
 def _locked_insight(session: Session, org_id: str, insight_id: str) -> tuple[Visit, Insight]:
     """The insight, read fresh once its visit is locked (R6). Another org's is 404."""
     found = parse_id(insight_id)
     where = (Insight.id == found, Insight.org_id == org_id)
     visit_id = session.scalar(select(Insight.visit_id).where(*where)) if found else None
     if visit_id is None:
-        raise NotFound("insight_not_found", "There's no such insight")
+        raise missing_insight()
     visit = locked_in_review(session, org_id, visit_id)
     query = select(Insight).where(*where).execution_options(populate_existing=True)
     insight = session.scalars(query).one_or_none()
     if insight is None:  # deleted while the lock was waited for
-        raise NotFound("insight_not_found", "There's no such insight")
+        raise missing_insight()
     return visit, insight
 
 
@@ -378,6 +383,18 @@ class ReviewView:
     severities: list[Choice]
 
 
+def team_part(found: ReviewView, team_id: str) -> ReviewView:
+    """What a team member sees of a visit's review (access.visit): only the insights routed to
+    their team, each with only that team's route; none of the rep's notes, report, tasks or
+    order."""
+    insights = [
+        replace(view, routes=[r for r in view.routes if r.team_id == team_id])
+        for view in found.insights
+        if any(r.team_id == team_id for r in view.routes)
+    ]
+    return replace(found, report=None, tasks=[], order_items=[], insights=insights, notes=[])
+
+
 def category_choices(pack: OrgPack) -> list[Choice]:
     """The playbook's categories, with their names, in its order: the pickers' and filters'."""
     return [Choice(key, category.name) for key, category in pack.playbook.categories.items()]
@@ -437,7 +454,7 @@ def review_of(
 
 def view_of(session: Session, org_id: str, insight_id: str) -> InsightView:
     """One of the org's insights as the cards show it, read fresh."""
-    missing = NotFound("insight_not_found", "There's no such insight")
+    missing = missing_insight()
     [view] = insight_views(session, [rows.find_one(session, Insight, org_id, insight_id, missing)])
     return view
 

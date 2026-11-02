@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -24,7 +25,7 @@ from countertalk import auth, transcription
 from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import get_engine, session_scope
 from countertalk.main import create_app
-from countertalk.models import Org, User, Visit
+from countertalk.models import Org, Team, User, Visit
 
 # 127.0.0.1, not localhost: on Windows, localhost tries ::1 first and waits for it to time out.
 # CI's job container reaches its Postgres service by name instead (TEST_POSTGRES_HOST).
@@ -206,6 +207,34 @@ def client(app: FastAPI) -> Iterator[TestClient]:
 
 
 HTTPS = "https://testserver"
+
+
+@contextmanager
+def signed_in_as(client: TestClient, user_id: str) -> Iterator[None]:
+    """The client as this user for a while (a rep confirming, say), then as it was."""
+    before = client.cookies.get(auth.COOKIE)
+    sign_in(client, user_id)
+    try:
+        yield
+    finally:
+        client.cookies.delete(auth.COOKIE)
+        if before is not None:
+            client.cookies.set(auth.COOKIE, before)
+
+
+def a_user(org_id: str, role: str, name: str, team: str | None = None) -> str:
+    """A user of the org with this role (a team member of the team with that key): their ID."""
+    with session_scope() as session:
+        team_id = None
+        if team is not None:
+            team_id = session.scalars(
+                select(Team.id).where(Team.org_id == org_id, Team.key == team)
+            ).one()
+        email = f"{name.lower().replace(' ', '-')}-{org_id[:8]}@example.com"
+        user = User(org_id=org_id, email=email, name=name, role=role, team_id=team_id)
+        session.add(user)
+        session.flush()
+        return user.id
 
 
 def sign_in(client: TestClient, user_id: str) -> None:

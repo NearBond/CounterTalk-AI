@@ -217,7 +217,7 @@ def accept(
     the suggestion, then issues.merge's). Merged already: nothing changes. Dismissed: 409.
     Returns the issue kept."""
     found = rows.find_one(
-        session, IssueMergeSuggestion, org_id, suggestion_id, _missing(), for_update=True
+        session, IssueMergeSuggestion, org_id, suggestion_id, missing_suggestion(), for_update=True
     )
     if found.status == SuggestionStatus.DISMISSED:
         raise Conflict("suggestion_dismissed", "It was dismissed: they stay apart")
@@ -236,7 +236,7 @@ def dismiss(session: Session, org_id: str, actor: str, suggestion_id: str) -> Is
     """A person says the pair isn't one issue: it's never suggested again. Dismissing it again
     changes nothing; one merged already is 409."""
     found = rows.find_one(
-        session, IssueMergeSuggestion, org_id, suggestion_id, _missing(), for_update=True
+        session, IssueMergeSuggestion, org_id, suggestion_id, missing_suggestion(), for_update=True
     )
     if found.status == SuggestionStatus.MERGED:
         raise Conflict("suggestion_merged", "It was merged already")
@@ -247,7 +247,7 @@ def dismiss(session: Session, org_id: str, actor: str, suggestion_id: str) -> Is
     return found
 
 
-def _missing() -> NotFound:
+def missing_suggestion() -> NotFound:
     """A fresh one each time (errors_are_raised_fresh)."""
     return NotFound("suggestion_not_found", "There's no such suggestion")
 

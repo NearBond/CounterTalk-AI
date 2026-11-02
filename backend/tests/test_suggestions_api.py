@@ -10,13 +10,13 @@ from countertalk.db import session_scope
 from countertalk.models import Issue, IssueMergeSuggestion
 from tests.test_inbox_api import confirmed, inbox, issue, shop
 from tests.test_merge import two_issues
-from tests.test_review_api import error_of, signed_in_demo
+from tests.test_review_api import error_of, signed_in_manager
 from tests.test_visits import Org_
 
 
 @pytest.fixture(autouse=True)
 def demo(client: TestClient) -> Org_:
-    return signed_in_demo(client)
+    return signed_in_manager(client)
 
 
 @pytest.fixture

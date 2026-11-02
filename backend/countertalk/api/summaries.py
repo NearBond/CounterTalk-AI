@@ -2,7 +2,8 @@
 page reads its numbers at once (GET, from SQL, never waiting for the narrative), asks for the
 summary (POST: one per team and period, however often it's asked), and polls it by its ID until
 it's ready (GET /{id}, which counts nothing). Try again (POST …/retry) queues a new job for a
-failed one. Anyone in the org may ask, for now: batch 16 adds who may read which team's."""
+failed one. A team's summary is its members', managers' and admins'; the org's, managers' and
+admins' (access.summary_of)."""
 
 from datetime import date, datetime
 from functools import partial
@@ -12,7 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
 
-from countertalk import drill, extraction, summaries, summary_jobs
+from countertalk import access, drill, extraction, summaries, summary_jobs
 from countertalk.api.deps import CurrentUser
 from countertalk.api.insights import InsightOut, insight_out
 from countertalk.db import DbSession
@@ -120,6 +121,7 @@ def get_summary_page(
     session: DbSession,
     team_id: UUID | None = None,
 ) -> SummaryPageOut:
+    access.summary_of(user, scope, _id(team_id))
     pack = partial(extraction.pack_for, user.org_id, session=session)
     found = summary_jobs.page(session, pack, user.org_id, scope, _id(team_id), period)
     return SummaryPageOut(
@@ -135,6 +137,7 @@ def get_summary_page(
 @router.post("")
 def ask_summary(body: SummaryAsk, user: CurrentUser, session: DbSession) -> SummaryOut:
     """The summary, asked for: made, with its job queued, only the first time."""
+    access.summary_of(user, body.scope, _id(body.team_id))
     found = summary_jobs.ask(session, user.org_id, body.scope, _id(body.team_id), body.period)
     return summary_out(found)
 
@@ -152,6 +155,7 @@ def get_drill(
     starting on `start` (its first day in IST, as the summary page linked it), else the latest
     whole one. 400 not_a_period_start; 404 issue_not_found if it isn't one of the team's issues
     that summary lists."""
+    access.summary_of(user, SummaryScope.TEAM, str(team_id))
     now = utc_now()
     found = drill.drill(
         session,
@@ -206,12 +210,14 @@ def get_drill(
 
 @router.get("/{summary_id}")
 def get_summary(summary_id: UUID, user: CurrentUser, session: DbSession) -> SummaryOut:
+    access.summary(session, user, str(summary_id))
     return summary_out(summary_jobs.find(session, user.org_id, str(summary_id)))
 
 
 @router.post("/{summary_id}/retry")
 def retry_summary(summary_id: UUID, user: CurrentUser, session: DbSession) -> SummaryOut:
     """Try again: a failed summary is written again by a new job. Any other is left as it is."""
+    access.summary(session, user, str(summary_id))
     return summary_out(summary_jobs.retry(session, user.org_id, str(summary_id)))
 
 

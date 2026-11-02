@@ -29,7 +29,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from countertalk import extraction, jobs, llm_calls, merges, narrative, rows, summaries
+from countertalk import extraction, jobs, llm_calls, merges, narrative, routing, rows, summaries
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, Invalid, NotFound, PermanentError
 from countertalk.llm.base import StructuredLlm
@@ -118,12 +118,12 @@ def page(
 
 
 def find(session: Session, org_id: str, summary_id: str) -> Summary:
-    return rows.find_one(session, Summary, org_id, summary_id, _missing())
+    return rows.find_one(session, Summary, org_id, summary_id, missing_summary())
 
 
 def retry(session: Session, org_id: str, summary_id: str) -> Summary:
     """Try again: a failed summary goes back to writing, with a new job."""
-    found = rows.find_one(session, Summary, org_id, summary_id, _missing(), for_update=True)
+    found = rows.find_one(session, Summary, org_id, summary_id, missing_summary(), for_update=True)
     if found.status == SummaryStatus.FAILED:
         found.status, found.failure_reason = SummaryStatus.WRITING, None
         session.flush()
@@ -144,7 +144,7 @@ def run(
     with session_scope(read_only=True) as session:
         found = session.get(Summary, summary_id)
         if found is None:
-            raise _missing()
+            raise missing_summary()
         if found.status != SummaryStatus.WRITING:
             log.info("summary not being written summary=%s status=%s", summary_id, found.status)
             return
@@ -256,7 +256,7 @@ def _narrative(
     return written
 
 
-def _missing() -> NotFound:
+def missing_summary() -> NotFound:
     """A fresh one each time: an error raised again keeps its old frames (R2)."""
     return NotFound("summary_not_found", "No such summary")
 
@@ -276,7 +276,7 @@ def _check_scope(session: Session, org_id: str, scope: str, team_id: str | None)
     if scope == SummaryScope.TEAM:
         if team_id is None:
             raise Invalid("team_needed", "Pick the team")
-        rows.find_one(session, Team, org_id, team_id, NotFound("team_not_found", "No such team"))
+        rows.find_one(session, Team, org_id, team_id, routing.missing_team())
 
 
 def existing(

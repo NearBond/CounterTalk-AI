@@ -1,6 +1,6 @@
-"""/api/issues: a team's inbox (batch 15). The team is the `team` query parameter, its key: the
-dev dropdown's until batch 16 takes it from the signed-in member. GET /api/issues/options gives
-that dropdown's teams (and Move's and triage's), and the filters' choices."""
+"""/api/issues: a team's inbox (batch 15). A team member's is their own team's; a manager or
+admin names a team by its key, `team` (access.team). GET /api/issues/options gives the teams
+(the managers' picker, Move's and triage's), and the filters' choices."""
 
 from datetime import datetime
 from functools import partial
@@ -11,15 +11,17 @@ from fastapi import APIRouter, Query
 from pydantic import AwareDatetime, BaseModel, ConfigDict, StrictBool, StrictInt
 from sqlalchemy.orm import Session
 
-from countertalk import extraction, inbox, issues, merges
+from countertalk import access, extraction, inbox, issues, merges
 from countertalk.api.deps import CurrentUser
 from countertalk.api.insights import ChoiceOut, InsightOut, RouteOut, insight_out
 from countertalk.db import DbSession
 
 router = APIRouter(prefix="/api/issues", tags=["issues"])
 
-# The one place the API reads the team (batch 16 swaps it for the signed-in member's).
-TeamKey = Annotated[str, Query(min_length=1, description="The team's key (dev only)")]
+# A manager's or admin's pick; a team member's is their own, whatever this says (access.team).
+TeamKey = Annotated[
+    str | None, Query(min_length=1, description="The team's key: a manager's or admin's pick")
+]
 
 
 class TeamOut(BaseModel):
@@ -34,7 +36,7 @@ class DistributorOut(BaseModel):
 
 
 class OptionsOut(BaseModel):
-    """What the inbox's pickers offer: the teams (the dev dropdown, Move and triage), and the
+    """What the inbox's pickers offer: the teams (a manager's picker, Move and triage), and the
     filters' categories, areas and distributors."""
 
     teams: list[TeamOut]
@@ -204,6 +206,7 @@ def detail_out(found: inbox.Detail, suggested: list[merges.Open]) -> IssueDetail
 
 @router.get("/options")
 def list_options(user: CurrentUser, session: DbSession) -> OptionsOut:
+    access.team_work(user)
     pack = partial(extraction.pack_for, user.org_id, session=session)
     found = inbox.options(session, pack, user.org_id)
     return OptionsOut(
@@ -216,7 +219,8 @@ def list_options(user: CurrentUser, session: DbSession) -> OptionsOut:
 
 @router.get("/triage")
 def list_triage(user: CurrentUser, session: DbSession) -> list[UntriagedOut]:
-    """Confirmed insights with no team, for someone to assign one."""
+    """Confirmed insights with no team, for a manager or admin to give one."""
+    access.only(user, *access.WHOLE_ORG)
     return [
         UntriagedOut(
             insight=insight_out(item.insight),
@@ -232,17 +236,17 @@ def list_triage(user: CurrentUser, session: DbSession) -> list[UntriagedOut]:
 
 @router.get("")
 def list_issues(
-    team: TeamKey,
     user: CurrentUser,
     session: DbSession,
     status: Annotated[list[Literal["open", "in_progress", "resolved"]] | None, Query()] = None,
     category: str | None = None,
     area: str | None = None,
     distributor: UUID | None = None,
+    team: TeamKey = None,
 ) -> list[IssueOut]:
     """The team's issues: open and in progress unless `status` says otherwise; highest severity
     first, then most shops, then the most recently seen."""
-    found = inbox.team_of(session, user.org_id, team)
+    found = access.team(session, user, team)
     filters = inbox.Filters(
         statuses=tuple(status) if status else inbox.NO_FILTERS.statuses,
         category=category,
@@ -255,6 +259,7 @@ def list_issues(
 
 @router.get("/{issue_id}")
 def get_issue(issue_id: UUID, user: CurrentUser, session: DbSession) -> IssueDetailOut:
+    access.issue(session, user, str(issue_id))
     return detail_of(session, user.org_id, str(issue_id))
 
 
@@ -263,6 +268,7 @@ def change_issue(
     issue_id: UUID, body: IssueChange, user: CurrentUser, session: DbSession
 ) -> IssueDetailOut:
     """409 issue_changed when the version read is out of date; nothing is written then."""
+    access.issue(session, user, str(issue_id))
     issues.change(
         session,
         user.org_id,
@@ -284,6 +290,7 @@ def merge_suggested(
     """Merge, as suggested: the issue kept, read again. Merged already: the same answer, nothing
     changed. 409 issue_changed (a version moved on), issue_merged, issue_closed, issue_empty,
     suggestion_dismissed; 404 suggestion_not_found."""
+    access.suggestion(session, user, str(suggestion_id))
     pack = partial(extraction.pack_for, user.org_id, session=session)
     kept = merges.accept(
         session,
@@ -299,4 +306,5 @@ def merge_suggested(
 @router.post("/suggestions/{suggestion_id}/dismiss", status_code=204)
 def dismiss_suggested(suggestion_id: UUID, user: CurrentUser, session: DbSession) -> None:
     """They stay apart, and the pair is never suggested again. 409 suggestion_merged."""
+    access.suggestion(session, user, str(suggestion_id))
     merges.dismiss(session, user.org_id, user.id, str(suggestion_id))

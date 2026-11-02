@@ -15,8 +15,7 @@ from typing import Any
 from sqlalchemy import Select, case, distinct, exists, func, select
 from sqlalchemy.orm import Session
 
-from countertalk import issues, review
-from countertalk.errors import NotFound
+from countertalk import issues, review, routing
 from countertalk.models import (
     ACTIVE_ISSUE,
     Distributor,
@@ -89,16 +88,16 @@ class Untriaged:
 
 
 def team_of(session: Session, org_id: str, key: str) -> Team:
-    """The inbox's team, by its key: the dev dropdown's until batch 16 signs a member in."""
+    """A team of the org, by its key (a manager's pick; access.team says whose)."""
     team = session.scalars(select(Team).where(Team.org_id == org_id, Team.key == key)).first()
     if team is None:
-        raise NotFound("team_not_found", "There's no such team")
+        raise routing.missing_team()
     return team
 
 
 @dataclass(frozen=True)
 class Options:
-    """What the inbox's pickers offer: the teams (the dev dropdown, Move and triage), and the
+    """What the inbox's pickers offer: the teams (a manager's picker, Move and triage), and the
     filters' categories, areas and distributors (ID and name)."""
 
     teams: list[Team]

@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
 
-from countertalk import extraction, reprocess, review, storage, transcription, visits
+from countertalk import access, extraction, reprocess, review, storage, transcription, users, visits
 from countertalk.api.deps import CurrentUser
 from countertalk.api.insights import (
     ChoiceOut,
@@ -30,10 +30,10 @@ from countertalk.api.insights import (
     TaskOut,
     insight_out,
 )
-from countertalk.db import DbSession
+from countertalk.db import DbSession, session_scope
 from countertalk.errors import Invalid, LengthRequired
 from countertalk.limits import MAX_SEGMENT_BYTES
-from countertalk.models import Visit, VisitClient, VisitKind
+from countertalk.models import Role, Visit, VisitClient, VisitKind
 
 log = logging.getLogger(__name__)
 
@@ -142,6 +142,8 @@ async def _staged_segment(
     a hard cap anyway, whatever Content-Length said.
     """
     storage.check_seq(seq)
+    # Only the visit's rep uploads to it, checked before a byte is read.
+    await run_in_threadpool(_may_change, user, str(visit_id))
     length = request.headers.get("content-length")
     if length is None:
         raise LengthRequired("length_required", "Send the segment with a Content-Length header")
@@ -172,6 +174,11 @@ async def _staged_segment(
         await run_in_threadpool(staged.__exit__, None, None, None)
 
 
+def _may_change(user: users.CurrentUser, visit_id: str) -> None:
+    with session_scope(read_only=True) as session:
+        access.visit(session, user, visit_id, change=True)
+
+
 StagedSegment = Annotated[visits.StagedSegment, Depends(_staged_segment)]
 
 
@@ -190,6 +197,7 @@ def _one_visit_out(session: Session, visit: Visit) -> VisitOut:
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_visit(body: VisitIn, user: CurrentUser, session: DbSession) -> VisitOut:
+    access.only(user, Role.REP)  # reps record
     visit = visits.create_visit(
         session, user.org_id, user.id, str(body.shop_id), body.kind.value, body.client.value
     )
@@ -198,7 +206,7 @@ def create_visit(body: VisitIn, user: CurrentUser, session: DbSession) -> VisitO
 
 @router.get("")
 def list_visits(user: CurrentUser, session: DbSession, cursor: str | None = None) -> VisitPage:
-    page, next_cursor = visits.list_visits(session, user.org_id, cursor)
+    page, next_cursor = visits.list_visits(session, user.org_id, cursor, access.visits_of(user))
     processing = visits.processing_visit_ids(session, [visit.id for visit in page])
     return VisitPage(
         items=[_visit_out(visit, processing) for visit in page], next_cursor=next_cursor
@@ -207,12 +215,14 @@ def list_visits(user: CurrentUser, session: DbSession, cursor: str | None = None
 
 @router.get("/{visit_id}")
 def get_visit(visit_id: UUID, user: CurrentUser, session: DbSession) -> VisitOut:
+    access.visit(session, user, str(visit_id))
     return _one_visit_out(session, visits.get_visit(session, user.org_id, str(visit_id)))
 
 
 @router.get("/{visit_id}/transcript")
 def get_transcript(visit_id: UUID, user: CurrentUser, session: DbSession) -> TranscriptOut:
     """404 transcript_not_found until the visit is transcribed."""
+    access.visit(session, user, str(visit_id))
     found = transcription.current_transcript(session, user.org_id, str(visit_id))
     t = found.transcript
     return TranscriptOut(
@@ -229,6 +239,7 @@ def get_transcript(visit_id: UUID, user: CurrentUser, session: DbSession) -> Tra
 @router.get("/{visit_id}/audio", response_class=FileResponse)
 def get_audio(visit_id: UUID, user: CurrentUser, session: DbSession) -> FileResponse:
     """playback.m4a, with Range requests so a player can seek (Starlette's FileResponse)."""
+    access.visit(session, user, str(visit_id))
     path = visits.playback_file(session, user.org_id, str(visit_id))
     # A customer's recording: never kept by a shared cache, and checked again before reuse.
     return FileResponse(
@@ -267,14 +278,18 @@ def put_segment(
 def reprocess_visit(
     visit_id: UUID, body: ReprocessIn, user: CurrentUser, session: DbSession
 ) -> VisitOut:
+    access.visit(session, user, str(visit_id), change=True)
     visit = reprocess.reprocess(session, user.org_id, str(visit_id), body.start)
     return _one_visit_out(session, visit)
 
 
 @router.get("/{visit_id}/review")
 def get_review(visit_id: UUID, user: CurrentUser, session: DbSession) -> ReviewOut:
+    part = access.visit(session, user, str(visit_id))
     pack = partial(extraction.pack_for, user.org_id, session=session)
     found = review.review_of(session, pack, user.org_id, str(visit_id))
+    if part is not None:
+        found = review.team_part(found, part)
 
     def choices(items: list[review.Choice]) -> list[ChoiceOut]:
         return [ChoiceOut(key=item.key, label=item.label) for item in items]
@@ -303,6 +318,7 @@ def add_insight(
 ) -> InsightOut:
     """A finding the AI missed: the turn becomes its quote, exact and playable. 404 for a turn
     that isn't in the visit's transcript. The same ID again returns the one added."""
+    access.visit(session, user, str(visit_id), change=True)
     pack = extraction.pack_for(user.org_id, session=session)
     fields = body.model_dump(exclude={"id"})
     found = review.add_insight(
@@ -315,6 +331,7 @@ def add_insight(
 @router.post("/{visit_id}/notes", status_code=status.HTTP_201_CREATED)
 def add_note(visit_id: UUID, body: NewNote, user: CurrentUser, session: DbSession) -> NoteOut:
     """For the visit's record only: never routed, never shown to teams."""
+    access.visit(session, user, str(visit_id), change=True)
     note = review.add_note(session, user.org_id, user.id, str(visit_id), str(body.id), body.text)
     return NoteOut.model_validate(note, from_attributes=True)
 
@@ -322,6 +339,7 @@ def add_note(visit_id: UUID, body: NewNote, user: CurrentUser, session: DbSessio
 @router.post("/{visit_id}/confirm")
 def confirm_visit(visit_id: UUID, user: CurrentUser, session: DbSession) -> VisitOut:
     """Review to confirmed, and locked against edits; confirming again returns it as it is."""
+    access.visit(session, user, str(visit_id), change=True)
     pack = partial(extraction.pack_for, user.org_id, session=session)
     visit = review.confirm(session, pack, user.org_id, user.id, str(visit_id))
     return _one_visit_out(session, visit)
@@ -331,5 +349,6 @@ def confirm_visit(visit_id: UUID, user: CurrentUser, session: DbSession) -> Visi
 def complete_visit(
     visit_id: UUID, body: CompleteIn, user: CurrentUser, session: DbSession
 ) -> VisitOut:
+    access.visit(session, user, str(visit_id), change=True)
     visit = visits.complete_visit(session, user.org_id, str(visit_id), body.last_seq, body.ext)
     return _one_visit_out(session, visit)

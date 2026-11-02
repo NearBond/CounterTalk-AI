@@ -11,10 +11,10 @@ from sqlalchemy.orm import Session
 
 from countertalk import catalog, extraction, limits
 from countertalk.db import session_scope
-from countertalk.models import Insight, Shop, User, new_id
+from countertalk.models import Insight, Role, Shop, User, new_id
 from countertalk.playbooks import load_org_pack
 from scripts.seed_dev import DEMO_PACK, DEMO_REP, seed
-from tests.conftest import sign_in
+from tests.conftest import a_user, sign_in
 from tests.test_extraction import answer, insight, transcribed
 from tests.test_quotes import PARAPHRASE
 from tests.test_roles import ALL_PLACED, FakeLlm
@@ -41,6 +41,14 @@ def signed_in_demo(client: TestClient) -> Org_:
     """The demo org, seeded, with the client signed in as its rep."""
     found = seeded_demo()
     sign_in(client, found.rep_id)
+    return found
+
+
+def signed_in_manager(client: TestClient) -> Org_:
+    """The demo org, seeded, with the client signed in as its manager, who sees the whole
+    org (batch 16); its rep confirms (signed_in_as)."""
+    found = seeded_demo()
+    sign_in(client, a_user(found.org_id, Role.MANAGER, "Demo Manager"))
     return found
 
 

@@ -20,7 +20,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from countertalk import visits
+from countertalk import access
 from countertalk.db import DbSession, session_scope
 from countertalk.logs import HANDLER_NAME, configure_logging, install_frames_only_excepthook
 from countertalk.main import create_app
@@ -249,7 +249,7 @@ def test_a_500_in_an_included_router_logs_the_routes_whole_template(
     def broken(*args: object) -> None:
         raise RuntimeError("a bug")
 
-    monkeypatch.setattr(visits, "get_visit", broken)
+    monkeypatch.setattr(access, "visit", broken)  # the first thing the route does
 
     with caplog.at_level(logging.ERROR):
         response = client.get(f"/api/visits/{new_id()}")

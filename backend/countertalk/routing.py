@@ -377,8 +377,13 @@ def _team(session: Session, org_id: str, team_id: str) -> str:
     query = select(Team.id).where(Team.org_id == org_id, Team.id == parse_id(team_id))
     team = session.scalar(query)
     if team is None:
-        raise NotFound("team_not_found", "There's no such team")
+        raise missing_team()
     return team
+
+
+def missing_team() -> NotFound:
+    """A fresh one each time (errors_are_raised_fresh): every team_not_found."""
+    return NotFound("team_not_found", "There's no such team")
 
 
 def _person(

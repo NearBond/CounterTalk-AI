@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel, ConfigDict, StrictInt
 
-from countertalk import extraction, review, routing
+from countertalk import access, extraction, review, routing
 from countertalk.api.deps import CurrentUser
 from countertalk.db import DbSession
 
@@ -155,6 +155,7 @@ def edit_insight(
     insight_id: UUID, body: InsightChange, user: CurrentUser, session: DbSession
 ) -> InsightOut:
     """Only in review; 409 insight_unverified for one that couldn't be found in the recording."""
+    access.insight(session, user, str(insight_id), change=True)
     changes = body.model_dump(exclude_none=True)
     pack = partial(extraction.pack_for, user.org_id, session=session)
     found = review.edit_insight(session, pack, user.org_id, user.id, str(insight_id), **changes)
@@ -164,6 +165,7 @@ def edit_insight(
 
 @router.delete("/{insight_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_insight(insight_id: UUID, user: CurrentUser, session: DbSession) -> Response:
+    access.insight(session, user, str(insight_id), change=True)
     review.delete_insight(session, user.org_id, user.id, str(insight_id))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -195,6 +197,7 @@ class TeamFor(BaseModel):
 @router.post("/{insight_id}/accept")
 def accept(insight_id: UUID, body: RouteSeen, user: CurrentUser, session: DbSession) -> InsightOut:
     """The AI's suggested team, accepted: no longer "suggested by AI"."""
+    access.route(session, user, str(insight_id), body.slot)
     seen = routing.Seen(body.slot, body.version)
     route = routing.accept(session, user.org_id, str(insight_id), user.id, seen)
     return insight_out(review.view_of(session, user.org_id, route.insight_id))
@@ -203,6 +206,7 @@ def accept(insight_id: UUID, body: RouteSeen, user: CurrentUser, session: DbSess
 @router.post("/{insight_id}/move")
 def move(insight_id: UUID, body: RouteTo, user: CurrentUser, session: DbSession) -> InsightOut:
     """The route goes to another team's issue."""
+    access.route(session, user, str(insight_id), body.slot)
     pack = partial(extraction.pack_for, user.org_id, session=session)
     seen = routing.Seen(body.slot, body.version)
     route = routing.move(
@@ -214,6 +218,7 @@ def move(insight_id: UUID, body: RouteTo, user: CurrentUser, session: DbSession)
 @router.post("/{insight_id}/also-send")
 def also_send(insight_id: UUID, body: RouteTo, user: CurrentUser, session: DbSession) -> InsightOut:
     """It also goes to another team: 409 team_limit at two."""
+    access.route(session, user, str(insight_id), body.slot)
     pack = partial(extraction.pack_for, user.org_id, session=session)
     seen = routing.Seen(body.slot, body.version)
     route = routing.also_send(
@@ -227,6 +232,7 @@ def assign_from_triage(
     insight_id: UUID, body: TeamFor, user: CurrentUser, session: DbSession
 ) -> InsightOut:
     """A team for an insight in triage."""
+    access.triage(session, user, str(insight_id))
     pack = partial(extraction.pack_for, user.org_id, session=session)
     route = routing.assign_from_triage(
         session, pack, user.org_id, str(insight_id), str(body.team_id), user.id
