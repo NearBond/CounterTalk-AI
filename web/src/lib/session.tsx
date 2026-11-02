@@ -21,6 +21,8 @@ export const WHOLE_ORG: Role[] = ["manager", "admin"];
 export const TEAM_WORK: Role[] = ["team_member", ...WHOLE_ORG];
 /** Who records visits. */
 export const RECORDS: Role[] = ["rep"];
+/** Who keeps the catalog (batch 16b). */
+export const ADMINS: Role[] = ["admin"];
 /** Whose home is the visits list: a rep's own, the whole org's for a manager or admin. */
 export const VISITS: Role[] = [...RECORDS, ...WHOLE_ORG];
 
@@ -30,6 +32,7 @@ export const PAGE_LINKS: Array<{ to: string; label: string; roles: Role[] }> = [
   { to: "/inbox", label: "Inbox", roles: TEAM_WORK },
   { to: "/inbox/triage", label: "Triage", roles: WHOLE_ORG },
   { to: "/summaries", label: "Summaries", roles: TEAM_WORK },
+  { to: "/catalog", label: "Catalog", roles: ADMINS },
 ];
 
 export function wholeOrg(me: Me): boolean {

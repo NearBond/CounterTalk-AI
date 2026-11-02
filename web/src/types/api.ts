@@ -694,3 +694,79 @@ export interface DrillVisit {
   in_period: boolean;
   insights: Insight[];
 }
+
+// --- the catalog screen (batch 16b): countertalk/api/catalog.py --------------------------------
+
+export type CatalogKind = "own" | "competitor";
+
+/** AliasOut. */
+export interface CatalogAlias {
+  id: string;
+  text: string;
+  source: string;
+}
+
+/** ItemOut. */
+export interface CatalogItem {
+  id: string;
+  key: string;
+  kind: CatalogKind;
+  company: string;
+  brand: string;
+  /** null for a brand as a whole. */
+  product: string | null;
+  active: boolean;
+  /** What an edit names (compare-and-set): 409 item_changed if it moved on. */
+  version: number;
+  aliases: CatalogAlias[];
+}
+
+/** NewItem: the names of a new item (a review's "create" takes these). */
+export interface CatalogNames {
+  company: string;
+  brand: string;
+  product?: string | null;
+}
+
+/** ItemIn: POST /api/catalog/items. */
+export interface NewCatalogItem {
+  kind: CatalogKind;
+  company: string;
+  brand: string;
+  product?: string | null;
+}
+
+/** ItemChange: PATCH /api/catalog/items/{id}. `product: null` makes it the brand's item. */
+export interface CatalogItemChange {
+  version: number;
+  company?: string;
+  brand?: string;
+  product?: string | null;
+  active?: boolean;
+}
+
+/** AliasIn. */
+export interface NewAlias {
+  text: string;
+}
+
+/** NameReviewOut: a name linking couldn't place, and the visits it was said in. */
+export interface NameReview {
+  id: string;
+  kind: CatalogKind;
+  text: string;
+  visit_ids: string[];
+}
+
+/** ResolveIn. */
+export interface ResolveName {
+  action: "attach" | "create" | "dismiss";
+  item_id?: string;
+  item?: CatalogNames;
+}
+
+/** Resolved: the item the name is now an alias of; null when dismissed, or nothing changed. */
+export interface Resolved {
+  item: CatalogItem | null;
+}
+

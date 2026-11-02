@@ -3,6 +3,9 @@
  * so a caller has one thing to catch and always gets a status, a code and a readable message.
  */
 import type {
+  CatalogItem,
+  CatalogItemChange,
+  CatalogKind,
   CompleteVisit,
   Drill,
   ErrorBody,
@@ -10,6 +13,9 @@ import type {
   Health,
   InboxOptions,
   Me,
+  NameReview,
+  NewAlias,
+  NewCatalogItem,
   Insight,
   InsightChange,
   IssueChange,
@@ -23,6 +29,8 @@ import type {
   Note,
   Page,
   PeriodKind,
+  Resolved,
+  ResolveName,
   Review,
   RouteSeen,
   RouteTo,
@@ -360,6 +368,44 @@ export function retrySummary(summaryId: string, signal?: AbortSignal): Promise<S
 /** The visit's audio, for an <audio> element: the browser fetches it, seeking with Range. */
 export function audioUrl(visitId: string): string {
   return `${BASE_URL}/visits/${encodeURIComponent(visitId)}/audio`;
+}
+
+// --- the catalog screen (batch 16b): admins only. Its edits name the version they read. ------
+
+export function listCatalog(q: string, kind: CatalogKind | "", signal?: AbortSignal): Promise<Page<CatalogItem>> {
+  const query = new URLSearchParams();
+  if (q.trim()) query.set("q", q.trim());
+  if (kind) query.set("kind", kind);
+  const asked = query.toString();
+  return apiRequest(asked ? `/catalog/items?${asked}` : "/catalog/items", { signal });
+}
+
+/** 409 item_exists, or name_in_use for a name another item is matched on. */
+export function addCatalogItem(body: NewCatalogItem, signal?: AbortSignal): Promise<CatalogItem> {
+  return apiRequest("/catalog/items", { method: "POST", body, signal });
+}
+
+/** 409 item_changed if someone changed it since it was read. */
+export function changeCatalogItem(itemId: string, change: CatalogItemChange, signal?: AbortSignal): Promise<CatalogItem> {
+  return apiRequest(`/catalog/items/${encodeURIComponent(itemId)}`, { method: "PATCH", body: change, signal });
+}
+
+/** The item with its new alias. 400 alias_empty; 409 alias_in_use. */
+export function addAlias(itemId: string, body: NewAlias, signal?: AbortSignal): Promise<CatalogItem> {
+  return apiRequest(`/catalog/items/${encodeURIComponent(itemId)}/aliases`, { method: "POST", body, signal });
+}
+
+export function removeAlias(aliasId: string, signal?: AbortSignal): Promise<void> {
+  return apiRequest(`/catalog/aliases/${encodeURIComponent(aliasId)}`, { method: "DELETE", signal });
+}
+
+export function listNameReviews(signal?: AbortSignal): Promise<NameReview[]> {
+  return apiRequest("/catalog/reviews", { signal });
+}
+
+/** The same again changes nothing; 409 review_resolved for another way. */
+export function resolveName(reviewId: string, body: ResolveName, signal?: AbortSignal): Promise<Resolved> {
+  return apiRequest(`/catalog/reviews/${encodeURIComponent(reviewId)}/resolve`, { method: "POST", body, signal });
 }
 
 const NOT_JSON = Symbol("not JSON");

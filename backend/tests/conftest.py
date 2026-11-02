@@ -180,6 +180,13 @@ def _fresh_test(
 ) -> Iterator[None]:
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     get_settings.cache_clear()
+    wipe_database()
+    yield
+    get_settings.cache_clear()
+
+
+def wipe_database() -> None:
+    """Every table emptied, as each test starts: a test that needs a fresh start mid-way too."""
     with get_engine().begin() as conn:
         tables = conn.scalars(
             text(
@@ -189,8 +196,6 @@ def _fresh_test(
         ).all()
         if tables:
             conn.execute(text(f"TRUNCATE {', '.join(tables)} RESTART IDENTITY CASCADE"))
-    yield
-    get_settings.cache_clear()
 
 
 @pytest.fixture

@@ -37,6 +37,15 @@ export const FINANCE_MEMBER: Me = {
   org_name: "Demo Org",
 };
 
+export const ADMIN: Me = {
+  id: "u-admin",
+  name: "Demo Admin",
+  email: "admin@example.com",
+  role: "admin",
+  team: null,
+  org_name: "Demo Org",
+};
+
 export const REP: Me = {
   id: "u-rep",
   name: "Demo Rep",

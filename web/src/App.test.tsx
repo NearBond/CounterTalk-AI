@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { routes } from "./App";
-import { APP_SOURCES, FINANCE_MEMBER, jsonResponse, MANAGER, REP } from "./testUtils";
+import { ADMIN, APP_SOURCES, FINANCE_MEMBER, jsonResponse, MANAGER, REP } from "./testUtils";
 import type { Me } from "./types/api";
 
 /** The app at `path`, signed in as `me` (or signed out): every other request never answers. */
@@ -82,6 +82,7 @@ describe("App", () => {
     ["/summaries", REP],
     ["/inbox/triage", FINANCE_MEMBER],
     ["/record", MANAGER],
+    ["/catalog", MANAGER],
   ])("shows not-found at %s to a role that doesn't use it", async (path, me) => {
     renderAt(path, me);
 
@@ -92,6 +93,7 @@ describe("App", () => {
     [REP, ["Visits"]],
     [FINANCE_MEMBER, ["Inbox", "Summaries"]],
     [MANAGER, ["Visits", "Inbox", "Triage", "Summaries"]],
+    [ADMIN, ["Visits", "Inbox", "Triage", "Summaries", "Catalog"]],
   ])("shows %s.role's pages in the header", async (me, links) => {
     renderAt("/visits/v-1", me);
 

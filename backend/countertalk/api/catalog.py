@@ -74,7 +74,7 @@ class AliasIn(BaseModel):
     text: str = NAME
 
 
-class ReviewOut(BaseModel):
+class NameReviewOut(BaseModel):
     """A name linking couldn't place, and the visits it was said in."""
 
     id: str
@@ -151,11 +151,11 @@ def remove_alias(alias_id: UUID, user: CurrentUser, session: DbSession) -> Respo
 
 
 @router.get("/reviews")
-def list_reviews(user: CurrentUser, session: DbSession) -> list[ReviewOut]:
+def list_reviews(user: CurrentUser, session: DbSession) -> list[NameReviewOut]:
     """The open names, one per kind and name, the most said first."""
     access.only(user, Role.ADMIN)
     return [
-        ReviewOut.model_validate(asdict(v))
+        NameReviewOut.model_validate(asdict(v))
         for v in catalog_admin.open_reviews(session, user.org_id)
     ]
 

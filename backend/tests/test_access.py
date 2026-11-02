@@ -39,7 +39,7 @@ from countertalk.models import (
 )
 from countertalk.playbooks import ORG_PACKS_DIR, OrgPack, load_org_pack
 from scripts.seed_dev import DEMO_PACK
-from tests.conftest import ORG_PACK_FIXTURES, a_user, sign_in
+from tests.conftest import ORG_PACK_FIXTURES, a_user, sign_in, wipe_database
 from tests.test_auth import PUBLIC, api_routes
 from tests.test_extraction import answer, insight, transcribed
 from tests.test_inbox_api import shop
@@ -572,7 +572,10 @@ CASES = [
     case(
         "PATCH",
         "/api/catalog/items/{item_id}",
-        at("/api/catalog/items/{w.catalog_item}", json={"version": 1, "active": False}),
+        at(
+            "/api/catalog/items/{w.catalog_item}",
+            json={"version": 1, "company": "Made Up Co", "brand": "Made Up", "active": False},
+        ),
         ("admin",),
     ),
     case(
@@ -588,6 +591,16 @@ CASES = [
         ("admin",),
     ),
     case("GET", "/api/catalog/reviews", at("/api/catalog/reviews"), ("admin",)),
+    case(
+        "POST",
+        "/api/catalog/reviews/{review_id}/resolve",
+        at(
+            "/api/catalog/reviews/{w.alias_review}/resolve",
+            json={"action": "create", "item": {"company": "Zorb Co", "brand": "Zorbix"}},
+        ),
+        ("admin",),
+        name="POST /api/catalog/reviews/{review_id}/resolve (create)",
+    ),
     case(
         "POST",
         "/api/catalog/reviews/{review_id}/resolve",
@@ -693,3 +706,40 @@ def test_a_team_member_sees_only_their_team_s_part_of_a_visit(client: TestClient
         "second": (["supply"], ["distribution"], 0),
         "manager": (["payments", "supply"], ["distribution", "finance"], 1),
     }
+
+
+# --- R4's guard: a null where a value belongs is a 4xx, never a 5xx --------------------------
+
+
+def nulled(found: Case, world: World) -> list[tuple[str, tuple[str, dict[str, Any]]]]:
+    """The case's valid request again with each of its body's top-level fields null."""
+    path, kwargs = found.request(world)
+    body = kwargs.get("json")
+    if not isinstance(body, dict):
+        return []
+    return [(name, (path, {**kwargs, "json": {**body, name: None}})) for name in body]
+
+
+@pytest.mark.parametrize(
+    "found",
+    [c for c in CASES if c.method in ("POST", "PATCH", "PUT")],
+    ids=[c.name for c in CASES if c.method in ("POST", "PATCH", "PUT")],
+)
+def test_a_null_field_in_a_write_is_never_a_server_error(client: TestClient, found: Case) -> None:
+    """R4, which came up in 16-1, 16-3 and 16b-1: each write route's valid body, as a role it
+    lets through, with each top-level field null in turn. A later route is covered by its
+    matrix row."""
+    [allowed, *_] = [role for role in ROLES if found.expected[role] == OK]
+    world = demo_world()
+    errors = []
+    for index in range(len(nulled(found, world))):
+        sign_in(client, world.users[allowed])
+        name, (path, kwargs) = nulled(found, world)[index]
+        response = client.request(found.method, path, **kwargs)
+        if response.status_code >= 500:
+            errors.append(f"{name}: {response.status_code} {response.text[:120]}")
+        if response.status_code < 300:
+            wipe_database()  # it changed something: the next null meets a fresh world
+            world = demo_world()
+
+    assert errors == []

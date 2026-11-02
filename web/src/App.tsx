@@ -1,5 +1,6 @@
 import type { RouteObject } from "react-router";
-import { Home, Only, RECORDS, SignedIn, TEAM_WORK, WHOLE_ORG } from "./lib/session";
+import { ADMINS, Home, Only, RECORDS, SignedIn, TEAM_WORK, WHOLE_ORG } from "./lib/session";
+import { CatalogPage } from "./pages/CatalogPage";
 import { DrillPage } from "./pages/DrillPage";
 import { HealthPage } from "./pages/HealthPage";
 import { InboxPage } from "./pages/InboxPage";
@@ -60,6 +61,14 @@ export const routes: RouteObject[] = [
         element: (
           <Only roles={TEAM_WORK}>
             <DrillPage />
+          </Only>
+        ),
+      },
+      {
+        path: "/catalog",
+        element: (
+          <Only roles={ADMINS}>
+            <CatalogPage />
           </Only>
         ),
       },
