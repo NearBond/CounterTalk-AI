@@ -7,6 +7,7 @@ import threading
 import uuid
 from collections import Counter
 from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pytest
@@ -16,9 +17,9 @@ from countertalk import issues, merges, summary_jobs, worker
 from countertalk.db import session_scope
 from countertalk.errors import Conflict, NotFound, RetryableError
 from countertalk.llm.base import Message, Outcome
-from countertalk.models import Insight, IssueMergeSuggestion, Job, LlmCall, Visit
+from countertalk.models import Insight, Issue, IssueMergeSuggestion, Job, LlmCall, Visit
 from scripts import _k6
-from tests.conftest import ORG_PACK_FIXTURES, open_transactions
+from tests.conftest import ORG_PACK_FIXTURES, lock_waiters, open_transactions
 from tests.test_issue_changes import change, now_of
 from tests.test_jobs import make_due
 from tests.test_merge import LOW, money_issue, two_issues
@@ -29,6 +30,7 @@ from tests.test_summaries import issue_of as k6_issue_of
 from tests.test_summaries import visit_at
 from tests.test_summary_jobs import WORKER_ID, asked, jobs_of, summary_row, team
 from tests.test_visits import Org_
+from tests.test_worker import wait_for
 
 Answer = dict[str, Any] | Outcome
 
@@ -222,6 +224,114 @@ def _money(org: Org_) -> str:
     return team(org.org_id, "money")
 
 
+def stored(org: Org_, low: str, high: str) -> str:
+    """A suggestion to keep `low`, stored as the step stores one: its ID."""
+    with session_scope() as session:
+        found = IssueMergeSuggestion(
+            org_id=org.org_id,
+            team_id=_money(org),
+            into_issue_id=low,
+            merge_issue_id=high,
+            pair_key=issues.pair_key(low, high),
+            reason="Same.",
+        )
+        session.add(found)
+        session.flush()
+        return found.id
+
+
+def accept(org: Org_, suggestion_id: str, low: str, high: str, pack_for: Any = lambda: PACK) -> str:
+    with session_scope() as session:
+        return merges.accept(
+            session,
+            pack_for,
+            org.org_id,
+            org.rep_id,
+            suggestion_id,
+            (now_of(low).version, now_of(high).version),
+        ).id
+
+
+def test_a_merge_locks_its_suggestion_before_anything_else(
+    two: tuple[Org_, str, str, str],
+) -> None:
+    # Accept holds the suggestion while it merges: a merge from anywhere else takes it first too,
+    # so the two can't deadlock.
+    org, low, high, _ = two
+    suggestion_id = stored(org, low, high)
+    versions = ((low, now_of(low).version), (high, now_of(high).version))
+
+    def merge_directly() -> None:
+        with session_scope() as session:
+            issues.merge(session, lambda: PACK, org.org_id, org.rep_id, *versions)
+
+    with ThreadPoolExecutor(max_workers=1) as pool, session_scope() as session:
+        session.execute(
+            select(IssueMergeSuggestion.id)
+            .where(IssueMergeSuggestion.id == suggestion_id)
+            .with_for_update()
+        )
+        merging = pool.submit(merge_directly)
+        wait_for(lambda: lock_waiters() == 1, "the merge never waited for its suggestion")
+        with session_scope() as other:  # the issues aren't locked yet
+            locked = other.execute(
+                select(Issue.id).where(Issue.id.in_([low, high])).with_for_update(nowait=True)
+            ).all()
+        session.commit()
+
+        merging.result(timeout=10)
+    assert (len(locked), suggestions_of(org)) == (2, [(low, high, "merged", "Same.")])
+
+
+def test_merging_again_once_the_kept_issue_is_merged_elsewhere_is_409(
+    two: tuple[Org_, str, str, str],
+) -> None:
+    org, low, high, _ = two
+    third = money_issue(
+        visit_at(at_shop(org, "Third Shop", area="Third Area"), day(3), day(3), LOW)
+    )
+    suggestion_id = stored(org, low, high)
+    versions = (now_of(low).version, now_of(high).version)
+    accept(org, suggestion_id, low, high)
+    with session_scope() as session:
+        issues.merge(
+            session,
+            lambda: PACK,
+            org.org_id,
+            org.rep_id,
+            (third, now_of(third).version),
+            (low, now_of(low).version),
+        )
+
+    with pytest.raises(Conflict) as gone, session_scope() as session:
+        merges.accept(session, lambda: PACK, org.org_id, org.rep_id, suggestion_id, versions)
+
+    assert gone.value.code == "issue_merged"
+
+
+def test_a_refused_merge_never_loads_the_pack(two: tuple[Org_, str, str, str]) -> None:
+    org, low, high, _ = two
+    suggestion_id = stored(org, low, high)
+    with session_scope() as session:
+        merges.dismiss(session, org.org_id, org.rep_id, suggestion_id)
+
+    def no_pack() -> Any:
+        raise AssertionError("the pack was loaded for a merge that doesn't happen")
+
+    with pytest.raises(Conflict) as refused:
+        accept(org, suggestion_id, low, high, pack_for=no_pack)
+    other = stored(
+        org, high, money_issue(visit_at(at_shop(org, "Third", "Third Area"), day(3), day(3), LOW))
+    )
+    with (
+        pytest.raises(Conflict) as stale,
+        session_scope() as session,
+    ):  # refused in the merge itself
+        merges.accept(session, no_pack, org.org_id, org.rep_id, other, (0, 0))
+
+    assert (refused.value.code, stale.value.code) == ("suggestion_dismissed", "issue_changed")
+
+
 def test_a_merge_marks_its_suggestion_merged_and_dismissing_it_then_is_409(
     two: tuple[Org_, str, str, str],
 ) -> None:
@@ -237,7 +347,7 @@ def test_a_merge_marks_its_suggestion_merged_and_dismissing_it_then_is_409(
         suggestion_id = session.scalars(select(IssueMergeSuggestion.id)).one()
         issues.merge(
             session,
-            PACK,
+            lambda: PACK,
             org.org_id,
             org.rep_id,
             (low, now_of(low).version),

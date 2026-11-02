@@ -14,6 +14,7 @@ import type {
   IssueDetail,
   IssueStatus,
   Issue,
+  MergeIn,
   NewInsight,
   NewNote,
   NewVisit,
@@ -263,6 +264,23 @@ export function assignTeam(insightId: string, teamId: string, signal?: AbortSign
   return apiRequest(`/insights/${encodeURIComponent(insightId)}/team`, {
     method: "POST",
     body: { team_id: teamId },
+    signal,
+  });
+}
+
+/** Merge, as suggested (batch 15c): the kept issue, read again. Merged already: the same answer. */
+export function mergeSuggestion(suggestionId: string, body: MergeIn, signal?: AbortSignal): Promise<IssueDetail> {
+  return apiRequest(`/issues/suggestions/${encodeURIComponent(suggestionId)}/merge`, {
+    method: "POST",
+    body,
+    signal,
+  });
+}
+
+/** Dismiss: the two stay apart, and the pair is never suggested again. */
+export function dismissSuggestion(suggestionId: string, signal?: AbortSignal): Promise<void> {
+  return apiRequest(`/issues/suggestions/${encodeURIComponent(suggestionId)}/dismiss`, {
+    method: "POST",
     signal,
   });
 }

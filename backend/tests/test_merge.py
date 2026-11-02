@@ -54,7 +54,12 @@ def merge(org: Org_, into: str, merged: str, *, versions: tuple[int, int] | None
     into_version, merged_version = versions or (now_of(into).version, now_of(merged).version)
     with session_scope() as session:
         return issues.merge(
-            session, PACK, org.org_id, org.rep_id, (into, into_version), (merged, merged_version)
+            session,
+            lambda: PACK,
+            org.org_id,
+            org.rep_id,
+            (into, into_version),
+            (merged, merged_version),
         )
 
 
@@ -294,7 +299,7 @@ def test_k6_s_p1_after_e_s_issue_is_merged_into_it() -> None:
     with session_scope() as session:
         issues.merge(
             session,
-            world.pack,
+            lambda: world.pack,
             world.org_id,
             member,
             (p1, now_of(p1).version),

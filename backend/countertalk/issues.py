@@ -24,7 +24,7 @@ compare-and-set (§2.3).
 
 import logging
 from collections import Counter
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -201,9 +201,9 @@ def _issue_for(
     org_id, team_id, key = where
     same = (Issue.org_id == org_id, Issue.team_id == team_id, Issue.issue_key == key)
     for _ in range(ATTACH_TRIES):
-        active = session.scalars(_locked(select(Issue).where(*same, _active()))).one_or_none()
-        if active is not None:
-            return active, "joined"
+        joined = session.scalars(_locked(select(Issue).where(*same, active()))).one_or_none()
+        if joined is not None:
+            return joined, "joined"
         since = now - timedelta(days=limits.REOPEN_WINDOW_DAYS)
         recent = select(Issue).where(
             *same,
@@ -250,8 +250,10 @@ def _issue_for(
     raise Conflict("issue_busy", "Its issue kept changing while it was being filed: try again")
 
 
-def _active() -> Any:
-    return Issue.status.in_([status.value for status in ACTIVE_ISSUE])
+def active(issue: Any = Issue) -> Any:
+    """Open or in progress: an issue a new insight can join, and a merge can touch. `issue`
+    can be an alias of Issue (R1)."""
+    return issue.status.in_([status.value for status in ACTIVE_ISSUE])
 
 
 def _locked(query: Select[tuple[Issue]]) -> Select[tuple[Issue]]:
@@ -395,10 +397,11 @@ def _refresh(session: Session, pack: OrgPack, issue: Issue) -> None:
     issue.version += 1
 
 
-def with_routes() -> Any:
+def with_routes(issue: Any = Issue) -> Any:
     """An issue with at least one route: the only ones the inbox shows and counts (R1, R10).
-    One emptied by moves stays, and a new insight with its key brings it back."""
-    return exists().where(InsightRoute.issue_id == Issue.id)
+    One emptied by moves stays, and a new insight with its key brings it back. `issue` can
+    be an alias of Issue."""
+    return exists().where(InsightRoute.issue_id == issue.id)
 
 
 # --- a team member's changes (the inbox) -----------------------------------------------------
@@ -476,7 +479,7 @@ def change(
 
 def merge(
     session: Session,
-    pack: OrgPack,
+    pack_for: Callable[[], OrgPack],
     org_id: str,
     actor: str,
     into: tuple[str, int],
@@ -485,14 +488,16 @@ def merge(
     """A person merges one of a team's issues into another of the same category (batch 15c;
     never automatic): `into` and `merged` are each an issue's ID and the version read.
 
-    Locks, in the order a move takes them (§2.3): the merged one's insights, then both issues in
-    (team, key) order, then its routes. Then:
+    Locks (§2.3): the pair's merge suggestion if there is one (as merges.accept, which holds it
+    already), then, in the order a move takes them, the merged one's insights, then both
+    issues in (team, key) order, then its routes. Then:
     - the merged one's routes move to `into`, so its insights, and the rep's page, follow;
     - `into` takes the higher severity, the earlier due date and the wider seen times;
     - the merged one is merged, with merged_into_id, and each has an IssueEvent.
-    Merging into the same issue again changes nothing; one merged elsewhere is 409
-    issue_merged. A version that moved on (a status change won the race) is 409 issue_changed.
-    An issue with no findings left (all moved away) can't be merged: its severity and dates are
+    Merging into the same issue again changes nothing, unless that one has been merged since
+    (409 issue_merged: it's no longer the answer); one merged elsewhere is 409 issue_merged. A
+    version that moved on (a status change won the race) is 409 issue_changed. An issue with no
+    findings left (all moved away) can't be merged: its severity and dates are
     stale. Returns `into`."""
     into_id, into_version = parse_id(into[0]), into[1]
     merged_id, merged_version = parse_id(merged[0]), merged[1]
@@ -500,6 +505,14 @@ def merge(
         raise missing_issue()
     if into_id == merged_id:
         raise Invalid("merge_itself", "An issue can't be merged into itself")
+    session.scalars(
+        select(IssueMergeSuggestion.id)
+        .where(
+            IssueMergeSuggestion.org_id == org_id,
+            IssueMergeSuggestion.pair_key == pair_key(into_id, merged_id),
+        )
+        .with_for_update()
+    ).all()
     insights = select(InsightRoute.insight_id).where(InsightRoute.issue_id == merged_id)
     session.scalars(
         select(Insight.id)
@@ -521,7 +534,7 @@ def merge(
         raise missing_issue()
     target, source = found[into_id], found[merged_id]
     if source.status == IssueStatus.MERGED:
-        if source.merged_into_id == target.id:
+        if source.merged_into_id == target.id and target.status != IssueStatus.MERGED:
             return target  # merged already: the same request again changes nothing (§2.5)
         raise Conflict("issue_merged", "It was merged into another issue already")
     if target.status == IssueStatus.MERGED:
@@ -541,6 +554,7 @@ def merge(
     now = utc_now()
     for route in routes:
         route.issue_id = target.id
+    pack = pack_for()  # loaded only for a merge that happens
     if severity_rank(pack, source.severity) < severity_rank(pack, target.severity):
         target.severity = source.severity
     target.due_at = min(target.due_at, source.due_at)

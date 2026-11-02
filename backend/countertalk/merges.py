@@ -27,12 +27,13 @@ import json
 import logging
 import threading
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from countertalk import issues, limits, llm_calls, rows
 from countertalk.db import session_scope
@@ -87,7 +88,7 @@ def asks_for(session: Session, pack: OrgPack, org_id: str, team_id: str) -> list
         .where(
             Issue.org_id == org_id,
             Issue.team_id == team_id,
-            Issue.status.in_([status.value for status in ACTIVE_ISSUE]),
+            issues.active(),
             issues.with_routes(),
         )
         .order_by(Issue.category, Issue.seq)
@@ -159,16 +160,71 @@ def suggest(
     return step
 
 
+@dataclass(frozen=True)
+class Open:
+    """An open suggestion as one of its issues shows it: the other issue, as it is now."""
+
+    suggestion: IssueMergeSuggestion
+    other: Issue
+
+
+def open_for(session: Session, org_id: str, issue_id: str) -> list[Open]:
+    """The issue's open suggestions whose two issues are both still active with findings: one
+    merged or closed some other way since isn't offered."""
+    into, merged = aliased(Issue), aliased(Issue)
+    found = session.execute(
+        select(IssueMergeSuggestion, into, merged)
+        .join(into, into.id == IssueMergeSuggestion.into_issue_id)
+        .join(merged, merged.id == IssueMergeSuggestion.merge_issue_id)
+        .where(
+            IssueMergeSuggestion.org_id == org_id,
+            IssueMergeSuggestion.status == SuggestionStatus.OPEN,
+            (IssueMergeSuggestion.into_issue_id == issue_id)
+            | (IssueMergeSuggestion.merge_issue_id == issue_id),
+            *(issues.active(i) for i in (into, merged)),
+            *(issues.with_routes(i) for i in (into, merged)),
+        )
+        .order_by(IssueMergeSuggestion.created_at, IssueMergeSuggestion.id)
+    ).all()
+    return [
+        Open(s, merged_issue if s.into_issue_id == issue_id else into_issue)
+        for s, into_issue, merged_issue in found
+    ]
+
+
+def accept(
+    session: Session,
+    pack_for: Callable[[], OrgPack],
+    org_id: str,
+    actor: str,
+    suggestion_id: str,
+    versions: tuple[int, int],
+) -> Issue:
+    """A person merges the pair as suggested: `versions` are the two issues' as read, the one to
+    keep first. The suggestion is locked first, so a Dismiss can't land between (the lock order:
+    the suggestion, then issues.merge's). Merged already: nothing changes. Dismissed: 409.
+    Returns the issue kept."""
+    found = rows.find_one(
+        session, IssueMergeSuggestion, org_id, suggestion_id, _missing(), for_update=True
+    )
+    if found.status == SuggestionStatus.DISMISSED:
+        raise Conflict("suggestion_dismissed", "It was dismissed: they stay apart")
+    into_version, merge_version = versions
+    return issues.merge(
+        session,
+        pack_for,
+        org_id,
+        actor,
+        (found.into_issue_id, into_version),
+        (found.merge_issue_id, merge_version),
+    )
+
+
 def dismiss(session: Session, org_id: str, actor: str, suggestion_id: str) -> IssueMergeSuggestion:
     """A person says the pair isn't one issue: it's never suggested again. Dismissing it again
     changes nothing; one merged already is 409."""
     found = rows.find_one(
-        session,
-        IssueMergeSuggestion,
-        org_id,
-        suggestion_id,
-        NotFound("suggestion_not_found", "There's no such suggestion"),
-        for_update=True,
+        session, IssueMergeSuggestion, org_id, suggestion_id, _missing(), for_update=True
     )
     if found.status == SuggestionStatus.MERGED:
         raise Conflict("suggestion_merged", "It was merged already")
@@ -177,6 +233,11 @@ def dismiss(session: Session, org_id: str, actor: str, suggestion_id: str) -> Is
         found.decided_by_id, found.decided_at = actor, utc_now()
         log.info("merge suggestion dismissed suggestion=%s", found.id)
     return found
+
+
+def _missing() -> NotFound:
+    """A fresh one each time (errors_are_raised_fresh)."""
+    return NotFound("suggestion_not_found", "There's no such suggestion")
 
 
 def _checked(

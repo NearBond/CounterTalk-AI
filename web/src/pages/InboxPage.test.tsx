@@ -80,6 +80,7 @@ const INSIGHT: Insight = {
 
 const DETAIL: IssueDetail = {
   issue: ISSUE,
+  suggestions: [],
   members: [
     {
       insight: INSIGHT,
@@ -210,6 +211,107 @@ describe("InboxPage", () => {
     // Another view: the notice goes.
     await userEvent.selectOptions(screen.getByLabelText("Area"), "Old Market");
     expect(screen.queryByText(/^Resolved:/)).not.toBeInTheDocument();
+  });
+
+  it("shows a merge suggestion; Merge names both versions, opens the kept issue and says so", async () => {
+    const other = { id: "issue-2", title_en: "Credit and payments · Northgate Agencies (example)", version: 7 };
+    const suggestion = {
+      id: "s-1",
+      into_issue_id: "issue-1",
+      merge_issue_id: "issue-2",
+      reason: "Both are the same unpaid credit note.",
+      other,
+    };
+    const kept: IssueDetail = { ...DETAIL, issue: { ...ISSUE, shops: 3, version: 5 } };
+    const northgate: Issue = { ...ISSUE, id: "issue-2", title_en: other.title_en, version: 7 };
+    const { api } = open("/inbox", {
+      // The list read again still has the merged one: it's hidden at once all the same.
+      "GET /api/issues?team=finance": [() => json(200, [ISSUE, northgate]), () => json(200, [kept.issue, northgate])],
+      "GET /api/issues/issue-1": [() => json(200, { ...DETAIL, suggestions: [suggestion] }), () => json(200, kept)],
+      "POST /api/issues/suggestions/s-1/merge": () => json(200, kept),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: /Credit and payments · Station Road/ }));
+
+    const offered = within(await screen.findByRole("list", { name: "Merge suggestions" })).getByRole("listitem");
+    expect(offered).toHaveTextContent("These look like the same issue: Both are the same unpaid credit note.");
+    expect(offered).toHaveTextContent(
+      "Merge moves the findings of “Credit and payments · Northgate Agencies (example)” into “Credit and payments · Station Road Distributors (example)”.",
+    );
+    await userEvent.click(within(offered).getByRole("button", { name: "Merge" }));
+
+    const notice = await screen.findByText(
+      "Merged: their findings are together in Credit and payments · Station Road Distributors (example).",
+    );
+    expect(notice).toHaveFocus();
+    expect(api.sent()).toEqual([
+      { route: "POST /api/issues/suggestions/s-1/merge", body: { into_version: 4, merge_version: 7 } },
+    ]);
+    expect(await screen.findByRole("list", { name: "Its insights" })).toBeInTheDocument();
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("list", { name: "Merge suggestions" })).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("button", { name: /Northgate Agencies/ })).not.toBeInTheDocument();
+  });
+
+  it("Dismiss keeps them apart, and a merge on an old read says so", async () => {
+    const suggestion = {
+      id: "s-1",
+      into_issue_id: "issue-2",
+      merge_issue_id: "issue-1",
+      reason: "Same.",
+      other: { id: "issue-2", title_en: "Credit and payments · Northgate Agencies (example)", version: 7 },
+    };
+    const changed = () => json(409, { error: { code: "issue_changed", message: "Someone changed one of these issues meanwhile: reload" } });
+    const { api } = open("/inbox", {
+      "GET /api/issues?team=finance": () => json(200, [ISSUE]),
+      "GET /api/issues/issue-1": [
+        () => json(200, { ...DETAIL, suggestions: [suggestion] }),
+        () => json(200, DETAIL),
+      ],
+      "POST /api/issues/suggestions/s-1/merge": changed,
+      "POST /api/issues/suggestions/s-1/dismiss": () => new Response(null, { status: 204 }),
+    });
+    await expand();
+    const offered = within(await screen.findByRole("list", { name: "Merge suggestions" })).getByRole("listitem");
+
+    await userEvent.click(within(offered).getByRole("button", { name: "Merge" }));
+    expect(await within(offered).findByRole("alert")).toHaveTextContent(
+      "One of them changed meanwhile: nothing was merged.",
+    );
+    // This issue is the one merged away here: the other's version is the kept one's.
+    expect(api.sent()[0]).toEqual({
+      route: "POST /api/issues/suggestions/s-1/merge",
+      body: { into_version: 7, merge_version: 4 },
+    });
+    await userEvent.click(within(offered).getByRole("button", { name: "Dismiss" }));
+
+    await vi.waitFor(() => expect(screen.queryByRole("list", { name: "Merge suggestions" })).not.toBeInTheDocument());
+    expect(api.sent()[1]).toEqual({ route: "POST /api/issues/suggestions/s-1/dismiss", body: undefined });
+  });
+
+  it("a suggestion gone another way says why, and Reload reads the issue again", async () => {
+    const suggestion = {
+      id: "s-1",
+      into_issue_id: "issue-1",
+      merge_issue_id: "issue-2",
+      reason: "Same.",
+      other: { id: "issue-2", title_en: "Credit and payments · Northgate Agencies (example)", version: 7 },
+    };
+    open("/inbox", {
+      "GET /api/issues?team=finance": () => json(200, [ISSUE]),
+      "GET /api/issues/issue-1": [() => json(200, { ...DETAIL, suggestions: [suggestion] }), () => json(200, DETAIL)],
+      "POST /api/issues/suggestions/s-1/merge": () =>
+        json(409, { error: { code: "suggestion_dismissed", message: "It was dismissed: they stay apart" } }),
+    });
+    await expand();
+    const offered = within(await screen.findByRole("list", { name: "Merge suggestions" })).getByRole("listitem");
+
+    await userEvent.click(within(offered).getByRole("button", { name: "Merge" }));
+    const alert = await within(offered).findByRole("alert");
+    expect(alert).toHaveTextContent("It was dismissed: they stay apart Try again");
+    await userEvent.click(within(alert).getByRole("button", { name: "Try again" }));
+
+    await vi.waitFor(() => expect(screen.queryByRole("list", { name: "Merge suggestions" })).not.toBeInTheDocument());
   });
 
   it("an open card that leaves the list on a refresh says so", async () => {

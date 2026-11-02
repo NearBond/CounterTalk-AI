@@ -375,6 +375,36 @@ export interface Member {
 export interface IssueDetail {
   issue: Issue;
   members: Member[];
+  /** Its open merge suggestions (batch 15c), whose two issues are both still active. */
+  suggestions: Suggestion[];
+}
+
+/** The other issue of a merge suggestion, as it is now: its version is what Merge names. */
+export interface OtherIssue {
+  id: string;
+  title_en: string;
+  version: number;
+}
+
+/** An open merge suggestion (batch 15c): "These look like the same issue: <reason>". The issue
+ * kept is into_issue_id; the other is merged into it. */
+export interface Suggestion {
+  id: string;
+  into_issue_id: string;
+  merge_issue_id: string;
+  reason: string;
+  other: OtherIssue;
+}
+
+/**
+ * POST /api/issues/suggestions/{id}/merge: MergeIn, both issues' versions as read. Answers the
+ * kept issue's IssueDetail. 409 `issue_changed`, `issue_merged`, `issue_closed`, `issue_empty`,
+ * `suggestion_dismissed`; 404 `suggestion_not_found`. POST …/dismiss: 204; 409
+ * `suggestion_merged`.
+ */
+export interface MergeIn {
+  into_version: number;
+  merge_version: number;
 }
 
 /**

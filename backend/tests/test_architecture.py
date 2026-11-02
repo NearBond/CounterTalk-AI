@@ -1028,6 +1028,8 @@ WRITTEN_ONCE = {
     '.code == "llm_answer_invalid"': "countertalk/llm_calls.py",
     # A summary job's lock on its summary: summary_jobs._locked (15c-2, R1 in 15c-1 and 15c-2).
     ".where(Summary.id == summary_id)\n": "countertalk/summary_jobs.py",
+    # An open or in-progress issue: issues.active (15c-3, R1 in 15c-2 and 15c-3).
+    "for status in ACTIVE_ISSUE]": "countertalk/issues.py",
     # The insights a summary counts: summaries.shown_in.
     "Visit.created_at >= period.start": "countertalk/summaries.py",
 }

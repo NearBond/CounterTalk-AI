@@ -6,7 +6,9 @@ import {
   alsoSend,
   audioUrl,
   changeIssue,
+  dismissSuggestion,
   getIssue,
+  mergeSuggestion,
   moveRoute,
 } from "../lib/api";
 import { formatDateTime } from "../lib/format";
@@ -19,6 +21,7 @@ import {
   type IssueDetail,
   type Member,
   RESOLUTION_NOTE_MAX_CHARS,
+  type Suggestion,
   type Team,
 } from "../types/api";
 import { ChoiceSelect } from "./ChoiceSelect";
@@ -34,13 +37,15 @@ interface Props {
   onChanged: () => void;
   /** It was resolved, so it leaves the open list. */
   onResolved: (issue: Issue) => void;
+  /** Two issues were merged (batch 15c): the one kept, read again, and the other's ID. */
+  onMerged: (kept: IssueDetail, mergedId: string) => void;
 }
 
 // A change made on an old read: shown, and the issue read again, so the page catches up.
 const STALE = new Set(["issue_changed", "route_changed"]);
 
 /** One issue, expanded: its status, owner and due date to change, and each of its insights. */
-export function IssuePanel({ issueId, teams, onChanged, onResolved }: Props) {
+export function IssuePanel({ issueId, teams, onChanged, onResolved, onMerged }: Props) {
   const loaded = usePolling((signal) => getIssue(issueId, signal), { key: issueId, shouldPoll: () => false });
   const { playFrom, playAt: _, src, ...player } = usePlayer();
 
@@ -69,6 +74,24 @@ export function IssuePanel({ issueId, teams, onChanged, onResolved }: Props) {
         onSaved={(saved) => (saved.issue.status === "resolved" ? onResolved(saved.issue) : changed())}
         onStale={changed}
       />
+      {detail.suggestions.length > 0 && (
+        <ul aria-label="Merge suggestions" className="flex flex-col gap-2">
+          {detail.suggestions.map((suggestion) => (
+            <SuggestionItem
+              // Read again (a refusal's Reload), it starts afresh: no old error over new data.
+              key={`${suggestion.id}:${detail.issue.version}:${suggestion.other.version}`}
+              suggestion={suggestion}
+              issue={detail.issue}
+              onMerged={(kept, mergedId) => {
+                loaded.reload(); // this panel may be the kept issue's: read it again
+                onMerged(kept, mergedId);
+              }}
+              onDismissed={loaded.reload}
+              onStale={changed}
+            />
+          ))}
+        </ul>
+      )}
       {src !== null && <PagePlayer {...player} src={src} />}
       <ul aria-label="Its insights" className="flex flex-col gap-3">
         {detail.members.map((member) => (
@@ -276,6 +299,66 @@ function MemberItem({
           </button>
         </div>
       )}
+    </li>
+  );
+}
+
+interface SuggestionProps {
+  suggestion: Suggestion;
+  /** The issue whose panel this is: the suggestion is seen from its side. */
+  issue: Issue;
+  onMerged: (kept: IssueDetail, mergedId: string) => void;
+  onDismissed: () => void;
+  onStale: () => void;
+}
+
+/** "These look like the same issue": the AI suggests, a person merges or dismisses (batch 15c).
+ * Merge names both issues' versions as read; never automatic. */
+function SuggestionItem({ suggestion, issue, onMerged, onDismissed, onStale }: SuggestionProps) {
+  const save = useSave();
+  const keepsThis = suggestion.into_issue_id === issue.id;
+  const [kept, merged] = keepsThis ? [issue, suggestion.other] : [suggestion.other, issue];
+  const failed = save.error;
+  // Any refusal (an old read, or the suggestion or an issue gone another way meanwhile): its
+  // words, and Reload, so what's offered catches up.
+  const refused = failed instanceof ApiError && failed.status === 409;
+  const merge = () =>
+    save.run(
+      (signal) =>
+        mergeSuggestion(suggestion.id, { into_version: kept.version, merge_version: merged.version }, signal),
+      (kept) => onMerged(kept, merged.id),
+    );
+
+  return (
+    <li className="flex flex-col gap-2 rounded-md bg-amber-50 p-3">
+      <p>These look like the same issue: {suggestion.reason}</p>
+      <p className="text-sm text-gray-700">
+        Merge moves the findings of “{merged.title_en}” into “{kept.title_en}”.
+      </p>
+      {refused && (
+        <RetryAlert onRetry={onStale}>
+          {STALE.has(failed.code) ? "One of them changed meanwhile: nothing was merged." : failed.message}
+        </RetryAlert>
+      )}
+      {!refused && <SaveError error={failed} onRetry={save.retry} />}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={save.saving}
+          onClick={merge}
+          className="rounded-md bg-blue-700 px-3 py-1 text-white disabled:opacity-50"
+        >
+          Merge
+        </button>
+        <button
+          type="button"
+          disabled={save.saving}
+          onClick={() => save.run((signal) => dismissSuggestion(suggestion.id, signal), onDismissed)}
+          className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-50"
+        >
+          Dismiss
+        </button>
+      </div>
     </li>
   );
 }

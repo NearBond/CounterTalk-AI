@@ -34,7 +34,10 @@ from countertalk.api.issues import (
     IssueDetailOut,
     IssueOut,
     MemberOut,
+    MergeIn,
     OptionsOut,
+    OtherIssueOut,
+    SuggestionOut,
     TeamOut,
     UntriagedOut,
 )
@@ -88,6 +91,9 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "Summary": SummaryOut,
     "SummaryAsk": SummaryAsk,
     "SummaryPage": SummaryPageOut,
+    "Suggestion": SuggestionOut,
+    "OtherIssue": OtherIssueOut,
+    "MergeIn": MergeIn,
 }
 
 

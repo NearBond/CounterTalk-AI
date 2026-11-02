@@ -321,9 +321,7 @@ def _load(session: Session, org_id: str, period: Period, team_id: str | None) ->
     query = select(Issue).where(
         Issue.org_id == org_id,
         issues.with_routes(),
-        Issue.status.in_([status.value for status in ACTIVE_ISSUE])
-        | (Issue.last_seen_at >= since)
-        | (Issue.resolved_at >= since),
+        issues.active() | (Issue.last_seen_at >= since) | (Issue.resolved_at >= since),
     )
     if team_id is not None:
         query = query.where(Issue.team_id == team_id)

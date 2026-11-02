@@ -9,8 +9,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query
 from pydantic import AwareDatetime, BaseModel, ConfigDict, StrictBool, StrictInt
+from sqlalchemy.orm import Session
 
-from countertalk import extraction, inbox, issues
+from countertalk import extraction, inbox, issues, merges
 from countertalk.api.deps import CurrentUser
 from countertalk.api.insights import ChoiceOut, InsightOut, RouteOut, insight_out
 from countertalk.db import DbSession
@@ -81,9 +82,39 @@ class MemberOut(BaseModel):
     route: RouteOut
 
 
+class OtherIssueOut(BaseModel):
+    """The other issue of a merge suggestion, as it is now: its version is what Merge names."""
+
+    id: str
+    title_en: str
+    version: int
+
+
+class SuggestionOut(BaseModel):
+    """An open merge suggestion (batch 15c): "These look like the same issue: <reason>". The
+    issue kept is into_issue_id; the other one is merged into it."""
+
+    id: str
+    into_issue_id: str
+    merge_issue_id: str
+    reason: str
+    other: OtherIssueOut
+
+
 class IssueDetailOut(BaseModel):
     issue: IssueOut
     members: list[MemberOut]
+    # Its open merge suggestions (batch 15c), whose two issues are both still active.
+    suggestions: list[SuggestionOut]
+
+
+class MergeIn(BaseModel):
+    """Merge: both issues' versions as read. 409 issue_changed if either moved on."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    into_version: StrictInt
+    merge_version: StrictInt
 
 
 class IssueChange(BaseModel):
@@ -134,7 +165,14 @@ def issue_out(card: inbox.Card) -> IssueOut:
     )
 
 
-def detail_out(found: inbox.Detail) -> IssueDetailOut:
+def detail_of(session: Session, org_id: str, issue_id: str) -> IssueDetailOut:
+    """The issue, its insights, and its open merge suggestions."""
+    return detail_out(
+        inbox.detail(session, org_id, issue_id), merges.open_for(session, org_id, issue_id)
+    )
+
+
+def detail_out(found: inbox.Detail, suggested: list[merges.Open]) -> IssueDetailOut:
     return IssueDetailOut(
         issue=issue_out(found.card),
         members=[
@@ -148,6 +186,18 @@ def detail_out(found: inbox.Detail) -> IssueDetailOut:
                 route=RouteOut.model_validate(member.route, from_attributes=True),
             )
             for member in found.members
+        ],
+        suggestions=[
+            SuggestionOut(
+                id=s.suggestion.id,
+                into_issue_id=s.suggestion.into_issue_id,
+                merge_issue_id=s.suggestion.merge_issue_id,
+                reason=s.suggestion.reason,
+                other=OtherIssueOut(
+                    id=s.other.id, title_en=s.other.title_en, version=s.other.version
+                ),
+            )
+            for s in suggested
         ],
     )
 
@@ -205,7 +255,7 @@ def list_issues(
 
 @router.get("/{issue_id}")
 def get_issue(issue_id: UUID, user: CurrentUser, session: DbSession) -> IssueDetailOut:
-    return detail_out(inbox.detail(session, user.org_id, str(issue_id)))
+    return detail_of(session, user.org_id, str(issue_id))
 
 
 @router.patch("/{issue_id}")
@@ -224,4 +274,29 @@ def change_issue(
         assign_to_me=body.assign_to_me,
         due_at=body.due_at,
     )
-    return detail_out(inbox.detail(session, user.org_id, str(issue_id)))
+    return detail_of(session, user.org_id, str(issue_id))
+
+
+@router.post("/suggestions/{suggestion_id}/merge")
+def merge_suggested(
+    suggestion_id: UUID, body: MergeIn, user: CurrentUser, session: DbSession
+) -> IssueDetailOut:
+    """Merge, as suggested: the issue kept, read again. Merged already: the same answer, nothing
+    changed. 409 issue_changed (a version moved on), issue_merged, issue_closed, issue_empty,
+    suggestion_dismissed; 404 suggestion_not_found."""
+    pack = partial(extraction.pack_for, user.org_id, session=session)
+    kept = merges.accept(
+        session,
+        pack,
+        user.org_id,
+        user.id,
+        str(suggestion_id),
+        (body.into_version, body.merge_version),
+    )
+    return detail_of(session, user.org_id, kept.id)
+
+
+@router.post("/suggestions/{suggestion_id}/dismiss", status_code=204)
+def dismiss_suggested(suggestion_id: UUID, user: CurrentUser, session: DbSession) -> None:
+    """They stay apart, and the pair is never suggested again. 409 suggestion_merged."""
+    merges.dismiss(session, user.org_id, user.id, str(suggestion_id))

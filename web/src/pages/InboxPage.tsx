@@ -8,7 +8,7 @@ import { countOf, formatDateTime } from "../lib/format";
 import { usePolling } from "../lib/hooks";
 import { STATUS_LABELS } from "../lib/issues";
 import { INBOX_POLL_MS } from "../lib/limits";
-import type { Choice, Issue } from "../types/api";
+import type { Choice, Issue, IssueDetail } from "../types/api";
 
 const ANY: Choice = { key: "", label: "Any" };
 const FILTERS = ["status", "category", "area", "distributor"] as const;
@@ -41,32 +41,35 @@ export function InboxPage() {
     skip: team === null,
   });
   const [open, setOpen] = useState<string | null>(null);
-  // An issue that leaves the list says where it went: resolved here, or (the open card gone after
-  // a refresh) resolved by someone else or moved away. Hidden at once, before the list catches up.
-  const [resolved, setResolved] = useState<Issue | null>(null);
-  const shown = issues.data?.filter((issue) => issue.id !== resolved?.id);
+  // An issue that leaves the list says where it went: resolved here, merged here (batch 15c), or
+  // (the open card gone after a refresh) resolved by someone else or moved away. The card it's
+  // about is hidden at once, before the list catches up.
+  const [notice, setNotice] = useState<{ text: string; hide: string } | null>(null);
+  const shown = issues.data?.filter((issue) => issue.id !== notice?.hide);
   const left = open !== null && shown !== undefined && !shown.some((issue) => issue.id === open);
-  const notice =
-    resolved !== null
-      ? `Resolved: ${resolved.title_en}. It's under Status: Resolved now.`
-      : left
-        ? "That issue has left this list: someone resolved it, or its findings went to another team."
-        : "";
+  const said =
+    notice?.text ??
+    (left ? "That issue has left this list: someone resolved it, or its findings went to another team." : "");
   const status = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
-    if (resolved !== null) status.current?.focus(); // where the card was, read out
-  }, [resolved]);
+    if (notice !== null) status.current?.focus(); // where the card was, read out
+  }, [notice]);
   const onResolved = (issue: Issue) => {
-    setResolved(issue);
+    setNotice({ text: `Resolved: ${issue.title_en}. It's under Status: Resolved now.`, hide: issue.id });
     setOpen(null);
     issues.reload();
   };
+  const onMerged = (kept: IssueDetail, mergedId: string) => {
+    setNotice({ text: `Merged: their findings are together in ${kept.issue.title_en}.`, hide: mergedId });
+    setOpen(kept.issue.id);
+    issues.reload();
+  };
   const toggle = (issueId: string) => {
-    setResolved(null);
+    setNotice(null);
     setOpen(open === issueId ? null : issueId);
   };
   const choose = (name: string, value: string) => {
-    setResolved(null);
+    setNotice(null);
     setOpen(null);
     const next = new URLSearchParams(params);
     if (value) next.set(name, value);
@@ -133,9 +136,9 @@ export function InboxPage() {
         ref={status}
         role="status"
         tabIndex={-1}
-        className={notice === "" ? "sr-only" : "rounded-md bg-green-50 p-3 text-green-900"}
+        className={said === "" ? "sr-only" : "rounded-md bg-green-50 p-3 text-green-900"}
       >
-        {notice}
+        {said}
       </p>
       {issues.error !== null && (
         <RetryAlert onRetry={issues.reload}>The issues couldn't be loaded: {issues.error.message}</RetryAlert>
@@ -151,7 +154,7 @@ export function InboxPage() {
                 onToggle={() => toggle(issue.id)}
               />
               {open === issue.id && (
-                <IssuePanel issueId={issue.id} teams={data.teams} onChanged={issues.reload} onResolved={onResolved} />
+                <IssuePanel issueId={issue.id} teams={data.teams} onChanged={issues.reload} onResolved={onResolved} onMerged={onMerged} />
               )}
             </li>
           ))}
