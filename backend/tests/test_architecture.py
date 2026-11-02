@@ -601,6 +601,28 @@ def api_literals_copy_no_domain_choice(sources: list[Source]) -> list[str]:
     return found
 
 
+def errors_are_raised_fresh(sources: list[Source]) -> list[str]:
+    """Batch 15c: no module-level instance of one of our errors to raise again and again. A
+    raised exception keeps the frames it was raised from, so one raised from many requests
+    holds them all, and two threads raising it at once tangle its traceback. Make one each time
+    (a function, such as issues.missing_issue)."""
+    from countertalk import errors
+
+    ours = {
+        name
+        for name, value in vars(errors).items()
+        if isinstance(value, type) and issubclass(value, BaseException)
+    }
+    return [
+        f"{path}:{node.lineno}"
+        for path, tree in sources
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Call)
+        and dotted(node.value.func).split(".")[-1] in ours
+    ]
+
+
 RULES: dict[str, Callable[[list[Source]], list[str]]] = {
     rule.__name__: rule
     for rule in [
@@ -622,10 +644,12 @@ RULES: dict[str, Callable[[list[Source]], list[str]]] = {
         jobs_imports_no_domain_module,
         files_written_only_by_storage,
         api_literals_copy_no_domain_choice,
+        errors_are_raised_fresh,
     ]
 }
 
 BAD_EXAMPLES = [
+    ("errors_are_raised_fresh", "x.py", "MISSING = NotFound('x_not_found', 'No such x')\n"),
     (
         "api_literals_copy_no_domain_choice",
         "api/summaries.py",

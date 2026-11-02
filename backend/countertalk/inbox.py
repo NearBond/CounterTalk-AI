@@ -160,7 +160,7 @@ def detail(session: Session, org_id: str, issue_id: str) -> Detail:
     if found is not None:
         row = session.execute(_cards_select(counts).where(*mine)).one_or_none()
     if row is None:
-        raise NotFound("issue_not_found", "There's no such issue")
+        raise issues.missing_issue()
     members = session.execute(
         _who(select(Insight).join(InsightRoute, InsightRoute.insight_id == Insight.id))
         .where(InsightRoute.issue_id == found)

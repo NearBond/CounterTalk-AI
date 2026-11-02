@@ -459,8 +459,9 @@ class TeamWork:
 
 @dataclass(frozen=True)
 class CauseNumbers:
-    """A cause across teams: the category and its key fields, whichever teams it went to. Each
-    insight and each shop counts once, even when it went to two teams."""
+    """A cause across teams: the category and its key fields, whichever teams it went to, and
+    any issue sharing an insight with them (_causes). Each insight and each shop counts once,
+    even when it went to two teams. Its key and title are its biggest issue's."""
 
     issue_key: str
     title_en: str
@@ -511,11 +512,9 @@ def org_numbers(session: Session, pack: OrgPack, org_id: str, period: Period) ->
             select(Team.id, Team.key, Team.name).where(Team.org_id == org_id)
         )
     }
-    by_cause: dict[str, list[Issue]] = defaultdict(list)
-    for issue in loaded.found:
-        by_cause[issue.issue_key].append(issue)
     causes = []
-    for key, grouped in by_cause.items():
+    grouped_causes = _causes(loaded)
+    for grouped in grouped_causes:
         parts = [(loaded.states[i.id], loaded.members[i.id]) for i in grouped]
         measured = _measure(pack, parts, period)
         if measured is None:
@@ -524,7 +523,8 @@ def org_numbers(session: Session, pack: OrgPack, org_id: str, period: Period) ->
             (TeamWork(*teams[i.team_id], i.id, loaded.states[i.id].status) for i in grouped),
             key=lambda w: w.team_key,
         )
-        causes.append(CauseNumbers(key, grouped[0].title_en, grouped[0].category, work, measured))
+        lead = grouped[0]
+        causes.append(CauseNumbers(lead.issue_key, lead.title_en, lead.category, work, measured))
     triage = [
         _Member(*row)
         for row in session.execute(_members().where(*shown_in(org_id, period), _no_route()))
@@ -536,11 +536,42 @@ def org_numbers(session: Session, pack: OrgPack, org_id: str, period: Period) ->
         # From what the summary shows (its causes' insights and triage's), so the checker's
         # fresh COUNT(DISTINCT) can disagree.
         totals=_totals(routed + triage, triage=len(triage)),
-        by_category_area=_by_category_area(loaded, period),
+        by_category_area=_by_category_area(loaded, grouped_causes, period),
         competitors=_competitors(session, org_id, period),
         issues_at_end=_at_end(loaded),
         resolved_in_period=sum(1 for i in loaded.found if loaded.states[i.id].resolved_in_period),
     )
+
+
+def _causes(loaded: _Loaded) -> list[list[Issue]]:
+    """The issues of each cause, its biggest first: issues with one key, and issues sharing an
+    insight, joined transitively (an insight sent to two teams, or moved by batch 15c's merge
+    into an issue with other key fields), so no insight is in two causes."""
+    parent = {issue.id: issue.id for issue in loaded.found}
+
+    def root(issue_id: str) -> str:
+        while parent[issue_id] != issue_id:
+            parent[issue_id] = parent[parent[issue_id]]
+            issue_id = parent[issue_id]
+        return issue_id
+
+    first: dict[str, str] = {}
+    for issue in loaded.found:
+        links = [f"key {issue.issue_key}"]
+        links += [f"insight {m.insight_id}" for m in loaded.members[issue.id]]
+        for link in links:
+            if link in first:
+                parent[root(issue.id)] = root(first[link])
+            else:
+                first[link] = issue.id
+    grouped: dict[str, list[Issue]] = defaultdict(list)
+    for issue in loaded.found:
+        grouped[root(issue.id)].append(issue)
+    size = {issue.id: len(loaded.members[issue.id]) for issue in loaded.found}
+    return [
+        sorted(issues_of, key=lambda i: (-size[i.id], i.issue_key, i.id))
+        for issues_of in grouped.values()
+    ]
 
 
 def _no_route() -> Any:
@@ -548,14 +579,18 @@ def _no_route() -> Any:
     return ~exists().where(InsightRoute.insight_id == Insight.id)
 
 
-def _by_category_area(loaded: _Loaded, period: Period) -> list[CategoryArea]:
+def _by_category_area(
+    loaded: _Loaded, grouped_causes: list[list[Issue]], period: Period
+) -> list[CategoryArea]:
+    # Each issue's cause, by its lead issue's key: the causes' own grouping (_causes).
+    cause_of = {i.id: grouped[0].issue_key for grouped in grouped_causes for i in grouped}
     causes: dict[tuple[str, str], set[str]] = defaultdict(set)
     shops: dict[tuple[str, str], set[str]] = defaultdict(set)
     for issue in loaded.found:
         for m in loaded.members[issue.id]:
             if period.holds(m.seen_at):
                 where = (issue.category, m.area)
-                causes[where].add(issue.issue_key)
+                causes[where].add(cause_of[issue.id])
                 shops[where].add(m.shop_id)
     return [
         CategoryArea(category, area, len(causes[(category, area)]), len(shops[(category, area)]))

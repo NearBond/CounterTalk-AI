@@ -50,8 +50,6 @@ NUMBERS: TypeAdapter[TeamNumbers | OrgNumbers] = TypeAdapter(TeamNumbers | OrgNu
 
 log = logging.getLogger(__name__)
 
-MISSING = NotFound("summary_not_found", "No such summary")
-
 
 @dataclass(frozen=True)
 class Page:
@@ -119,12 +117,12 @@ def page(
 
 
 def find(session: Session, org_id: str, summary_id: str) -> Summary:
-    return rows.find_one(session, Summary, org_id, summary_id, MISSING)
+    return rows.find_one(session, Summary, org_id, summary_id, _missing())
 
 
 def retry(session: Session, org_id: str, summary_id: str) -> Summary:
     """Try again: a failed summary goes back to writing, with a new job."""
-    found = rows.find_one(session, Summary, org_id, summary_id, MISSING, for_update=True)
+    found = rows.find_one(session, Summary, org_id, summary_id, _missing(), for_update=True)
     if found.status == SummaryStatus.FAILED:
         found.status, found.failure_reason = SummaryStatus.WRITING, None
         session.flush()
@@ -145,7 +143,7 @@ def run(
     with session_scope(read_only=True) as session:
         found = session.get(Summary, summary_id)
         if found is None:
-            raise MISSING
+            raise _missing()
         if found.status != SummaryStatus.WRITING:
             log.info("summary not being written summary=%s status=%s", summary_id, found.status)
             return
@@ -214,6 +212,11 @@ def _narrative(
         "summary narrative checked summary=%s kept=%d %s", summary_id, written["kept"], dropped
     )
     return written
+
+
+def _missing() -> NotFound:
+    """A fresh one each time: an error raised again keeps its old frames (R2)."""
+    return NotFound("summary_not_found", "No such summary")
 
 
 def count(

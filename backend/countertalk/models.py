@@ -1139,6 +1139,8 @@ class IssueEventField(StrEnum):
     STATUS = "status"
     OWNER = "owner"
     DUE_AT = "due_at"
+    # On the issue another was merged into (batch 15c): to_value is the merged one's ID.
+    MERGE = "merge"
 
 
 class IssueEvent(Base):
@@ -1213,6 +1215,8 @@ class Summary(Base):
         ),
         # Its team is its own org's. Teams are never deleted, so nothing happens on delete.
         ForeignKeyConstraint(["org_id", "team_id"], ["teams.org_id", "teams.id"]),
+        # The target of a merge suggestion's (org_id, summary_id) (batch 15c).
+        UniqueConstraint("org_id", "id"),
     )
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
@@ -1233,3 +1237,66 @@ class Summary(Base):
     failure_reason: Mapped[str | None] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now, onupdate=utc_now)
+
+
+class SuggestionStatus(StrEnum):
+    OPEN = "open"
+    MERGED = "merged"
+    DISMISSED = "dismissed"
+
+
+class IssueMergeSuggestion(Base):
+    """The AI's suggestion that two of a team's issues are one (batch 15c): never acted on by
+    itself. A person merges it (issues.merge) or dismisses it. One row a pair, either way round
+    (pair_key, the two IDs sorted), so a dismissed pair is never suggested again."""
+
+    __tablename__ = "issue_merge_suggestions"
+    __table_args__ = (
+        CheckConstraint(_one_of("status", SuggestionStatus), name="status"),
+        CheckConstraint("into_issue_id <> merge_issue_id", name="two_issues"),
+        # Open, and only then, with nobody's decision yet.
+        CheckConstraint(
+            f"(status = '{SuggestionStatus.OPEN}') = (decided_by_id IS NULL)"
+            " AND (decided_by_id IS NULL) = (decided_at IS NULL)",
+            name="decided",
+        ),
+        UniqueConstraint("org_id", "pair_key"),
+        # Both issues are its team's. Issues, teams, summaries and users are never deleted, so
+        # nothing happens on delete.
+        ForeignKeyConstraint(
+            ["org_id", "team_id", "into_issue_id"],
+            ["issues.org_id", "issues.team_id", "issues.id"],
+            name="fk_issue_merge_suggestions_into_issue_id_issues",
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "team_id", "merge_issue_id"],
+            ["issues.org_id", "issues.team_id", "issues.id"],
+            name="fk_issue_merge_suggestions_merge_issue_id_issues",
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "decided_by_id"],
+            ["users.org_id", "users.id"],
+            name="fk_issue_merge_suggestions_decided_by_id_users",
+        ),
+        ForeignKeyConstraint(
+            ["org_id", "summary_id"],
+            ["summaries.org_id", "summaries.id"],
+            name="fk_issue_merge_suggestions_summary_id_summaries",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    team_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    into_issue_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    merge_issue_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    # The two issues' IDs, sorted and joined with "|": one row a pair, whichever way round.
+    pair_key: Mapped[str] = mapped_column(String)
+    # The AI's words for why, shown with Merge and Dismiss.
+    reason: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default=SuggestionStatus.OPEN.value)
+    # The summary whose job suggested it.
+    summary_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    decided_by_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    decided_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)

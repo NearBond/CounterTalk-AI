@@ -48,6 +48,7 @@ from countertalk.models import (
     Shop,
     Visit,
     new_id,
+    parse_id,
     utc_now,
 )
 from countertalk.playbooks import OrgPack
@@ -343,9 +344,10 @@ def attach_route(
     visit = session.get_one(Visit, insight.visit_id)
     shop = session.get_one(Shop, visit.shop_id)
     member = Member(route, insight, shop, visit.created_at)
-    missing = NotFound("issue_not_found", "There's no such issue")
     old = (
-        None if leaving is None else rows.find_one(session, Issue, insight.org_id, leaving, missing)
+        None
+        if leaving is None
+        else rows.find_one(session, Issue, insight.org_id, leaving, missing_issue())
     )
     [(team_id, key, _, _)] = plan(pack, [member])
     old_first = old is not None and (old.team_id, old.issue_key) < (team_id, key)
@@ -470,6 +472,106 @@ def change(
     return issue
 
 
+def merge(
+    session: Session,
+    pack: OrgPack,
+    org_id: str,
+    actor: str,
+    into: tuple[str, int],
+    merged: tuple[str, int],
+) -> Issue:
+    """A person merges one of a team's issues into another of the same category (batch 15c;
+    never automatic): `into` and `merged` are each an issue's ID and the version read.
+
+    Locks, in the order a move takes them (§2.3): the merged one's insights, then both issues in
+    (team, key) order, then its routes. Then:
+    - the merged one's routes move to `into`, so its insights, and the rep's page, follow;
+    - `into` takes the higher severity, the earlier due date and the wider seen times;
+    - the merged one is merged, with merged_into_id, and each has an IssueEvent.
+    Merging into the same issue again changes nothing; one merged elsewhere is 409
+    issue_merged. A version that moved on (a status change won the race) is 409 issue_changed.
+    An issue with no findings left (all moved away) can't be merged: its severity and dates are
+    stale. Returns `into`."""
+    into_id, into_version = parse_id(into[0]), into[1]
+    merged_id, merged_version = parse_id(merged[0]), merged[1]
+    if into_id is None or merged_id is None:
+        raise missing_issue()
+    if into_id == merged_id:
+        raise Invalid("merge_itself", "An issue can't be merged into itself")
+    insights = select(InsightRoute.insight_id).where(InsightRoute.issue_id == merged_id)
+    session.scalars(
+        select(Insight.id)
+        .where(Insight.org_id == org_id, Insight.id.in_(insights))
+        .order_by(Insight.id)
+        .with_for_update()
+    ).all()
+    found = {
+        issue.id: issue
+        for issue in session.scalars(
+            _locked(
+                select(Issue)
+                .where(Issue.org_id == org_id, Issue.id.in_([into_id, merged_id]))
+                .order_by(Issue.team_id, Issue.issue_key, Issue.id)
+            )
+        )
+    }
+    if len(found) != 2:
+        raise missing_issue()
+    target, source = found[into_id], found[merged_id]
+    if source.status == IssueStatus.MERGED:
+        if source.merged_into_id == target.id:
+            return target  # merged already: the same request again changes nothing (§2.5)
+        raise Conflict("issue_merged", "It was merged into another issue already")
+    if target.status == IssueStatus.MERGED:
+        raise Conflict("issue_merged", "It was merged into another issue: merge into that one")
+    if (target.version, source.version) != (into_version, merged_version):
+        raise Conflict("issue_changed", "Someone changed one of these issues meanwhile: reload")
+    if (target.team_id, target.category) != (source.team_id, source.category):
+        raise Invalid("merge_unlike", "Only one team's issues of one category can be merged")
+    if target.status not in ACTIVE_ISSUE or source.status not in ACTIVE_ISSUE:
+        raise Conflict("issue_closed", "Only open or in-progress issues can be merged")
+    routes = session.scalars(
+        select(InsightRoute).where(InsightRoute.issue_id == source.id).with_for_update()
+    ).all()
+    has_routes = select(exists().where(InsightRoute.issue_id == target.id))
+    if not routes or not session.scalar(has_routes):
+        raise Conflict("issue_empty", "That issue has no findings left: there's nothing to merge")
+    now = utc_now()
+    for route in routes:
+        route.issue_id = target.id
+    if severity_rank(pack, source.severity) < severity_rank(pack, target.severity):
+        target.severity = source.severity
+    target.due_at = min(target.due_at, source.due_at)
+    target.first_seen_at = min(target.first_seen_at, source.first_seen_at)
+    target.last_seen_at = max(target.last_seen_at, source.last_seen_at)
+    events = [
+        (source, IssueEventField.STATUS, source.status, IssueStatus.MERGED.value),
+        (target, IssueEventField.MERGE, None, source.id),
+    ]
+    session.add_all(
+        IssueEvent(
+            org_id=org_id,
+            issue_id=issue.id,
+            actor_id=actor,
+            field=field,
+            from_value=before,
+            to_value=after,
+            created_at=now,
+        )
+        for issue, field, before, after in events
+    )
+    source.status, source.merged_into_id = IssueStatus.MERGED.value, target.id
+    target.version += 1
+    source.version += 1
+    log.info("issue merged issue=%s into=%s routes=%d", source.id, target.id, len(routes))
+    return target
+
+
+def missing_issue() -> NotFound:
+    """A fresh one each time: an error raised again keeps its old frames (R2)."""
+    return NotFound("issue_not_found", "There's no such issue")
+
+
 def _due_change(issue: Issue, owner: str | None, actor: str, due_at: datetime) -> bool:
     """Whether the due date changes: refused unless the actor owns it (after an assign to me in
     the same change) and it's a later time, with its time zone (R4)."""
@@ -497,5 +599,4 @@ def _note(note: str | None) -> str:
 
 def _lock_issue(session: Session, org_id: str, issue_id: str) -> Issue:
     """SELECT … FOR UPDATE on one issue of this org, read fresh (R6). Another org's is 404."""
-    missing = NotFound("issue_not_found", "There's no such issue")
-    return rows.find_one(session, Issue, org_id, issue_id, missing, for_update=True)
+    return rows.find_one(session, Issue, org_id, issue_id, missing_issue(), for_update=True)

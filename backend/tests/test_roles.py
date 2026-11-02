@@ -29,9 +29,9 @@ def tiny() -> OrgPack:
     return load_org_pack("tiny-demo", 1, ORG_PACK_FIXTURES)
 
 
-def tiny_org() -> Org_:
+def tiny_org(name: str = "Visit Test Org") -> Org_:
     """An org on the tests' tiny-demo pack."""
-    org = make_org()
+    org = make_org(name)
     with session_scope() as session:
         catalog.import_org_pack(session, org.org_id, tiny())
     return org
