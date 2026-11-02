@@ -5,24 +5,29 @@ clean; a test of the guard shows any other name is refused.
 """
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 from sqlalchemy import func, select
 
+from countertalk import merges, narrative
 from countertalk.db import session_scope
 from countertalk.errors import RetryableError
 from countertalk.llm import pricing
 from countertalk.llm.base import Outcome
 from countertalk.models import LlmCall, Org, Summary, Visit, VisitStatus
+from countertalk.playbooks import load_org_pack
 from countertalk.routing import decide
 from scripts import run_eval
+from scripts._patterns import short_hash
 from scripts.compare_extraction import Expected, Extracted
 from tests.conftest import ORG_PACK_FIXTURES, PINNED_SETTINGS, TEST_DATABASE
 from tests.test_extraction import VISITED, answer, insight
 from tests.test_merges import Answer, ByName
 from tests.test_roles import VISIT, FakeLlm, call, tiny
+from tests.test_summaries import at
 
 BUSY = Outcome(calls=(call("llm_unavailable"),), error=RetryableError("llm_unavailable", "B"))
 ROLES = {"c0:A": "rep", "c0:B": "shopkeeper", "c0:C": "shopkeeper"}
@@ -437,6 +442,12 @@ def test_the_pattern_check_scores_the_merge_and_the_narratives(
     [results] = (tmp_path / "evals" / "results").glob("*.json")
     found = json.loads(results.read_text(encoding="utf-8"))
     assert found["kind"] == "patterns"
+    assert results.name == f"{found['date']}-{found['prompt_hash']}-patterns.json"
+    assert found["prompt_hash"] == short_hash(merges.PROMPT + narrative.PROMPT)
+    assert found["prompts"] == {
+        "merge": short_hash(merges.PROMPT),
+        "narrative": short_hash(narrative.PROMPT),
+    }
     assert {
         k: found["merge"][k] for k in ("suggested", "right", "precision", "recall", "keeps_p1")
     } == {
@@ -486,6 +497,18 @@ def test_a_merge_step_with_no_full_answer_is_its_own_bucket_not_a_miss(tmp_path:
     merge = json.loads(results.read_text(encoding="utf-8"))["merge"]
     assert merge["unanswered"] == {"finance": "1 of 2 calls failed"}
     assert (merge["recall"], merge["keeps_p1"], merge["precision"]) == (None, None, None)
+
+
+def test_a_cases_run_and_a_patterns_run_on_one_day_never_share_a_file() -> None:
+    packs = {("pepsico-india-demo", 1): load_org_pack("pepsico-india-demo", 1)}
+    noon = datetime(2026, 11, 2, 6, 30, tzinfo=UTC)
+
+    with at(noon):  # one day for both, and for the names
+        patterns = run_eval.write_results({"kind": "patterns"}, packs, "fake-spark-1")
+        cases = run_eval.write_results({"cases": {}}, packs, "fake-spark-1")
+
+    stem = f"2026-11-02-{run_eval.prompt_hash(packs)}"
+    assert (cases.name, patterns.name) == (f"{stem}.json", f"{stem}-patterns.json")
 
 
 def test_patterns_takes_no_cases(capsys: pytest.CaptureFixture[str]) -> None:

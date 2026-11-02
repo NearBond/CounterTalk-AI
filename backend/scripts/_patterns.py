@@ -17,10 +17,13 @@ Reported, and kept in data/evals/results (run_eval's write_results):
   unknown (None), never 0;
 - the narrative checker's drop rate: sentences dropped / (kept + dropped), and by why; the merge
   step's drops too;
-- the cost, each summary's and in total.
+- the cost, each summary's and in total;
+- its prompt_hash is of the merge and narrative prompts it tests, so a change to either
+  gets a results file of its own; each prompt's own hash is kept too.
 It prints counts and costs, never the words.
 """
 
+import hashlib
 from collections import Counter
 from collections.abc import Callable
 from datetime import timedelta
@@ -130,6 +133,11 @@ def _run(
     return states
 
 
+def short_hash(text: str) -> str:
+    """The first 12 hex digits of the text's SHA-256: every prompt hash in the results."""
+    return hashlib.sha256(text.encode()).hexdigest()[:12]
+
+
 def _unanswered(step: dict[str, Any] | None) -> str | None:
     """Why a team's merge step didn't fully answer, or None if it did."""
     if step is None:
@@ -174,6 +182,11 @@ def _report(
     results = {
         "kind": "patterns",
         "period": f"W6, {_days(period)}",
+        "prompt_hash": short_hash(merges.PROMPT + narrative.PROMPT),
+        "prompts": {
+            "merge": short_hash(merges.PROMPT),
+            "narrative": short_hash(narrative.PROMPT),
+        },
         "merge": {
             "suggested": len(kept),
             "expected": len(expected),

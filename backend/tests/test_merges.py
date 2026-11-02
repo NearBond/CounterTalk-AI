@@ -3,6 +3,7 @@ or more active issues; code keeps only what holds, stores each pair once, and a 
 never suggested again. The AI suggests; a person decides."""
 
 import json
+import re
 import threading
 import uuid
 from collections import Counter
@@ -17,7 +18,8 @@ from countertalk import issues, merges, summary_jobs, worker
 from countertalk.db import session_scope
 from countertalk.errors import Conflict, NotFound, RetryableError
 from countertalk.llm.base import Message, Outcome
-from countertalk.models import Issue, IssueMergeSuggestion, Job, LlmCall
+from countertalk.models import Issue, IssueMergeSuggestion, Job, LlmCall, ist_date
+from countertalk.playbooks import load_org_pack
 from scripts import _k6
 from tests.conftest import ORG_PACK_FIXTURES, lock_waiters, open_transactions
 from tests.test_issue_changes import change, now_of
@@ -105,11 +107,38 @@ def test_each_category_with_two_active_issues_is_asked_with_titles_and_findings(
     payload = json.loads(ask.messages[1].content)
     assert (ask.category, ask.issue_ids) == ("payments", (low, high))
     assert [i["id"] for i in payload["issues"]] == [low, high]
-    assert payload["issues"][0]["findings"] == ["The shop wants two boxes."] * 2
+    # Newest first, each with its visit's day; never severity.
+    assert payload["issues"][0] == {
+        "id": low,
+        "title": now_of(low).title_en,
+        "findings": [
+            {"day": ist_date(day(1)).isoformat(), "summary": "The shop wants two boxes."},
+            {"day": ist_date(day(0)).isoformat(), "summary": "The shop wants two boxes."},
+        ],
+    }
     assert ask.schema["properties"]["suggestions"]["items"]["properties"]["into"]["enum"] == [
         low,
         high,
     ]
+
+
+def words(text: str) -> set[str]:
+    return {word.lower() for word in re.findall(r"[\w']+", text)}
+
+
+def test_the_merge_prompt_is_in_general_terms() -> None:
+    """No brand, scheme or distributor of the demo pack (K6's), so it can't be tuned to
+    K6's planted merge."""
+    pack = load_org_pack("pepsico-india-demo", 1)
+    names = [row.brand for row in (*pack.skus, *pack.competitors)]
+    names += [s.name for s in pack.schemes] + [d.name for d in pack.distributors]
+    # Their proper nouns, in any case: "scheme" and "payout" are everyone's words, and so is
+    # the "Up" of a competitor's "Thums Up".
+    proper = re.findall(r"\b[A-Z][\w']+", " ".join(names))
+    theirs = {word.lower() for word in proper} - {"up"}
+
+    assert {"kurkure", "diwali", "riverbend"} <= theirs
+    assert words(merges.PROMPT) & theirs == set()
 
 
 # --- what's kept -----------------------------------------------------------------------------

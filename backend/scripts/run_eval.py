@@ -18,8 +18,10 @@ Without --yes it builds each case's visit and request the same way and prints wh
 sent, with an estimate: nothing is sent. With --yes it runs each case's extract job the
 worker's way. A case whose job is left to retry (Meta not reached, say) stops the run: no more
 is sent. Every exit prints what was paid. A finished run writes data/evals/results/
-{date}-{prompt_hash}.json; prompt_hash is the first 12 hex digits of the playbook part's
-SHA-256 (prompt.md and the codebook), so a prompt change gets a file of its own.
+{date}-{prompt_hash}.json (--patterns: {date}-{prompt_hash}-patterns.json, so the two never
+share a name); prompt_hash is the first 12 hex digits of the playbook part's SHA-256
+(prompt.md and the codebook), or for --patterns of its merge and narrative prompts, so a
+prompt change gets a file of its own.
 
 Scored with compare_extraction's own matching and counts (R1), and, per case and in total:
 - precision and recall per kind: a pair counts for kind K only if both sides are K. Recall is
@@ -33,7 +35,6 @@ It prints quotes' matches and counts, never the words.
 """
 
 import argparse
-import hashlib
 import json
 import os
 import sys
@@ -493,7 +494,7 @@ def prompt_hash(packs: Packs) -> str:
     """Of the playbook part every case's request starts with; one, as every case's pack uses
     the same playbook in practice. With several, of them all in order."""
     parts = sorted({extraction.playbook_part(pack) for pack in packs.values()})
-    return hashlib.sha256("".join(parts).encode()).hexdigest()[:12]
+    return _patterns.short_hash("".join(parts))
 
 
 def dry_run(cases: Sequence[Case], visits: dict[str, str], packs: Packs) -> int:
@@ -607,9 +608,13 @@ def order_lines(order: Sequence[Any], ways: Counter[str]) -> list[str]:
 
 
 def write_results(results: dict[str, Any], packs: Packs, model: str) -> Path:
-    """data/evals/results/{date}-{prompt_hash}.json; a second run that day, -2, -3, …"""
-    today, hashed = ist_date(utc_now()).isoformat(), prompt_hash(packs)
-    stem = f"{today}-{hashed}"
+    """data/evals/results/{date}-{prompt_hash}.json for the cases, {date}-{prompt_hash}-{kind}.json
+    for another kind of run (the pattern check's "patterns"), so two kinds never share a name,
+    even in two trees; a second run that day, -2, -3, … prompt_hash is the results' own when
+    they carry one (the pattern check's, of its prompts), else the extraction playbook's."""
+    today = ist_date(utc_now()).isoformat()
+    hashed = results.get("prompt_hash") or prompt_hash(packs)
+    stem = f"{today}-{hashed}" + (f"-{results['kind']}" if "kind" in results else "")
     folder = EVALS_DIR / "results"
     path = folder / f"{stem}.json"
     number = 1

@@ -4,9 +4,11 @@ When: in a team summary's job, before its narrative, once (the summary's merge_s
 category with two or more of the team's active issues. A retried job doesn't ask again.
 
 What Muse Spark sees: each issue's title (its category and key labels) and up to
-MERGE_INSIGHT_SUMMARIES of its newest insights' English summaries. It answers in a strict schema
-whose IDs are the issues it was given: [{into, merge: [ids], reason}], or nothing. A category
-the org's playbook no longer has is skipped.
+MERGE_INSIGHT_SUMMARIES of its newest insights' English summaries, each with its visit's day
+(IST); never severity, and no rep's or shop's name is added. The prompt is in general terms:
+no org's brand, scheme or distributor. It answers in a strict schema whose IDs are the issues
+it was given: [{into, merge: [ids], reason}], or nothing. A category the org's playbook no
+longer has is skipped.
 
 What code keeps (§9.6), a suggestion at a time, or none of it: it merges something; every ID
 was given; no ID appears twice in what's left, so nothing chains; its reason, shown to the
@@ -48,6 +50,7 @@ from countertalk.models import (
     LlmPurpose,
     SuggestionStatus,
     Visit,
+    ist_date,
     utc_now,
 )
 from countertalk.playbooks import OrgPack
@@ -60,11 +63,20 @@ DROPPED = ("empty", "outside", "twice", "reason", "closed", "already")
 
 PROMPT = """You help an FMCG company's team keep its list of issues tidy. Each issue groups \
 shopkeepers' findings that share a likely cause. Sometimes one cause ends up as two issues: \
-a scheme or product the finding didn't name, or a distributor spelled another way.
+a finding that didn't name its scheme or product, or a distributor spelled another way.
 
 You're given one team's open issues in one category, each with its title and up to 3 of its \
-findings. Suggest merging issues only when they are clearly the same problem for the same \
-shops' supplier, scheme or product. If in doubt, suggest nothing: a person decides each one.
+findings, each with the day of its visit. Suggest merging issues that are the same problem for \
+the same shops' supplier, scheme or product.
+
+An issue whose findings don't name the scheme or product may be the same as another issue in \
+the category. When exactly one other issue matches its distributor and its kind of problem, \
+suggest merging it into that one, and say why in the reason. Money not received is not the \
+same kind of problem as a question about terms. If two or more issues could fit, suggest \
+nothing for it.
+
+Suggest when it's likely, not only when certain: a person decides each one, and a dismissed \
+pair never returns.
 
 For each suggestion: "into" is the issue to keep (the one whose title names the cause best), \
 "merge" the issues that are the same as it, and "reason" one plain sentence for the team, with \
@@ -99,7 +111,7 @@ def asks_for(session: Session, pack: OrgPack, org_id: str, team_id: str) -> list
     # Two or more, of a category the playbook still has (its name goes in the request).
     book = pack.playbook.categories
     wanted = {c: grouped for c, grouped in by_category.items() if len(grouped) >= 2 and c in book}
-    said = _newest_summaries(session, [i.id for grouped in wanted.values() for i in grouped])
+    said = _newest_findings(session, [i.id for grouped in wanted.values() for i in grouped])
     asks = []
     for category, grouped in wanted.items():
         ids = tuple(issue.id for issue in grouped)
@@ -327,25 +339,31 @@ def _mergeable(into: Issue | None, merged: Issue | None, team_id: str) -> bool:
     )
 
 
-def _newest_summaries(session: Session, issue_ids: list[str]) -> dict[str, list[str]]:
-    """Each issue's newest shown insights' English summaries, MERGE_INSIGHT_SUMMARIES at most."""
+def _newest_findings(session: Session, issue_ids: list[str]) -> dict[str, list[dict[str, str]]]:
+    """Each issue's newest shown insights, MERGE_INSIGHT_SUMMARIES at most: each one's visit's
+    day (IST) and its English summary."""
     newest = func.row_number().over(
         partition_by=InsightRoute.issue_id, order_by=(Visit.created_at.desc(), Insight.id)
     )
     ranked = (
-        select(InsightRoute.issue_id, Insight.summary_en, newest.label("n"))
+        select(
+            InsightRoute.issue_id,
+            Insight.summary_en,
+            Visit.created_at.label("visited_at"),
+            newest.label("n"),
+        )
         .join(Insight, Insight.id == InsightRoute.insight_id)
         .join(Visit, Visit.id == Insight.visit_id)
         .where(InsightRoute.issue_id.in_(issue_ids), Insight.visible.is_(True))
         .subquery()
     )
-    found: dict[str, list[str]] = defaultdict(list)
-    for issue_id, summary_en in session.execute(
-        select(ranked.c.issue_id, ranked.c.summary_en)
+    found: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for issue_id, summary_en, visited_at in session.execute(
+        select(ranked.c.issue_id, ranked.c.summary_en, ranked.c.visited_at)
         .where(ranked.c.n <= limits.MERGE_INSIGHT_SUMMARIES)
         .order_by(ranked.c.issue_id, ranked.c.n)
     ):
-        found[issue_id].append(summary_en)
+        found[issue_id].append({"day": ist_date(visited_at).isoformat(), "summary": summary_en})
     return found
 
 
