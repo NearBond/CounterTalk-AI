@@ -1026,6 +1026,14 @@ class RoutingDecision(Base):
 class EditObject(StrEnum):
     INSIGHT = "insight"
     VISIT = "visit"
+    # The catalog screen's (batch 16b): about no visit.
+    CATALOG_ITEM = "catalog_item"
+    CATALOG_ALIAS = "catalog_alias"
+    ALIAS_REVIEW = "alias_review"
+
+
+# The objects an Edit row has no visit for.
+CATALOG_OBJECTS = (EditObject.CATALOG_ITEM, EditObject.CATALOG_ALIAS, EditObject.ALIAS_REVIEW)
 
 
 # The field of an insight's Edit row when the whole insight was added or deleted.
@@ -1035,7 +1043,9 @@ CREATED, DELETED = "created", "deleted"
 class Edit(Base):
     """Every change a rep makes during review (batch 14; BRIEF §6): a row per insight field
     changed, one for an insight added (`created`) or deleted (`deleted`, before holding what it
-    was), and one for the confirm (the visit's status).
+    was), and one for the confirm (the visit's status). And every change an admin makes on the
+    catalog screen (batch 16b): an item added or each field changed, an alias added or
+    removed, a review resolved; those rows have no visit, and only those.
 
     Append-only: refuse_change() refuses UPDATE and DELETE, but for a cascade with its visit.
     object_id is a plain UUID, by design: the row outlives a deleted insight. Its actor is never
@@ -1053,6 +1063,10 @@ class Edit(Base):
             f"object <> '{EditObject.VISIT}' OR (object_id = visit_id AND field = 'status')",
             name="visit_status",
         ),
+        # A visit's own edits have it; the catalog's have none.
+        CheckConstraint(
+            f"(visit_id IS NULL) = ({_one_of('object', CATALOG_OBJECTS)})", name="visit_or_catalog"
+        ),
         ForeignKeyConstraint(
             ["org_id", "visit_id"], ["visits.org_id", "visits.id"], ondelete="CASCADE"
         ),
@@ -1061,7 +1075,8 @@ class Edit(Base):
 
     id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
     org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
-    visit_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    # None for the catalog's (CATALOG_OBJECTS).
+    visit_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), index=True)
     actor_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
     object: Mapped[str] = mapped_column(String)
     object_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))

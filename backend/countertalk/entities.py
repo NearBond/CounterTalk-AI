@@ -162,31 +162,37 @@ def _script(text: str) -> bool:
 
 def load_catalog(session: Session, org_id: str) -> Catalog:
     """The org's own active items: another org's never link, nor a deactivated one."""
-    active = (CatalogItem.org_id == org_id, CatalogItem.active.is_(True))
+    return catalog_of(entries(session, org_id))
+
+
+def entries(session: Session, org_id: str, *, active_only: bool = True) -> list[Entry]:
+    """The org's catalog items with their aliases, as linking reads them: the active ones, or
+    (for the catalog screen's checks, catalog_admin) all of them."""
+    which = [CatalogItem.org_id == org_id]
+    if active_only:
+        which.append(CatalogItem.active.is_(True))
     aliases: dict[str, list[str]] = defaultdict(list)
     query = select(CatalogAlias.item_id, CatalogAlias.text).join(
         CatalogItem, CatalogItem.id == CatalogAlias.item_id
     )
-    for item_id, text in session.execute(query.where(*active)):
+    for item_id, text in session.execute(query.where(*which)):
         aliases[item_id].append(text)
     items = session.execute(
         select(CatalogItem.id, CatalogItem.kind, CatalogItem.company)
         .add_columns(CatalogItem.brand, CatalogItem.product)
-        .where(*active)
+        .where(*which)
     )
-    return catalog_of(
-        [
-            Entry(
-                id=row.id,
-                kind=row.kind,
-                company=row.company,
-                brand=row.brand,
-                product=row.product,
-                aliases=tuple(aliases[row.id]),
-            )
-            for row in items
-        ]
-    )
+    return [
+        Entry(
+            id=row.id,
+            kind=row.kind,
+            company=row.company,
+            brand=row.brand,
+            product=row.product,
+            aliases=tuple(aliases[row.id]),
+        )
+        for row in items
+    ]
 
 
 def item_name(brand: str, product: str | None) -> str:

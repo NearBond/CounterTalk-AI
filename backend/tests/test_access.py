@@ -23,8 +23,12 @@ from sqlalchemy import select, update
 
 from countertalk import extraction, issues, review, routing, summary_jobs
 from countertalk.db import session_scope
+from countertalk.entities import link_key
 from countertalk.main import create_app
 from countertalk.models import (
+    AliasReview,
+    CatalogAlias,
+    CatalogKind,
     Insight,
     InsightRoute,
     IssueMergeSuggestion,
@@ -79,6 +83,9 @@ class World:
     suggestion: str  # the first team's merge suggestion
     team_summary: str
     org_summary: str
+    catalog_item: str  # one of the org's own items, an alias of it, and a name to review
+    catalog_alias: str
+    alias_review: str
     extra: dict[str, str] = field(default_factory=dict)
 
 
@@ -125,6 +132,22 @@ def build(org: Org_, pack: OrgPack, keys: tuple[str, str], second_shop: Org_, pa
         ).id
         org_summary = summary_jobs.ask(session, org.org_id, "org", None, "month", now).id
         suggestion_id = suggestion.id
+        catalog_item, catalog_alias = session.execute(
+            select(CatalogAlias.item_id, CatalogAlias.id)
+            .where(CatalogAlias.org_id == org.org_id)
+            .order_by(CatalogAlias.text)
+            .limit(1)
+        ).one()
+        alias_review = AliasReview(
+            org_id=org.org_id,
+            kind=CatalogKind.COMPETITOR,
+            text="Zorblax",
+            normalised=link_key("Zorblax"),
+            visit_id=confirmed,
+        )
+        session.add(alias_review)
+        session.flush()
+        alias_review_id = alias_review.id
     return World(
         org_id=org.org_id,
         users=users,
@@ -141,6 +164,9 @@ def build(org: Org_, pack: OrgPack, keys: tuple[str, str], second_shop: Org_, pa
         suggestion=suggestion_id,
         team_summary=team_summary,
         org_summary=org_summary,
+        catalog_item=catalog_item,
+        catalog_alias=catalog_alias,
+        alias_review=alias_review_id,
     )
 
 
@@ -534,6 +560,39 @@ CASES = [
         WHOLE,
         "summary_not_found",
         name="POST /api/summaries/{summary_id}/retry (the org's)",
+    ),
+    # The catalog screen (batch 16b): admins only.
+    case("GET", "/api/catalog/items", at("/api/catalog/items", params={"q": "a"}), ("admin",)),
+    case(
+        "POST",
+        "/api/catalog/items",
+        at("/api/catalog/items", json={"kind": "competitor", "company": "Zorb", "brand": "Zorb"}),
+        ("admin",),
+    ),
+    case(
+        "PATCH",
+        "/api/catalog/items/{item_id}",
+        at("/api/catalog/items/{w.catalog_item}", json={"version": 1, "active": False}),
+        ("admin",),
+    ),
+    case(
+        "POST",
+        "/api/catalog/items/{item_id}/aliases",
+        at("/api/catalog/items/{w.catalog_item}/aliases", json={"text": "Zorbo"}),
+        ("admin",),
+    ),
+    case(
+        "DELETE",
+        "/api/catalog/aliases/{alias_id}",
+        at("/api/catalog/aliases/{w.catalog_alias}"),
+        ("admin",),
+    ),
+    case("GET", "/api/catalog/reviews", at("/api/catalog/reviews"), ("admin",)),
+    case(
+        "POST",
+        "/api/catalog/reviews/{review_id}/resolve",
+        at("/api/catalog/reviews/{w.alias_review}/resolve", json={"action": "dismiss"}),
+        ("admin",),
     ),
 ]
 
