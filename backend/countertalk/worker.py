@@ -31,6 +31,7 @@ from countertalk import (
     extraction,
     jobs,
     limits,
+    retention,
     storage,
     summary_jobs,
     transcription,
@@ -130,11 +131,16 @@ def _summarise(ctx: JobContext) -> None:
     summarise_with(MetaLlm(key) if key else None)(ctx)
 
 
+def _retention(ctx: JobContext) -> None:
+    retention.run(claim_lost=ctx.claim_lost)
+
+
 # Each kind's handler. Its max attempts are in jobs.KINDS; a kind with no handler is retried.
 HANDLERS: dict[str, Handler] = {
     JobKind.TRANSCRIBE: _transcribe,
     JobKind.EXTRACT: _extract,
     JobKind.SUMMARY: _summarise,
+    JobKind.RETENTION: _retention,
     JobKind.PING: _ping,
     JobKind.SLEEP: _sleep,
 }
@@ -275,12 +281,18 @@ def _queue_waiting_extractions() -> dict[str, int]:
     return {"extractions_queued": extraction.queue_waiting(limits.EXTRACT_QUEUE_PER_PASS)}
 
 
+def _queue_retention() -> dict[str, int]:
+    with session_scope() as session:
+        return {"retention_queued": int(retention.queue_due(session))}
+
+
 _HOUSEKEEPING: list[tuple[str, Callable[[], dict[str, int]]]] = [
     ("stale_jobs", _recover_stale_jobs),
     ("abandoned_uploads", _fail_abandoned_uploads),
     ("staged_files", _sweep_staged_files),
     ("waiting_extractions", _queue_waiting_extractions),
     ("sign_in", _prune_sign_in),
+    ("retention", _queue_retention),
 ]
 
 

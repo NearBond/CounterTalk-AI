@@ -34,6 +34,13 @@ JOB_BACKOFF_JITTER = 0.2
 
 # The worker (batch 4). Housekeeping runs at start and then every HOUSEKEEPING_INTERVAL_MS.
 HOUSEKEEPING_INTERVAL_MS = 10 * 60_000
+# Retention (batch 17): queued by housekeeping once a day; old jobs go with it. A dead job's
+# visit keeps its failure_reason.
+RETENTION_EVERY_MS = 24 * 3_600_000
+# Due this long after it's queued: a worker that starts does the visits' waiting work first.
+RETENTION_DELAY_MS = 5 * 60_000
+DONE_JOB_KEEP_DAYS = 7
+DEAD_JOB_KEEP_DAYS = 30
 # A web or upload visit still recording with nothing new for this long is failed as abandoned;
 # its tab's next segment, or complete, brings it back (§9.7).
 ABANDONED_UPLOAD_MS = 12 * 60 * 60_000

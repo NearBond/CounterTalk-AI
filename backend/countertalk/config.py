@@ -3,7 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Signs the session cookies (countertalk.auth). The API won't start without it unless DEBUG
     # is on (main.create_app); scripts and the worker don't need it.
     SECRET_KEY: SecretStr = SecretStr("")
+    # The audio of a visit confirmed this many days ago is deleted; transcripts and quotes stay
+    # (batch 17). 0 deletes a confirmed visit's audio at the next retention run.
+    AUDIO_RETENTION_DAYS: int = Field(default=30, ge=0, le=36_500)
 
     @field_validator("DATABASE_URL")
     @classmethod

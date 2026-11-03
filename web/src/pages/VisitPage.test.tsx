@@ -17,6 +17,7 @@ const VISIT: Visit = {
   duration_ms: null,
   processing: false,
   completed_at: null,
+  audio_deleted_at: null,
   created_at: "2026-11-01T06:00:00Z",
   updated_at: "2026-11-01T06:00:00Z",
 };

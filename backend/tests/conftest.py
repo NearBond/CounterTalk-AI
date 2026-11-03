@@ -39,6 +39,7 @@ PINNED_SETTINGS = {
     "DEBUG": "0",
     "MODEL_API_KEY": "",
     "SECRET_KEY": "test-only-secret",
+    "AUDIO_RETENTION_DAYS": "30",
 }
 
 

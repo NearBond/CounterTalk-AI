@@ -340,6 +340,7 @@ def test_housekeeping_recovers_jobs_fails_abandoned_uploads_and_sweeps_staged_fi
         "extractions_queued": 0,  # no MODEL_API_KEY in tests: extraction is off
         "sessions_ended": 0,
         "signin_failures_forgotten": 0,
+        "retention_queued": 1,  # the day's first: due in a few minutes (batch 17)
     }
     assert load(visit_id).status == VisitStatus.FAILED
     assert not staged.exists()

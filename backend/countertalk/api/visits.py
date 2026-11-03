@@ -7,15 +7,17 @@ import re
 from collections.abc import AsyncIterator
 from datetime import datetime
 from functools import partial
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
+from starlette.types import Message, Receive, Scope, Send
 
 from countertalk import access, extraction, reprocess, review, storage, transcription, users, visits
 from countertalk.api.deps import CurrentUser
@@ -64,6 +66,8 @@ class VisitOut(BaseModel):
     # True while it has a queued, running or retrying job: the visit page polls until it's false.
     processing: bool
     completed_at: datetime | None
+    # Its recording went under the retention policy (batch 17): ▶ says so instead of playing.
+    audio_deleted_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -236,13 +240,36 @@ def get_transcript(visit_id: UUID, user: CurrentUser, session: DbSession) -> Tra
     )
 
 
+class RecordingResponse(FileResponse):
+    """A FileResponse whose file retention may delete between the check and the send (batch
+    17): if it's gone before anything is sent, the same 404 as a visit whose audio was
+    deleted, not a 500."""
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        started = False
+
+        async def sending(message: Message) -> None:
+            nonlocal started
+            started = started or message["type"] == "http.response.start"
+            await send(message)
+
+        try:
+            await super().__call__(scope, receive, sending)
+        except (RuntimeError, FileNotFoundError):
+            if started or Path(self.path).exists():
+                raise
+            gone = visits.audio_deleted()
+            body = {"error": {"code": gone.code, "message": gone.message}}
+            await JSONResponse(body, status_code=404)(scope, receive, send)
+
+
 @router.get("/{visit_id}/audio", response_class=FileResponse)
 def get_audio(visit_id: UUID, user: CurrentUser, session: DbSession) -> FileResponse:
     """playback.m4a, with Range requests so a player can seek (Starlette's FileResponse)."""
     access.visit(session, user, str(visit_id))
     path = visits.playback_file(session, user.org_id, str(visit_id))
     # A customer's recording: never kept by a shared cache, and checked again before reuse.
-    return FileResponse(
+    return RecordingResponse(
         path, media_type="audio/mp4", headers={"Cache-Control": "private, no-cache"}
     )
 

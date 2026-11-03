@@ -382,7 +382,9 @@ def test_without_a_key_the_visit_waits_at_transcribed(org: Org_) -> None:
 
     assert load(visit_id).status == VisitStatus.TRANSCRIBED
     with session_scope(read_only=True) as session:
-        assert session.scalars(select(Job.state)).all() == [JobState.DONE]
+        assert session.scalars(select(Job.state).where(Job.kind == JobKind.EXTRACT)).all() == [
+            JobState.DONE
+        ]
     assert purposes(visit_id) == []
 
 

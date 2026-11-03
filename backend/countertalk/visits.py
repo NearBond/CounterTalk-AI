@@ -406,9 +406,16 @@ def processing_visit_ids(session: Session, visit_ids: list[str]) -> set[str]:
     return {str(visit_id) for visit_id in session.scalars(query.distinct())}
 
 
+def audio_deleted() -> NotFound:
+    return NotFound("audio_deleted", "Audio deleted under the retention policy")
+
+
 def playback_file(session: Session, org_id: str, visit_id: str) -> Path:
-    """The visit's playback.m4a, once its audio is prepared (batch 6)."""
+    """The visit's playback.m4a, once its audio is prepared (batch 6), until retention
+    deletes it (batch 17)."""
     visit = get_visit(session, org_id, visit_id)
+    if visit.audio_deleted_at is not None:
+        raise audio_deleted()
     path = storage.playback_path(visit.id)
     if not path.is_file():
         raise NotFound("audio_not_found", "The recording isn't ready to play yet")

@@ -119,6 +119,39 @@ def remove_stt_replies(visit_id: str) -> int:
     return removed
 
 
+def remove_audio(visit_id: str) -> int:
+    """Deletes a visit's recording wherever it's kept (batch 17's retention): the chunks'
+    manifest first, so the visit never reads as prepared with its chunks gone; then the
+    chunks, the prepared WAV, the playback file, the joined source and the segments. The
+    speech-to-text replies stay, as the transcript does. A file that won't go (in use, say)
+    is logged and left for the next run, and the others still go. How many went."""
+    folder = visit_dir(visit_id)
+    paths = [
+        chunks_manifest_path(visit_id),
+        *sorted((folder / "chunks").glob("chunk_*.wav")),
+        prepared_path(visit_id),
+        playback_path(visit_id),
+        *(source_path(visit_id, ext) for ext in ALLOWED_EXTS),
+        *sorted((folder / "segments").glob("*.bin")),
+    ]
+    removed = 0
+    for path in paths:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            log.warning(
+                "audio file not deleted visit=%s file=%s error=%s",
+                visit_id,
+                path.name,
+                type(error).__name__,
+            )
+            continue
+        removed += 1
+    return removed
+
+
 def new_temp() -> Path:
     """A fresh path in the staging folder, for a file moved into place once it's whole. One a
     crash leaves behind is swept, like any staged file."""

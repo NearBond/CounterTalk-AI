@@ -375,7 +375,7 @@ def test_the_workers_transcribe_handler_sends_nothing_without_a_key(org: Org_) -
     assert worker.Worker("test-host:1:bbbbbb").run_once()
 
     with session_scope(read_only=True) as session:
-        job = session.scalars(select(Job)).one()
+        job = session.scalars(select(Job).where(Job.kind == JobKind.TRANSCRIBE)).one()
     assert (job.kind, job.state) == (JobKind.TRANSCRIBE, JobState.QUEUED)
     assert job.last_error is not None and "stt_not_configured" in job.last_error
 

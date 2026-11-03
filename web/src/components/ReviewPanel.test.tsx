@@ -67,6 +67,7 @@ function reviewOf(status: "review" | "confirmed", insights: Insight[] = [PAYMENT
       duration_ms: 60_000,
       processing: false,
       completed_at: null,
+      audio_deleted_at: null,
       created_at: "2026-11-01T06:00:00Z",
       updated_at: "2026-11-01T06:00:00Z",
     },

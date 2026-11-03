@@ -140,6 +140,8 @@ export interface Visit {
   /** True while it has a queued, running or retrying job: poll until it's false. */
   processing: boolean;
   completed_at: string | null;
+  /** Its recording went under the retention policy (batch 17): show that, not a player. */
+  audio_deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
