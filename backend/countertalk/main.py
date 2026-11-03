@@ -29,6 +29,7 @@ from countertalk.api import (
     visits,
 )
 from countertalk.config import get_settings, secret_key
+from countertalk.consent import notice as consent_notice
 from countertalk.db import constraint_name
 from countertalk.errors import DomainError, TooMany
 from countertalk.logs import configure_logging
@@ -134,6 +135,7 @@ class UnexpectedErrors:
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Checked as the server starts, not on import: uvicorn stops with the message."""
     secret_key()
+    consent_notice()  # a shop's consent page needs it (batch 17)
     yield
 
 

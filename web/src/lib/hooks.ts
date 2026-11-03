@@ -7,7 +7,7 @@
  */
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import type { Page, Shop } from "../types/api";
-import { ABORTED, ApiError, listShops } from "./api";
+import { ABORTED, ApiError, listShops, recordingDeleted } from "./api";
 import { POLL_MS, READ_ATTEMPTS } from "./limits";
 import { withRetry } from "./retry";
 
@@ -190,6 +190,9 @@ export interface Player {
   onLoadedMetadata: () => void;
   /** The recording at `src` couldn't be loaded (its file lost, say): the page says so. */
   unplayable: boolean;
+  /** And the server said why: it was deleted under the retention policy (batch 17), so trying
+   * again can't help. */
+  deleted: boolean;
   /** The message's Try again: ▶ moves to it, so it's read out again. */
   retry: RefObject<HTMLButtonElement | null>;
   tryAgain: () => void;
@@ -209,6 +212,7 @@ export function usePlayer(fixed: string | null = null): Player {
   const [chosen, setChosen] = useState<string | null>(null);
   const src = fixed ?? chosen;
   const [failed, setFailed] = useState<string | null>(null);
+  const [deleted, setDeleted] = useState<string | null>(null);
   // A start asked for before its recording was loaded: onLoadedMetadata plays it.
   const pending = useRef<number | null>(null);
   const start = useCallback((ms: number) => {
@@ -250,7 +254,11 @@ export function usePlayer(fixed: string | null = null): Player {
   }, [start]);
   const onError = useCallback(() => {
     pending.current = null;
-    setFailed(src);
+    setFailed(src); // at once: an answer that never comes must not leave the page silent
+    if (src === null) return;
+    void recordingDeleted(src).then((gone) => {
+      if (gone) setDeleted(src);
+    });
   }, [src]);
   const tryAgain = useCallback(() => {
     setFailed(null);
@@ -261,6 +269,7 @@ export function usePlayer(fixed: string | null = null): Player {
     onError,
     onLoadedMetadata,
     unplayable: src !== null && failed === src,
+    deleted: src !== null && deleted === src,
     retry,
     tryAgain,
     src,

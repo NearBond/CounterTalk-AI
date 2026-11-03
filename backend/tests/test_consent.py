@@ -1,6 +1,8 @@
 """Consent to recording, given before any visit (batch 17): the link a rep shares, the paper
 form, the shop's public page, and the server's check before a conversation (§7.4)."""
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select, text
@@ -9,6 +11,7 @@ from sqlalchemy.exc import DBAPIError
 from countertalk import consent
 from countertalk.db import session_scope
 from countertalk.models import Consent, ConsentLink, Role, Shop, Visit, VisitStatus
+from countertalk.playbooks import PackError
 from tests.conftest import a_user, sign_in
 from tests.test_review_api import signed_in_demo
 from tests.test_visits import Org_, make_org, sha
@@ -83,6 +86,8 @@ def test_a_yes_on_the_page_lets_the_rep_record(client: TestClient, org: Org_) ->
     after = answer(client, token, "yes")
 
     # Only the company's and the shop's names, and its answer (no pack: the org's own name).
+    assert page.pop("notice") == client.get(f"/api/consent/{token}").json()["notice"]
+    after.pop("notice")
     assert page == {
         "company": "Visit Test Org",
         "shop": "New Shop",
@@ -295,3 +300,58 @@ def test_a_paper_form_can_t_overrule_a_no_given_on_the_page(client: TestClient, 
 
     assert (response.status_code, response.json()["error"]["code"]) == (409, "consent_refused")
     assert shop_consent(client, shop_id) == "no"
+
+
+# --- the notice (consent/v1) -----------------------------------------------------------------
+
+
+def test_the_notice_is_in_each_consent_language_with_every_part() -> None:
+    found = consent.notice()
+
+    assert list(found) == ["hi", "en", "mr"]
+    for words in found.values():
+        assert len(words.benefits) == 3
+        assert "30" in words.retention  # days
+    assert "real-time assistance" in found["en"].real_time
+
+
+def test_the_page_carries_the_notice_and_a_link_its_message(client: TestClient, org: Org_) -> None:
+    shop_id = unanswered_shop(org)
+    shared = client.post(f"/api/shops/{shop_id}/consent-links").json()
+
+    page = client.get(f"/api/consent/{shared['path'].removeprefix('/consent/')}").json()
+
+    assert list(page["notice"]) == ["hi", "en", "mr"]
+    assert page["notice"]["mr"]["agree"] == "मी सहमत आहे"
+    assert "share_message" not in page["notice"]["en"]
+    assert shared["message"].splitlines() == [
+        words.share_message for words in consent.notice().values()
+    ]
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "field"),
+    [
+        ("version: 1\n", "version: 2\n", "version"),
+        ("  mr:\n    name: मराठी\n", "  ta:\n    name: मराठी\n", "languages"),
+        ("    agree: I agree\n", "", "languages.en.agree"),
+    ],
+    ids=["version", "language", "missing"],
+)
+def test_a_notice_that_doesnt_check_out_names_its_field(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, old: str, new: str, field: str
+) -> None:
+    broken = tmp_path / "notice.yaml"
+    text = consent.NOTICE_PATH.read_text(encoding="utf-8")
+    assert old in text
+    broken.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+    monkeypatch.setattr(consent, "NOTICE_PATH", broken)
+    consent.notice.cache_clear()
+
+    try:
+        with pytest.raises(PackError) as error:
+            consent.notice()
+    finally:
+        consent.notice.cache_clear()
+
+    assert error.value.field == field

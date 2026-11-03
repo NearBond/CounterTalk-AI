@@ -7,6 +7,10 @@ import type {
   CatalogItemChange,
   CatalogKind,
   CompleteVisit,
+  ConsentAnswer,
+  ConsentLanguage,
+  ConsentLink,
+  ConsentPage,
   Drill,
   ErrorBody,
   FrameworkErrorCode,
@@ -28,6 +32,7 @@ import type {
   NewVisit,
   Note,
   Page,
+  PaperConsent,
   PeriodKind,
   Resolved,
   ResolveName,
@@ -368,6 +373,49 @@ export function retrySummary(summaryId: string, signal?: AbortSignal): Promise<S
 /** The visit's audio, for an <audio> element: the browser fetches it, seeking with Range. */
 export function audioUrl(visitId: string): string {
   return `${BASE_URL}/visits/${encodeURIComponent(visitId)}/audio`;
+}
+
+// --- consent before the visit (batch 17) ---------------------------------------------------
+
+/** A new link to the shop's consent page, to share; the ones shared before stay valid. */
+export function shareConsentLink(shopId: string, signal?: AbortSignal): Promise<ConsentLink> {
+  return apiRequest(`/shops/${encodeURIComponent(shopId)}/consent-links`, { method: "POST", signal });
+}
+
+/** The shopkeeper signed the paper form in this language: a yes, marked by the signed-in user.
+ * 409 consent_refused if the shop said no on its page. */
+export function markPaperConsent(
+  shopId: string,
+  language: ConsentLanguage,
+  signal?: AbortSignal,
+): Promise<PaperConsent> {
+  return apiRequest(`/shops/${encodeURIComponent(shopId)}/consent`, {
+    method: "POST",
+    body: { language },
+    signal,
+  });
+}
+
+/** A shop's public consent page, by its link's token: 404 for any token that isn't one. */
+export function getConsentPage(token: string, signal?: AbortSignal): Promise<ConsentPage> {
+  return apiRequest(`/consent/${encodeURIComponent(token)}`, { signal });
+}
+
+export function answerConsent(token: string, body: ConsentAnswer, signal?: AbortSignal): Promise<ConsentPage> {
+  return apiRequest(`/consent/${encodeURIComponent(token)}`, { method: "POST", body, signal });
+}
+
+/** Whether a recording that wouldn't load was deleted under the retention policy (batch 17):
+ * an <audio> element never sees the server's answer, so the player asks once. */
+export async function recordingDeleted(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, { headers: { Range: "bytes=0-0" } });
+    if (response.status !== 404) return false;
+    const body = parseJson(await response.text());
+    return isRecord(body) && isRecord(body.error) && body.error.code === "audio_deleted";
+  } catch {
+    return false; // no answer: not known to be deleted, so Try again stays
+  }
 }
 
 // --- the catalog screen (batch 16b): admins only. Its edits name the version they read. ------

@@ -14,12 +14,32 @@ from countertalk.models import ConsentDecision, ConsentLanguage
 router = APIRouter(prefix="/api/consent", tags=["consent"])
 
 
+class NoticeTextOut(BaseModel):
+    name: str
+    title: str
+    what: str
+    why: str
+    benefits_title: str
+    benefits: list[str]
+    real_time: str
+    retention: str
+    no_change: str
+    change_mind: str
+    agree: str
+    refuse: str
+    answered_yes: str
+    answered_no: str
+    not_answered: str
+
+
 class ConsentPageOut(BaseModel):
     company: str
     shop: str
     # The shop's current answer; None until it gives one.
     decision: ConsentDecision | None
     notice_version: int
+    # The notice in each language it's in, in the file's order: the page shows the one picked.
+    notice: dict[ConsentLanguage, NoticeTextOut]
 
 
 class AnswerIn(BaseModel):
@@ -36,6 +56,10 @@ def _out(page: consent.Page) -> ConsentPageOut:
         shop=page.shop,
         decision=page.decision,
         notice_version=page.notice_version,
+        notice={
+            language: NoticeTextOut.model_validate(text.model_dump())
+            for language, text in consent.notice().items()
+        },
     )
 
 

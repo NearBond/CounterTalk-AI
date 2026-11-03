@@ -1,0 +1,88 @@
+# consent/v1: the consent notice, in Hindi, English and Marathi (batch 17; the user, 3 Nov).
+# The shop's consent page shows it, and each answer records its version and the language read.
+version: 1
+languages:
+  hi:
+    name: हिन्दी
+    title: रिकॉर्डिंग की सहमति
+    what: >-
+      जब हमारे सेल्स प्रतिनिधि आपकी दुकान पर आते हैं, तो वे अपने फ़ोन पर बातचीत रिकॉर्ड कर सकते
+      हैं। सिर्फ़ उस विज़िट की बातचीत रिकॉर्ड होती है।
+    why: >-
+      इससे हमें आपकी दुकान की समस्याएँ और माँगें समझने में मदद मिलती है: भुगतान, डिलीवरी, स्कीम,
+      स्टॉक और प्रोडक्ट। फिर हम उन्हें सही टीम तक पहुँचाते हैं।
+    benefits_title: आपके फ़ायदे
+    benefits:
+      - आपकी समस्याओं का जल्दी समाधान
+      - आपकी दुकान के लिए बेहतर प्रोडक्ट सुझाव
+      - सेल्स प्रतिनिधि बदलने पर भी आपकी दुकान का पूरा इतिहास बना रहता है
+    real_time: >-
+      आगे चलकर ऐप विज़िट के दौरान ही प्रतिनिधि की मदद भी कर सकता है (रियल-टाइम सहायता)।
+    retention: >-
+      आवाज़ की रिकॉर्डिंग 30 दिनों के बाद मिटा दी जाती है। लिखी हुई बातचीत और उसके अंश रखे जाते
+      हैं।
+    no_change: मना करने से आपकी दुकान की सेवा में कोई बदलाव नहीं होगा।
+    change_mind: >-
+      आप कभी भी अपना जवाब बदल सकते हैं: यही लिंक फिर से खोलें, या प्रतिनिधि को बता दें।
+    agree: मैं सहमत हूँ
+    refuse: नहीं
+    answered_yes: "आपका जवाब: हाँ"
+    answered_no: "आपका जवाब: नहीं"
+    not_answered: अभी कोई जवाब नहीं
+    share_message: "नमस्ते! कृपया यह पढ़कर बताइए कि क्या हम अपनी विज़िट की बातचीत रिकॉर्ड कर सकते हैं:"
+  en:
+    name: English
+    title: Consent to recording
+    what: >-
+      When our sales rep visits your shop, they may record the conversation on their phone.
+      Only the visit's conversation is recorded.
+    why: >-
+      It helps us understand your shop's problems and requests: payments, deliveries, schemes,
+      stock and products. We then get them to the right team.
+    benefits_title: What you get
+    benefits:
+      - Your shop's issues resolved faster
+      - Better product suggestions for your shop
+      - Your shop's history kept, even when the sales rep changes
+    real_time: >-
+      Later, the app may also help the rep during the visit itself (real-time assistance).
+    retention: >-
+      The audio is deleted after 30 days. The written transcript and the quotes from it are
+      kept.
+    no_change: Saying no doesn't change how your shop is served.
+    change_mind: >-
+      You can change your answer at any time: open this link again, or tell the rep.
+    agree: I agree
+    refuse: "No"
+    answered_yes: "Your answer: yes"
+    answered_no: "Your answer: no"
+    not_answered: No answer yet
+    share_message: "Hello! Please read this and tell us whether we may record our visits:"
+  mr:
+    name: मराठी
+    title: रेकॉर्डिंगसाठी संमती
+    what: >-
+      आमचे सेल्स प्रतिनिधी तुमच्या दुकानात येतात तेव्हा ते त्यांच्या फोनवर संभाषण रेकॉर्ड करू
+      शकतात. फक्त त्या भेटीतील संभाषण रेकॉर्ड होते.
+    why: >-
+      यामुळे आम्हाला तुमच्या दुकानाच्या अडचणी आणि मागण्या समजतात: पेमेंट, डिलिव्हरी, स्कीम,
+      स्टॉक आणि उत्पादने. मग आम्ही त्या योग्य टीमपर्यंत पोहोचवतो.
+    benefits_title: तुमचे फायदे
+    benefits:
+      - तुमच्या अडचणींवर लवकर तोडगा
+      - तुमच्या दुकानासाठी अधिक चांगल्या उत्पादनांच्या सूचना
+      - सेल्स प्रतिनिधी बदलले तरी तुमच्या दुकानाचा पूर्ण इतिहास राहतो
+    real_time: >-
+      पुढे ॲप भेटीदरम्यानच प्रतिनिधीला मदत करू शकेल (रिअल-टाइम सहाय्य).
+    retention: >-
+      आवाजाचे रेकॉर्डिंग 30 दिवसांनंतर हटवले जाते. लिहिलेले संभाषण आणि त्यातील अवतरणे ठेवली
+      जातात.
+    no_change: नकार दिल्याने तुमच्या दुकानाच्या सेवेत कोणताही बदल होणार नाही.
+    change_mind: >-
+      तुम्ही कधीही तुमचे उत्तर बदलू शकता: हीच लिंक पुन्हा उघडा, किंवा प्रतिनिधीला सांगा.
+    agree: मी सहमत आहे
+    refuse: नाही
+    answered_yes: "तुमचे उत्तर: हो"
+    answered_no: "तुमचे उत्तर: नाही"
+    not_answered: अजून उत्तर नाही
+    share_message: "नमस्कार! आम्ही आमच्या भेटींमधील संभाषण रेकॉर्ड करू शकतो का, हे कृपया वाचून सांगा:"

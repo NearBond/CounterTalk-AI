@@ -56,6 +56,9 @@ TURNS = [
     ("c0:B", 16_000, 19_000, "पाँच carton Kurkure लगा दीजिए।"),
 ]
 
+# Made up, like the seed's, and with no consent yet (batch 17).
+UNANSWERED_SHOPS = ("Link Kirana", "Paper Kirana")
+
 
 def recreate(name: str) -> None:
     url = make_url(get_settings().DATABASE_URL)
@@ -136,6 +139,10 @@ def main() -> int:
     with session_scope() as session:
         seed(session, pack)
         rep = session.scalars(select(User).where(User.email == DEMO_REP["email"])).one()
+        # Two shops that haven't answered (batch 17): the consent checks ask them, by link
+        # and on paper.
+        for name in UNANSWERED_SHOPS:
+            session.add(Shop(org_id=rep.org_id, name=name, area="Old Market"))
         shop_id = session.scalars(
             select(Shop.id).where(Shop.org_id == rep.org_id).order_by(Shop.name)
         ).first()

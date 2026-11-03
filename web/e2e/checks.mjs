@@ -1,7 +1,7 @@
 // The browser checks run by e2e/run.mjs (BUILD_PLAN batch 7; CODING_GUIDELINES §9.9 to §9.13).
 // Each gets a fresh browser context with a fake microphone, signed in as the demo rep (or, with
-// `as: "k6"`, as K6's finance member), the web address, and the seeded visits. A check throws to
-// fail.
+// `as: "k6"`, as K6's finance member), the web address, and the seeded visits; and the browser,
+// for a context of its own (a shopkeeper's phone). A check throws to fail.
 
 import { COMPLETE_ATTEMPTS, POLL_MS } from "../src/lib/limits.ts";
 
@@ -52,7 +52,7 @@ async function released(page) {
 async function openRecorder(page, web) {
   await page.goto(`${web}/`);
   await page.getByRole("link", { name: "Record a visit" }).click();
-  await page.getByLabel("Shop").selectOption({ label: "Sunrise Kirana, Old Market" });
+  await page.getByLabel("Shop").selectOption({ label: "Sunrise Kirana, Old Market · consent: yes" });
 }
 
 async function startRecording(page) {
@@ -61,6 +61,20 @@ async function startRecording(page) {
 }
 
 const visitIdIn = (url) => new URL(url).pathname.split("/visits/")[1];
+
+/** No sideways scroll, and one h1: a page as a phone shows it (390 px). */
+async function fitsAPhone(page, what) {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const headings = await page.locator("h1").count();
+  expect(overflow <= 0 && headings === 1, `${what}: ${overflow} px over, ${headings} h1s`);
+}
+
+/** /record at 390 px, with this shop picked. */
+async function onAPhoneFor(page, web, label) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${web}/record`);
+  await page.getByLabel("Shop").selectOption({ label });
+}
 
 /** Batch 15c's click check: K6 loaded, W6 is last week, and E's issue is merged into P1's. */
 const CLICK_CHECK = {
@@ -251,6 +265,51 @@ export const CHECKS = [
       await page.getByText("Recording", { exact: true }).waitFor();
       await page.waitForTimeout(POLL_MS * 3 + 1_000);
       expect(reads === 1, `it was read ${reads} times`);
+    },
+  },
+  {
+    name: "at 390 px, a shop without a yes can't be recorded; its link's I agree, in Marathi, lets it",
+    async run({ browser, page, web }) {
+      // No share sheet here: the WhatsApp link and the link itself show instead.
+      await page.addInitScript(() => Object.defineProperty(navigator, "share", { value: undefined }));
+      await onAPhoneFor(page, web, "Link Kirana, Old Market · consent: not yet");
+      expect(await page.getByRole("button", { name: "Start recording" }).isDisabled(), "Start was enabled");
+      await page.getByRole("heading", { name: "Consent needed" }).waitFor();
+      await fitsAPhone(page, "the record screen's block");
+      await page.getByRole("button", { name: "Share consent link" }).click();
+      const whatsapp = page.getByRole("link", { name: "Send it on WhatsApp" });
+      await whatsapp.waitFor();
+      const link = (await page.getByText(`${web}/consent/`).textContent()).trim();
+      expect((await whatsapp.getAttribute("href")).startsWith("https://wa.me/?text="), "not a WhatsApp link");
+
+      // The shopkeeper's phone: no session of the rep's.
+      const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
+      const shopkeeper = await phone.newPage();
+      await shopkeeper.goto(link);
+      await shopkeeper.getByRole("heading", { level: 1 }).waitFor();
+      await fitsAPhone(shopkeeper, "the consent page");
+      await shopkeeper.getByRole("button", { name: "मराठी" }).click();
+      await shopkeeper.getByRole("heading", { level: 1, name: "रेकॉर्डिंगसाठी संमती" }).waitFor();
+      await shopkeeper.getByRole("button", { name: "मी सहमत आहे" }).click();
+      await shopkeeper.getByText("तुमचे उत्तर: हो").waitFor();
+      await fitsAPhone(shopkeeper, "the consent page, answered in Marathi");
+      await phone.close();
+
+      await onAPhoneFor(page, web, "Link Kirana, Old Market · consent: yes");
+      expect(!(await page.getByRole("button", { name: "Start recording" }).isDisabled()), "Start stayed disabled");
+    },
+  },
+  {
+    name: "at 390 px, a paper form marked by the rep lets its shop be recorded",
+    async run({ page, web }) {
+      await onAPhoneFor(page, web, "Paper Kirana, Old Market · consent: not yet");
+      await page.getByRole("button", { name: "Signed on paper" }).click();
+      await page.getByLabel("The form's language").selectOption("mr");
+      await fitsAPhone(page, "the paper form's step");
+      await page.getByRole("button", { name: "Mark the signed form" }).click();
+      await page.getByRole("option", { name: "Paper Kirana, Old Market · consent: yes" }).waitFor({ state: "attached" });
+      await page.getByRole("heading", { name: "Consent needed" }).waitFor({ state: "detached" });
+      expect(!(await page.getByRole("button", { name: "Start recording" }).isDisabled()), "Start stayed disabled");
     },
   },
   CLICK_CHECK,

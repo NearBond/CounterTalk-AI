@@ -98,11 +98,32 @@ export interface Shop {
 /** POST /api/shops/{id}/consent-links: the shop's consent page, from the app's own origin. */
 export interface ConsentLink {
   path: string;
+  /** What the link goes with on WhatsApp: the notice's message, a line per language. */
+  message: string;
 }
 
 /** POST /api/shops/{id}/consent (the paper form): ConsentOut. */
 export interface PaperConsent {
   consent: ConsentDecision;
+}
+
+/** The consent notice in one language (consent/v1/notice.yaml): NoticeTextOut. */
+export interface NoticeText {
+  name: string;
+  title: string;
+  what: string;
+  why: string;
+  benefits_title: string;
+  benefits: string[];
+  real_time: string;
+  retention: string;
+  no_change: string;
+  change_mind: string;
+  agree: string;
+  refuse: string;
+  answered_yes: string;
+  answered_no: string;
+  not_answered: string;
 }
 
 /** GET and POST /api/consent/{token}: countertalk/api/consent.py, ConsentPageOut. */
@@ -111,6 +132,14 @@ export interface ConsentPage {
   shop: string;
   decision: ConsentDecision | null;
   notice_version: number;
+  /** The notice in each of its languages, in the file's order. */
+  notice: Record<ConsentLanguage, NoticeText>;
+}
+
+/** POST /api/consent/{token}: AnswerIn. */
+export interface ConsentAnswer {
+  decision: ConsentDecision;
+  language: ConsentLanguage;
 }
 
 export type VisitStatus =

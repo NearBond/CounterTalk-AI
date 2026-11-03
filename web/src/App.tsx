@@ -1,6 +1,7 @@
 import type { RouteObject } from "react-router";
 import { ADMINS, Home, Only, RECORDS, SignedIn, TEAM_WORK, WHOLE_ORG } from "./lib/session";
 import { CatalogPage } from "./pages/CatalogPage";
+import { ConsentPage } from "./pages/ConsentPage";
 import { DrillPage } from "./pages/DrillPage";
 import { HealthPage } from "./pages/HealthPage";
 import { InboxPage } from "./pages/InboxPage";
@@ -14,10 +15,13 @@ import { VisitsPage } from "./pages/VisitsPage";
 
 /** The app's pages. A data router (createBrowserRouter) serves them, so a page with unsaved
  * changes can ask before any navigation, the back button's included (batch 14). Every page but
- * sign-in, health and not-found needs a signed-in user (batch 16), and some only some roles. */
+ * sign-in, health, a shop's consent page and not-found needs a signed-in user (batch 16), and
+ * some only some roles. */
 export const routes: RouteObject[] = [
   { path: "/signin", element: <SignInPage /> },
   { path: "/health", element: <HealthPage /> },
+  // A shop's consent page: public, for the shopkeeper's phone (batch 17).
+  { path: "/consent/:token", element: <ConsentPage /> },
   {
     element: <SignedIn />,
     children: [

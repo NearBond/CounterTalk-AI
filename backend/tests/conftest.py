@@ -187,7 +187,9 @@ def _fresh_test(
 
 
 def wipe_database() -> None:
-    """Every table emptied, as each test starts: a test that needs a fresh start mid-way too."""
+    """Every table emptied, as each test starts: a test that needs a fresh start mid-way too.
+    Only when there's something to empty: one query asks whether any table has a row or any
+    sequence has been used since its restart, about 4 ms against the TRUNCATE's 49 (batch 17)."""
     with get_engine().begin() as conn:
         tables = conn.scalars(
             text(
@@ -195,7 +197,17 @@ def wipe_database() -> None:
                 " WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
             )
         ).all()
-        if tables:
+        if not tables:
+            return
+        # The names are pg_tables' own, through quote_ident: nothing from outside.
+        rows = " OR ".join(f"EXISTS (SELECT 1 FROM {table})" for table in tables)  # noqa: S608
+        used = conn.scalar(
+            text(
+                f"SELECT ({rows}) OR EXISTS (SELECT 1 FROM pg_sequences"  # noqa: S608
+                " WHERE schemaname = 'public' AND last_value IS NOT NULL)"
+            )
+        )
+        if used:
             conn.execute(text(f"TRUNCATE {', '.join(tables)} RESTART IDENTITY CASCADE"))
 
 

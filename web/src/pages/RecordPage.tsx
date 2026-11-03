@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { ConsentNeeded } from "../components/ConsentNeeded";
 import { RetryAlert } from "../components/RetryAlert";
 import { UploadPanel } from "../components/UploadPanel";
 import { messageOf } from "../lib/api";
-import { countOf, formatDuration, shopLabel } from "../lib/format";
+import { consentLabel, countOf, formatDuration, shopLabel } from "../lib/format";
 import { useElapsed, useShops } from "../lib/hooks";
 import { type Recorder, startRecorder } from "../lib/recorder";
 import type { QueueState, UploadQueue } from "../lib/uploadQueue";
@@ -52,6 +53,10 @@ export function RecordPage() {
   const session = useRef<Session | null>(null);
   const elapsed = useElapsed(phase.name === "recording" ? phase.since : null);
   const busy = phase.name !== "idle";
+  // A conversation needs the shop's yes, given before the visit (batch 17): the server checks
+  // it too, so this only saves a refusal.
+  const picked = shops.data?.items.find((shop) => shop.id === shopId);
+  const agreed = picked?.consent === "yes";
   const locked = busy || uploading;
 
   useEffect(() => () => stopSession(session), []);
@@ -105,7 +110,7 @@ export function RecordPage() {
   };
 
   const start = async () => {
-    if (busy || uploading || shopId === "") return;
+    if (busy || uploading || shopId === "" || !agreed) return;
     setError(null);
     setNotice(null);
     setQueueState(null);
@@ -180,13 +185,16 @@ export function RecordPage() {
           {shopList.map((shop) => (
             <option key={shop.id} value={shop.id} disabled={shop.do_not_record}>
               {shopLabel(shop)}
-              {shop.do_not_record ? " (said no to recording)" : ""}
+              {shop.do_not_record ? " (said no to recording)" : ` · ${consentLabel(shop.consent)}`}
             </option>
           ))}
         </select>
       </label>
       {shops.error !== null && (
         <RetryAlert onRetry={shops.reload}>{shops.error.message}</RetryAlert>
+      )}
+      {picked !== undefined && !picked.do_not_record && !agreed && !locked && (
+        <ConsentNeeded key={picked.id} shop={picked} onAnswered={shops.reload} />
       )}
 
       <section aria-labelledby="record-heading" className="flex flex-col gap-3">
@@ -197,7 +205,7 @@ export function RecordPage() {
           <button
             type="button"
             onClick={() => void start()}
-            disabled={shopId === "" || uploading}
+            disabled={shopId === "" || uploading || !agreed}
             className={`${BUTTON} self-start bg-red-700`}
           >
             Start recording
@@ -235,7 +243,7 @@ export function RecordPage() {
         )}
       </section>
 
-      <UploadPanel shopId={shopId} disabled={busy} onBusyChange={setUploading} />
+      <UploadPanel shopId={shopId} disabled={busy || (!agreed && !uploading)} onBusyChange={setUploading} />
     </main>
   );
 }

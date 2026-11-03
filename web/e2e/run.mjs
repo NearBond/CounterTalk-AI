@@ -175,7 +175,7 @@ async function main() {
     try {
       if (died !== null) throw new Error(died);
       await signIn(context, check.as === "k6" ? seeded.k6.email : seeded.rep);
-      await withTimeout(check.run({ context, page: await context.newPage(), web: WEB, seeded }), CHECK_MS, check.name);
+      await withTimeout(check.run({ browser, context, page: await context.newPage(), web: WEB, seeded }), CHECK_MS, check.name);
       print(`ok    ${check.name} (${((Date.now() - started) / 1000).toFixed(1)} s)`);
     } catch (error) {
       failed += 1;

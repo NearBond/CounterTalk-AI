@@ -6,6 +6,9 @@
 - **On paper:** the shopkeeper signs the consent form that goes with the invoice, and someone of
   the org marks it in the app: always a yes, saved with who marked it.
 
+The notice the page shows is consent/v1/notice.yaml, in Hindi, English and Marathi, read
+strictly; each answer records its version and the language it was read in.
+
 A shop's latest answer (by seq) is its current one, and every answer is kept (the table is
 append-only). A conversation needs a current yes: visits checks it under the shop's row lock,
 which an answer takes too, so the two never cross. do_not_record still blocks as before.
@@ -18,13 +21,17 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import cache
 from http import HTTPStatus
+from typing import Annotated
 
+from pydantic import BaseModel, ConfigDict, StringConstraints, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from countertalk import auth
+from countertalk.config import BACKEND_DIR
 from countertalk.errors import Conflict, NotFound
 from countertalk.models import (
+    CONSENT_LANGUAGES,
     Consent,
     ConsentDecision,
     ConsentLink,
@@ -33,14 +40,71 @@ from countertalk.models import (
     Shop,
     parse_id,
 )
-from countertalk.playbooks import PackError, load_org_pack
+from countertalk.playbooks import PackError, first_problem, load_org_pack, read_yaml
 
 log = logging.getLogger(__name__)
 
 # consent/v1's notice: the version every answer records.
 NOTICE_VERSION = 1
+NOTICE_PATH = BACKEND_DIR / "consent" / f"v{NOTICE_VERSION}" / "notice.yaml"
 # A token as new_link makes it (secrets.token_urlsafe(32)): anything else is no token at all.
 TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
+
+
+Text = Annotated[str, StringConstraints(min_length=1)]
+
+
+class NoticeText(BaseModel):
+    """The notice in one language: what the consent page says, and the message a shared link
+    goes with."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    name: Text
+    title: Text
+    what: Text
+    why: Text
+    benefits_title: Text
+    benefits: list[Text]
+    real_time: Text
+    retention: Text
+    no_change: Text
+    change_mind: Text
+    agree: Text
+    refuse: Text
+    answered_yes: Text
+    answered_no: Text
+    not_answered: Text
+    share_message: Text
+
+
+class NoticeFile(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    version: int
+    languages: dict[str, NoticeText]
+
+
+@cache
+def notice() -> dict[str, NoticeText]:
+    """The notice by language, in the file's order: every language a consent may be in, for
+    this version, and no other. A file that doesn't check out is a PackError naming the field."""
+    data = read_yaml(NOTICE_PATH)
+    try:
+        found = NoticeFile.model_validate(data)
+    except ValidationError as error:
+        raise PackError(NOTICE_PATH, *first_problem(error)) from None
+    if found.version != NOTICE_VERSION:
+        raise PackError(NOTICE_PATH, "version", f"is {found.version}, not {NOTICE_VERSION}")
+    if set(found.languages) != set(CONSENT_LANGUAGES):
+        shown, wanted = ", ".join(found.languages), ", ".join(CONSENT_LANGUAGES)
+        raise PackError(NOTICE_PATH, "languages", f"are {shown}, not {wanted}")
+    return found.languages
+
+
+def share_message() -> str:
+    """What a shared link goes with: the notice's message in each language, a line each."""
+    return "\n".join(text.share_message for text in notice().values())
 
 
 def no_such_page() -> NotFound:

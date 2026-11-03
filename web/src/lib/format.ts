@@ -1,10 +1,15 @@
 /** The only place times, durations and names are formatted (CODING_GUIDELINES §4.9). Times
  * are IST. */
-import type { PeriodKind, Shop } from "../types/api";
+import type { ConsentDecision, PeriodKind, Shop } from "../types/api";
 
 /** "Sunrise Kirana, Old Market": a shop as the rep knows it. */
 export function shopLabel(shop: Shop): string {
   return `${shop.name}, ${shop.area}`;
+}
+
+/** A shop's consent to recording, as the shop list shows it (batch 17). */
+export function consentLabel(consent: ConsentDecision | null): string {
+  return consent === "yes" ? "consent: yes" : consent === "no" ? "consent: no" : "consent: not yet";
 }
 
 /** 0:05, 3:16, 1:02:05; a dash for a duration not known yet. */

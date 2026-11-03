@@ -35,6 +35,8 @@ class ShopPage(BaseModel):
 class ConsentLinkOut(BaseModel):
     # The shop's consent page, with its token: the app makes the full link from its own origin.
     path: str
+    # What the link goes with on WhatsApp: the notice's message, a line per language.
+    message: str
 
 
 class PaperIn(BaseModel):
@@ -71,7 +73,7 @@ def share_consent_link(shop_id: UUID, user: CurrentUser, session: DbSession) -> 
     """A new link to the shop's consent page; the links shared before stay valid."""
     access.only(user, *CONSENT_TAKERS)
     token = consent.new_link(session, user.org_id, str(shop_id), user.id)
-    return ConsentLinkOut(path=f"/consent/{token}")
+    return ConsentLinkOut(path=f"/consent/{token}", message=consent.share_message())
 
 
 @router.post("/{shop_id}/consent", status_code=status.HTTP_201_CREATED)
