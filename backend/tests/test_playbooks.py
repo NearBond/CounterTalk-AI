@@ -402,3 +402,40 @@ def test_the_prompts_come_from_the_playbook_the_pack_was_loaded_with(
     pack = load_org_pack("tiny-demo", 1, packs, books)
 
     assert playbook_text(pack, "roles_prompt") == "- edited\n"
+
+
+# --- languages (batch T3) ---------------------------------------------------------------------
+
+
+def test_a_pack_naming_no_languages_has_hindi_and_english() -> None:
+    assert load_org_pack("tiny-demo", 1, ORG_PACK_FIXTURES).languages == ("hi", "en")
+    assert load_org_pack("pepsico-india-demo", 1).languages == ("hi", "en")  # as before T3
+
+
+def test_a_pack_s_own_languages_are_kept_in_order(pack_roots: tuple[Path, Path]) -> None:
+    packs, books = pack_roots
+    edit_file(packs / PACK / "org_pack.yaml", "catalog:\n", "languages: [mr, hi, en]\ncatalog:\n")
+
+    assert load_org_pack("tiny-demo", 1, packs, books).languages == ("mr", "hi", "en")
+
+
+@pytest.mark.parametrize(
+    ("named", "field", "problem"),
+    [
+        ("[ta]", "languages.0", "Input should be 'hi', 'en' or 'mr'"),
+        ("[]", "languages", "List should have at least 1 item after validation, not 0"),
+        ("[mr, hi, mr]", "languages", "mr named twice"),
+        ("mr", "languages", "Input should be a valid list"),
+    ],
+    ids=["unknown", "empty", "twice", "not-a-list"],
+)
+def test_a_pack_s_languages_are_checked(
+    pack_roots: tuple[Path, Path], named: str, field: str, problem: str
+) -> None:
+    packs, books = pack_roots
+    edit_file(packs / PACK / "org_pack.yaml", "catalog:\n", f"languages: {named}\ncatalog:\n")
+
+    with pytest.raises(PackError) as error:
+        load_org_pack("tiny-demo", 1, packs, books)
+
+    assert str(error.value) == f"invalid_pack: {PACK}/org_pack.yaml: {field}: {problem}"

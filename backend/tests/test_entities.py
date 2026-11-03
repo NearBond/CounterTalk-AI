@@ -317,3 +317,48 @@ def test_a_key_in_the_pack_stays_even_when_another_schemes_alias_reads_the_same(
     assert entities.link_scheme(clashing, "diwali_scheme", tally) == "diwali_scheme"
     assert entities.link_scheme(clashing, "Diwali Scheme", tally) is None  # a name, not a key
     assert dict(tally) == {"scheme_dropped": 1}
+
+
+# --- Marathi's case endings (batch T3) --------------------------------------------------------
+
+MARATHI_ENDINGS = entities.endings_for(("mr", "hi", "en"))
+
+
+@pytest.mark.parametrize(
+    ("text", "item"),
+    [
+        ("लेज़चा", "lays"),  # three letters: exact or nothing, so only without its ending
+        ("लेज़मध्ये", "lays"),
+        ("बिंगोचं", "bingo"),
+        ("कैम्पाची", "campa"),
+        ("कुरकुरेमध्ये", "kurkure"),
+        ("बिंगोवर", "bingo"),
+        ("लेज़त", "lays"),
+    ],
+)
+def test_a_marathi_ending_is_dropped_from_a_name_that_matched_nothing(text: str, item: str) -> None:
+    assert entities.match(text, PEPSICO.names).how == "unknown"
+    found = entities.match(text, PEPSICO.names, MARATHI_ENDINGS)
+
+    assert (found.target, found.how) == (item, "exact")
+
+
+def test_endings_are_marathi_s_alone_and_only_a_second_try() -> None:
+    assert entities.endings_for(("hi", "en")) == ()
+    # A name matched as it is stays so: कैम्पा कोला ends in ला, and its stem is only near it.
+    found = entities.match("कैम्पा कोला", PEPSICO.names, MARATHI_ENDINGS)
+    assert (found.target, found.how) == ("campa_cola", "exact")
+    # A stem that's only near a name, or nothing, leaves the whole name for review.
+    near = entities.match("कुरकुरीचा", PEPSICO.names, MARATHI_ENDINGS)
+    assert (near.target, near.how) == (None, "unknown")
+    unknown = entities.match("ब्लिंकिटचा", PEPSICO.names, MARATHI_ENDINGS)
+    assert (unknown.target, unknown.how, unknown.key) == (None, "unknown", "ब्लिंकिटचा")
+
+
+def test_an_ambiguous_name_is_tried_without_its_ending_too() -> None:
+    # Within LINK_NEAR_POINTS of both items with its ending; its stem is exactly one's name.
+    names = entities.names_of([("salted", ["Crunchy Salted"]), ("near", ["Crunchy Saltedc"])], {})
+
+    assert entities.match("Crunchy Saltedचा", names).how == "ambiguous"
+    found = entities.match("Crunchy Saltedचा", names, MARATHI_ENDINGS)
+    assert (found.target, found.how) == ("salted", "exact")

@@ -6,7 +6,16 @@ Pure functions, so no database: each case is a few turns and a quote.
 import pytest
 
 from countertalk import limits
-from countertalk.verify import Transcript, TurnText, normalise, verify_quote
+from countertalk.playbooks import LANGUAGES
+from countertalk.stt import meta
+from countertalk.verify import (
+    NUMBER_WORDS,
+    Transcript,
+    TurnText,
+    normalise,
+    number_words,
+    verify_quote,
+)
 
 
 def turns(*texts: str, length_ms: int = 4_000) -> Transcript:
@@ -233,3 +242,210 @@ def test_a_quote_longer_than_any_turn_is_never_cut_to_fit_one() -> None:
     found = verify_quote("पिछले हफ्ते का सारा माल अभी तक नहीं आया जी", 0, transcript)
 
     assert found.match == "none"
+
+
+# --- number words by language (batch T3) ------------------------------------------------------
+
+MARATHI = ("mr", "hi", "en")
+# Hindi number words and fractions, as batch 11's normalise() gave them before T3: byte for
+# byte, spans included. Hindi's fractions (ढाई, साढ़े, डेढ़, सवा, पौने) were never digits.
+HINDI_SAMPLE = (
+    "भैया, ढाई हज़ार का माल और साढ़े तीन सौ की स्कीम, डेढ़ लाख बाकी है। "
+    "चार हजार पांच सौ, 5 लाख, दो दो पेटी, सवा सौ रुपये, पौने दो हजार, ४,५०० और एक करोड़।"
+)
+HINDI_TODAY = (
+    "भैया ढाई 1000 का माल और साढे 300 की स्कीम डेढ 100000 बाकी है "
+    "50504002 पेटी सवा 100 रुपये पौने 2000 4500 और 10000000"
+)
+HINDI_TODAY_SPANS = (
+    (0, 1),
+    (1, 2),
+    (2, 3),
+    (3, 4),
+    (6, 7),
+    (6, 7),
+    (7, 8),
+    (8, 9),
+    (10, 15),
+    (10, 15),
+    (10, 15),
+    (10, 15),
+    (10, 15),
+    (16, 17),
+    (16, 17),
+    (17, 18),
+    (19, 20),
+    (19, 20),
+    (20, 21),
+    (21, 22),
+    (23, 24),
+    (23, 24),
+    (24, 25),
+    (26, 27),
+    (26, 27),
+    (27, 28),
+    (28, 30),
+    (30, 31),
+    (32, 38),
+    (32, 38),
+    (32, 38),
+    (32, 38),
+    (39, 40),
+    (39, 40),
+    (40, 41),
+    (42, 44),
+    (42, 44),
+    (42, 44),
+    (44, 45),
+    (45, 46),
+    (46, 47),
+    (49, 50),
+    (49, 50),
+    (50, 51),
+    (51, 53),
+    (54, 57),
+    (54, 57),
+    (54, 57),
+    (54, 57),
+    (54, 57),
+    (54, 57),
+    (54, 57),
+    (58, 59),
+    (58, 59),
+    (59, 60),
+    (60, 61),
+    (61, 62),
+    (63, 64),
+    (63, 64),
+    (64, 65),
+    (67, 97),
+    (67, 97),
+    (67, 97),
+    (67, 97),
+    (67, 97),
+    (67, 97),
+    (67, 97),
+    (67, 97),
+    (67, 97),
+    (98, 99),
+    (98, 99),
+    (99, 100),
+    (100, 101),
+    (101, 102),
+    (104, 105),
+    (104, 105),
+    (105, 106),
+    (106, 107),
+    (108, 110),
+    (108, 110),
+    (108, 110),
+    (108, 110),
+    (111, 112),
+    (111, 112),
+    (112, 113),
+    (113, 114),
+    (114, 115),
+    (115, 116),
+    (118, 119),
+    (118, 119),
+    (119, 120),
+    (120, 121),
+    (121, 122),
+    (123, 130),
+    (123, 130),
+    (123, 130),
+    (123, 130),
+    (123, 130),
+    (132, 133),
+    (132, 133),
+    (134, 135),
+    (135, 136),
+    (136, 137),
+    (138, 139),
+    (138, 139),
+    (139, 140),
+    (141, 149),
+    (141, 149),
+    (141, 149),
+    (141, 149),
+    (141, 149),
+    (141, 149),
+    (141, 149),
+    (141, 149),
+    (141, 149),
+)
+
+
+def test_a_hindi_visit_is_normalised_as_before() -> None:
+    for languages in (("hi", "en"), ("hi",), ("en", "hi")):
+        normalised = normalise(HINDI_SAMPLE, languages)
+
+        assert (normalised.text, normalised.spans) == (HINDI_TODAY, HINDI_TODAY_SPANS)
+
+
+@pytest.mark.parametrize(
+    ("said", "normalised"),
+    [
+        ("अडीच हजार रुपये", "2500 रुपये"),
+        ("साडे तीन हजार", "3500"),
+        ("साडेतीन हजार", "3500"),
+        ("दीड लाख", "150000"),
+        ("सव्वा लाख", "125000"),
+        ("पावणे दोन हजार", "1750"),
+        ("दोन हजार पाचशे पन्नास", "2550"),
+        ("पाचशे", "500"),
+        ("दीडशे", "150"),
+        ("अडीचशे", "250"),
+        ("साडेतीनशे", "350"),
+        ("साडे तीनशे", "350"),
+        ("पंधराशे रुपये", "1500 रुपये"),
+        ("बाराशे पन्नास", "1250"),
+        ("सव्वाशे", "125"),
+        ("पावणेदोनशे", "175"),
+        ("शंभर रुपये", "100 रुपये"),
+        ("एकशे वीस", "120"),
+        ("पाच कोटी", "50000000"),
+        ("५ हजार", "5000"),
+        ("नव्व्याण्णव पेटी", "99 पेटी"),
+        ("चौऱ्याहत्तर", "74"),
+        ("चौर्याहत्तर", "74"),
+        ("साडे तीन", "साडेतीन"),  # a fraction on its own stays words
+        ("सव्वा", "सव्वा"),
+        ("पावणे", "पावणे"),
+    ],
+)
+def test_marathi_number_words_are_digits_for_a_marathi_visit(said: str, normalised: str) -> None:
+    assert normalise(said, MARATHI).text == normalised
+
+
+def test_a_hindi_visit_doesnt_read_marathi_number_words() -> None:
+    # तेरा is "your" in Hindi, 13 in Marathi.
+    assert normalise("तेरा माल अडीच हजार", ("hi", "en")).text == "तेरा माल अडीच 1000"
+    assert normalise("तेरा माल अडीच हजार", MARATHI).text == "13 माल 2500"
+
+
+def test_a_quote_in_digits_matches_marathi_words_in_a_marathi_transcript() -> None:
+    turns = [TurnText(1, "shopkeeper", 0, 6_000, "अडीच हजार रुपये अजून बाकी आहेत")]
+
+    found = verify_quote("2500 रुपये अजून बाकी", 1, Transcript(turns, MARATHI))
+
+    assert (found.match, found.quote_final) == ("exact", "अडीच हजार रुपये अजून बाकी")
+    assert verify_quote("2500 रुपये अजून बाकी", 1, Transcript(turns)).match != "exact"
+
+
+def test_every_language_has_its_number_words_and_a_name_for_speech_to_text() -> None:
+    assert set(NUMBER_WORDS) == set(LANGUAGES) == set(meta.LANGUAGE_NAMES)
+
+
+def test_no_word_is_two_numbers_or_two_kinds_of_number_word() -> None:
+    tables = list(NUMBER_WORDS.values())
+    for kind in ("units", "hundreds", "scales"):
+        seen: dict[str, object] = {}
+        for table in tables:
+            for word, value in getattr(table, kind).items():
+                assert seen.setdefault(word, value) == value, (kind, word)
+    together = number_words(frozenset(LANGUAGES))
+    kinds = [set(together.units), set(together.hundreds), set(together.scales), together.hundred]
+    for i, one in enumerate(kinds):
+        for other in kinds[i + 1 :]:
+            assert one & other == set()

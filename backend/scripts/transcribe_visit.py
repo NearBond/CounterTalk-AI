@@ -49,6 +49,17 @@ def job_states(session: Session, visit_id: str) -> list[str]:
     return list(session.scalars(query.order_by(Job.seq)))
 
 
+def hint_for(visit_id: str) -> tuple[str, ...]:
+    """The hint a worker would send: its saved replies', or the org pack's (batch T3)."""
+    with session_scope(read_only=True) as session:
+        visit = session.get(Visit, visit_id)
+        org_id = None if visit is None else visit.org_id
+    # No such visit: the run says so, whatever the hint.
+    if org_id is None:
+        return transcription.LANGUAGES
+    return tuple(transcription.visit_languages(visit_id, org_id))
+
+
 def dry_run(visit_id: str, stt: SpeechToText, languages: tuple[str, ...]) -> int:
     # Read in one short transaction, then prepare with none open (§2.4).
     with session_scope(read_only=True) as session:
@@ -142,7 +153,6 @@ def main(argv: list[str], stt: SpeechToText | None = None) -> int:
     visit_id = parse_id(args.visit_id)
     if visit_id is None:
         parser.error("that isn't a visit ID")
-    languages = () if args.no_language_bias else transcription.LANGUAGES
     if stt is None:
         key = get_settings().MODEL_API_KEY.get_secret_value()
         if args.yes and not key:
@@ -151,6 +161,7 @@ def main(argv: list[str], stt: SpeechToText | None = None) -> int:
             return 1
         stt = MetaSpeechToText(key)
     try:
+        languages = () if args.no_language_bias else hint_for(visit_id)
         if not args.yes:
             return dry_run(visit_id, stt, languages)
         return run(visit_id, stt, languages)

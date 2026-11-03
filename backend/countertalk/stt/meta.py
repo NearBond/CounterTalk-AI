@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 URL = "https://api.meta.ai/v1/asr/transcribe"
 MODEL = "muse-voice-transcribe-1.0"
 # languageBias takes language names; the app passes ISO 639-1 codes.
-LANGUAGE_NAMES = {"hi": "Hindi", "en": "English"}
+LANGUAGE_NAMES = {"hi": "Hindi", "en": "English", "mr": "Marathi"}
 # A turn whose speaker the reply doesn't give.
 UNKNOWN_SPEAKER = "?"
 # What each refusal tells the rep. Meta's 400 is a file over 10 minutes or not WAV, but also a

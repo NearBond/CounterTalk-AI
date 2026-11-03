@@ -15,8 +15,9 @@ note), since every item has Devanagari aliases.
 The order: an exact key; otherwise a fuzzy one (rapidfuzz ratio, LINK_FUZZY_MIN_SCORE or more,
 between keys of LINK_FUZZY_MIN_CHARS or more); otherwise unknown. Any other item within
 LINK_NEAR_POINTS of the best makes the name ambiguous, but for a product and its own brand: the
-higher wins, the product on a tie. Unknown and ambiguous names go to AliasReview, never to the
-nearest guess (§9.6).
+higher wins, the product on a tie. For an org whose pack names Marathi (batch T3), a name left
+unknown or ambiguous is tried once more without a case ending, if its stem is exact. Unknown and
+ambiguous names go to AliasReview, never to the nearest guess (§9.6).
 
 An insight holds one link of each kind: the first mention that resolves to one. The catalog
 decides the kind, whichever list the model put the name in (D7: code decides), but a name in its
@@ -55,6 +56,17 @@ def link_key(text: str) -> str:
     return _NASAL_CLUSTER.sub(_ANUSVARA, key)
 
 
+# Marathi's case endings, as linking keys, longest first (batch T3). For an org whose pack names
+# Marathi, a mention that matched nothing is tried again without one: "लेझचा" is लेझ's, and at
+# three letters लेझ is matched exactly or not at all.
+_MARATHI_ENDINGS = ("मध्ये", "चा", "ची", "चे", "चं", "ला", "ने", "ना", "वर", "त")
+MARATHI_ENDINGS = tuple(sorted({link_key(e) for e in _MARATHI_ENDINGS}, key=lambda e: (-len(e), e)))
+
+
+def endings_for(languages: Sequence[str]) -> tuple[str, ...]:
+    return MARATHI_ENDINGS if "mr" in languages else ()
+
+
 @dataclass(frozen=True)
 class Names:
     """What a set of targets (catalog items, or schemes) is matched on."""
@@ -86,8 +98,21 @@ def names_of(named: Iterable[tuple[str, Iterable[str]]], brand_of: dict[str, str
     return Names(found, brand_of, frozenset(targets))
 
 
-def match(text: str, names: Names) -> Found:
-    wanted = link_key(text)
+def match(text: str, names: Names, endings: Sequence[str] = ()) -> Found:
+    """The name's target. One that matched no single target (unknown or ambiguous) is tried
+    without the first of `endings` (endings_for) it ends with whose stem is exactly one
+    target's name: never a fuzzy stem, as a letter cut off a guess is a guess twice over."""
+    found = _match(link_key(text), names)
+    if found.target is None:
+        for ending in endings:
+            if found.key.endswith(ending) and len(found.key) > len(ending):
+                stem = _match(found.key[: -len(ending)], names)
+                if stem.how == "exact" and stem.target is not None:
+                    return stem
+    return found
+
+
+def _match(wanted: str, names: Names) -> Found:
     exact = names.by_key.get(wanted)
     if exact:
         return _pick(dict.fromkeys(exact, 100.0), names, "exact", wanted)
@@ -236,8 +261,10 @@ def link_mentions(
     sku_mentions: Sequence[str],
     competitor_mentions: Sequence[str],
     tally: Counter,
+    endings: Sequence[str] = (),
 ) -> Links:
-    """Counts each mention's outcome in tally, and wrong_kind for one filed in the other list."""
+    """Counts each mention's outcome in tally, and wrong_kind for one filed in the other list.
+    `endings` are the org pack's languages' case endings (endings_for)."""
     resolved: dict[str, list[str]] = {CatalogKind.OWN: [], CatalogKind.COMPETITOR: []}
     elsewhere: dict[str, list[str]] = {CatalogKind.OWN: [], CatalogKind.COMPETITOR: []}
     reviews: list[Review] = []
@@ -246,7 +273,7 @@ def link_mentions(
         (CatalogKind.COMPETITOR, competitor_mentions),
     ):
         for text in mentions:
-            found = match(text, catalog.names)
+            found = match(text, catalog.names, endings)
             tally[found.how] += 1
             if found.target is None:
                 if found.key:

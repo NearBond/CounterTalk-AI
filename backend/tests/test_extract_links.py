@@ -2,6 +2,7 @@
 same transaction as its rows (batch 12)."""
 
 import logging
+from collections.abc import Sequence
 
 import pytest
 from sqlalchemy import select
@@ -135,9 +136,9 @@ def test_names_are_matched_with_no_transaction_open(
     seen: list[int] = []
     match = entities.match
 
-    def watched(text: str, names: entities.Names) -> entities.Found:
+    def watched(text: str, names: entities.Names, endings: Sequence[str] = ()) -> entities.Found:
         seen.append(open_transactions())
-        return match(text, names)
+        return match(text, names, endings)
 
     monkeypatch.setattr(entities, "match", watched)
 

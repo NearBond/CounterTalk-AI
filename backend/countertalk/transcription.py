@@ -24,6 +24,7 @@ import logging
 import threading
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import insert, select
@@ -32,13 +33,15 @@ from sqlalchemy.orm import Session
 from countertalk import audio, catalog, errors, jobs, storage, visits
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, NotFound, PermanentError
-from countertalk.models import JobKind, Segment, Transcript, Turn, Visit, VisitStatus
+from countertalk.models import JobKind, Org, Segment, Transcript, Turn, Visit, VisitStatus
+from countertalk.playbooks import DEFAULT_LANGUAGES, ORG_PACKS_DIR, PLAYBOOKS_DIR, load_org_pack
 from countertalk.stt.base import Reply, SpeechToText
 
 log = logging.getLogger(__name__)
 
-# Recognition is biased towards these (ISO 639-1). The manual test checks it helps.
-LANGUAGES = ("hi", "en")
+# Recognition is biased towards these (ISO 639-1) for an org without a pack; an org's pack can
+# name its own (batch T3). The manual test checks the hint helps.
+LANGUAGES = DEFAULT_LANGUAGES
 SAVED_REPLY_VERSION = 1
 
 
@@ -88,19 +91,38 @@ def transcribe(
     stt: SpeechToText,
     *,
     claim_lost: threading.Event | None = None,
-    languages: Sequence[str] = LANGUAGES,
+    languages: Sequence[str] | None = None,
+    packs: Path = ORG_PACKS_DIR,
+    playbooks: Path = PLAYBOOKS_DIR,
 ) -> None:
-    """Transcribes a visit that's waiting for it. Raises PermanentError or RetryableError."""
+    """Transcribes a visit that's waiting for it, biased towards `languages`, or else its org
+    pack's. Raises PermanentError or RetryableError."""
     work = _start(visit_id)
     if work is None:
         return
+    if languages is None:
+        hint = visit_languages(visit_id, work.org_id, packs, playbooks)
+    else:
+        hint = list(languages)
     prepared = audio.prepare(visit_id, work.ext, work.seqs)
     keywords = visit_keywords(visit_id, work.org_id)
     replies = [
-        _reply_for(visit_id, chunk, stt, list(languages), keywords, claim_lost)
-        for chunk in prepared.chunks
+        _reply_for(visit_id, chunk, stt, hint, keywords, claim_lost) for chunk in prepared.chunks
     ]
-    _finish(visit_id, stt, list(languages), prepared, replies)
+    _finish(visit_id, stt, hint, prepared, replies)
+
+
+def org_languages(
+    org_id: str, packs: Path = ORG_PACKS_DIR, playbooks: Path = PLAYBOOKS_DIR
+) -> tuple[str, ...]:
+    """The languages speech-to-text listens for in this org's visits: its pack's, or the
+    default for an org with no pack yet (whose visits have no catalog keywords either)."""
+    with session_scope(read_only=True) as session:
+        org = session.get_one(Org, org_id)
+        pack_id, version = org.org_pack_id, org.org_pack_version
+    if pack_id is None or version is None:
+        return DEFAULT_LANGUAGES
+    return load_org_pack(pack_id, version, packs, playbooks).languages
 
 
 def _start(visit_id: str) -> _Work | None:
@@ -144,20 +166,39 @@ def _chunk_key(chunk: audio.Chunk) -> dict[str, int]:
     return {"index": chunk.index, "start_ms": chunk.start_ms, "end_ms": chunk.end_ms}
 
 
+def _first_sent(visit_id: str, key: str, missing: list[str] | None) -> list[str] | None:
+    """What chunk 0's saved reply was sent with under `key` (`missing` if a reply written before
+    it had none), or None: nothing paid for yet, or not what was written."""
+    try:
+        first = json.loads(storage.stt_reply_path(visit_id, 0).read_text(encoding="utf-8"))
+        if first["version"] == SAVED_REPLY_VERSION:
+            kept = first.get(key, missing)
+            if isinstance(kept, list) and all(isinstance(word, str) for word in kept):
+                return kept
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        pass
+    return None
+
+
 def visit_keywords(visit_id: str, org_id: str) -> list[str]:
     """The keywords this visit's chunks are sent with. Once a reply is paid for, its keywords
     stay the visit's: a catalog edit before a retry mustn't make saved replies stop matching
     (§9.4). Before that, the org's own, read with no lock held."""
-    try:
-        first = json.loads(storage.stt_reply_path(visit_id, 0).read_text(encoding="utf-8"))
-        if first["version"] == SAVED_REPLY_VERSION:
-            kept = first.get("keywords", [])
-            if isinstance(kept, list) and all(isinstance(word, str) for word in kept):
-                return kept
-    except (OSError, ValueError, KeyError, TypeError, AttributeError):
-        pass  # nothing paid for yet, or not what was written: the org's keywords
+    kept = _first_sent(visit_id, "keywords", [])
+    if kept is not None:
+        return kept
     with session_scope(read_only=True) as session:
         return catalog.keywords_for(session, org_id)
+
+
+def visit_languages(
+    visit_id: str, org_id: str, packs: Path = ORG_PACKS_DIR, playbooks: Path = PLAYBOOKS_DIR
+) -> list[str]:
+    """The languages this visit's chunks are sent with, kept like its keywords: once a reply
+    is paid for, a pack change before a retry mustn't make saved replies stop matching (§9.4).
+    Before that, the org pack's."""
+    kept = _first_sent(visit_id, "languages", None)
+    return list(org_languages(org_id, packs, playbooks)) if kept is None else kept
 
 
 def saved_reply(

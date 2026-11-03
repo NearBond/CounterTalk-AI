@@ -260,7 +260,7 @@ def extract(
     )
     answer = _no_nul(llm_calls.answer_of(outcome, invalid))
     # Every quote checked, and the unmatched repaired, before the write (batch 11).
-    transcript = _transcript(request, assigned.roles)
+    transcript = _transcript(request, assigned.roles, pack)
     checked = quotes.check_quotes(visit_id, answer, transcript, llm, claim_lost=claim_lost)
     linked = _link(request, pack, answer)
     # The request's hash: a repair's includes the answer it repaired.
@@ -297,11 +297,12 @@ def _link(request: Request, pack: OrgPack, answer: dict[str, Any]) -> Linked:
     with session_scope(read_only=True) as session:
         catalog = entities.load_catalog(session, request.org_id)
     schemes = entities.scheme_names(pack.schemes)
+    endings = entities.endings_for(pack.languages)  # Marathi's, for an mr pack (batch T3)
     tally: Counter[str] = Counter()
     links, kept = [], []
     for number, found in enumerate(answer["insights"]):
         mentioned = (found["sku_mentions"], found["competitor_mentions"])
-        links.append(entities.link_mentions(catalog, *mentioned, tally))
+        links.append(entities.link_mentions(catalog, *mentioned, tally, endings))
         given = found["scheme_key"]
         kept.append(entities.link_scheme(schemes, given, tally))
         if given is not None and kept[-1] is None:
@@ -317,7 +318,7 @@ def _link(request: Request, pack: OrgPack, answer: dict[str, Any]) -> Linked:
             order_counts["dropped"] += 1
             continue
         how: Counter[str] = Counter()
-        found = entities.link_mentions(catalog, [name], [], how)
+        found = entities.link_mentions(catalog, [name], [], how, endings)
         order_counts[_outcome(found, how)] += 1
         unit = (said["unit"] or "").strip() or None
         order.append(Ordered(name, _quantity(said["quantity"]), unit, found))
@@ -341,14 +342,17 @@ def _quantity(value: object) -> Decimal | None:
     return Decimal(str(value))
 
 
-def _transcript(request: Request, speaker_roles: dict[str, tuple[str, float]]) -> Transcript:
+def _transcript(
+    request: Request, speaker_roles: dict[str, tuple[str, float]], pack: OrgPack
+) -> Transcript:
     return Transcript(
         [
             TurnText(
                 t.turn_id, speaker_roles.get(t.label, (None,))[0], t.start_ms, t.end_ms, t.text
             )
             for t in request.turn_rows
-        ]
+        ],
+        pack.languages,  # the quote checker reads these languages' number words (batch T3)
     )
 
 

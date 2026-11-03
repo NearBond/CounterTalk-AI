@@ -40,7 +40,7 @@ def org() -> Org_:
 def work(stt: FakeStt | None = None, llm: FakeLlm | None = None) -> None:
     """One job, the worker's way, with these fakes for its handlers."""
     handlers = {
-        JobKind.TRANSCRIBE: worker.transcribe_with(stt or FakeStt()),
+        JobKind.TRANSCRIBE: worker.transcribe_with(stt or FakeStt(), **PACKS),
         JobKind.EXTRACT: worker.extract_with(llm or FakeLlm(), **PACKS),
     }
     assert worker.Worker("test-host:1:aaaaaa", handlers=handlers).run_once()

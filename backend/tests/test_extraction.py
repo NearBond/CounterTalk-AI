@@ -5,6 +5,7 @@ open while it's asked (§2.4). Request 0 is roles, request 1 extraction, unless 
 import logging
 from dataclasses import replace
 from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -15,6 +16,7 @@ from countertalk.db import session_scope
 from countertalk.errors import Conflict, RetryableError
 from countertalk.llm.base import Outcome
 from countertalk.models import (
+    CatalogItem,
     Evidence,
     Extraction,
     Insight,
@@ -31,7 +33,7 @@ from countertalk.models import (
     VisitStatus,
 )
 from countertalk.playbooks import Scheme, build_extraction_schema, playbook_text
-from tests.conftest import ORG_PACK_FIXTURES, give_transcript
+from tests.conftest import ORG_PACK_FIXTURES, edit_file, give_transcript
 from tests.test_roles import ALL_PLACED, VISIT, FakeLlm, call, tiny, tiny_org
 from tests.test_visits import Org_, load, move_to, new_visit
 
@@ -528,3 +530,44 @@ def test_a_queued_job_with_no_visit_doesnt_stop_housekeeping_queuing(
     with session_scope(read_only=True) as session:
         query = select(Job.visit_id).where(Job.kind == JobKind.EXTRACT, Job.visit_id.is_not(None))
         assert session.scalars(query).all() == [waiting]
+
+
+# --- an org pack naming Marathi (batch T3) ----------------------------------------------------
+
+MARATHI_TURNS = [
+    ("c0:A", 1_000, "क्रंचीमध्ये किती बाकी आहे?"),
+    ("c0:B", 4_000, "अडीच हजार रुपये अजून बाकी आहेत."),
+]
+
+
+@pytest.mark.parametrize("marathi", [True, False])
+def test_an_mr_pack_s_visit_reads_marathi_numbers_and_endings(
+    org: Org_, pack_roots: tuple[Path, Path], marathi: bool
+) -> None:
+    packs, books = pack_roots
+    if marathi:
+        edit_file(
+            packs / "tiny-demo/v1/org_pack.yaml", "catalog:\n", "languages: [mr, hi]\ncatalog:\n"
+        )
+    visit_id = new_visit(org, client=VisitClient.UPLOAD)
+    give_transcript(visit_id, MARATHI_TURNS)
+    move_to(org, visit_id, VisitStatus.UPLOADED, VisitStatus.TRANSCRIBING, VisitStatus.TRANSCRIBED)
+    said = insight(
+        evidence=[{"turn_id": 1, "quote": "2500 रुपये अजून बाकी"}], sku_mentions=["क्रंचीमध्ये"]
+    )
+
+    repair = {"turn_id": 1, "quote": "2500 रुपये अजून बाकी"}  # asked for only if it missed
+    llm = FakeLlm(ALL_PLACED, answer(said), repair)
+
+    extraction.extract(visit_id, llm, packs=packs, playbooks=books)
+
+    [found] = rows(Insight)
+    [quote] = rows(Evidence)
+    with session_scope(read_only=True) as session:
+        crunchy = session.scalars(select(CatalogItem.id).where(CatalogItem.key == "crunchy")).one()
+    if marathi:
+        assert (quote.match, quote.quote_final) == ("exact", "अडीच हजार रुपये अजून बाकी")
+        assert found.sku_id == crunchy
+    else:  # Hindi's words alone, as before T3
+        assert quote.match == "none"
+        assert found.sku_id is None

@@ -4,9 +4,10 @@ replaced with the transcript's own text.
 Both sides are normalised: NFC; zero-width characters and nukta gone; punctuation a space (a
 comma between digits joins them); chandrabindu as anusvara; spaces collapsed; Latin lowercased;
 a word repeated straight after itself once (Meta doubles about 5 words a minute); then
-Devanagari digits and Hindi number words as digits ("चार हज़ार पाँच सौ" and "4 हजार 5 सौ" are
-"4500"). Every normalised character keeps the span of the original it came from, so a match
-maps back exactly.
+Devanagari digits and number words as digits ("चार हज़ार पाँच सौ" and "4 हजार 5 सौ" are
+"4500"): Hindi's by default, or those of the org pack's languages (batch T3: Marathi's too, such
+as "अडीच हजार" 2500 and "पाचशे" 500). Every normalised character keeps the span of the original
+it came from, so a match maps back exactly.
 
 A quote lies in one turn: turns are searched one by one, never joined, and one shorter than the
 quote never matches. Exact first, on whole words, nearest the cited turn first (so the cited
@@ -18,12 +19,15 @@ give the same result (§9.4).
 
 import unicodedata
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from fractions import Fraction
+from functools import cache
 from typing import Literal
 
 from rapidfuzz import fuzz
 
 from countertalk import limits
+from countertalk.playbooks import DEFAULT_LANGUAGES
 
 ZERO_WIDTH = frozenset("\u200b\u200c\u200d\ufeff")
 NUKTA = "\u093c"
@@ -136,6 +140,118 @@ _UNIT_WORDS = {
 _HUNDRED = "सौ"
 _SCALE_WORDS = {1_000: "हज़ार हजार", 100_000: "लाख", 10_000_000: "करोड़ करोड"}
 
+# Marathi number words, 1 to 99, as CLDR's Marathi spell-out rules write them (cldr
+# common/rbnf/mr.xml, read 3 Nov 2026), with ऱ्य beside र्य where a word has it.
+_MARATHI_UNIT_WORDS = {
+    1: "एक",
+    2: "दोन",
+    3: "तीन",
+    4: "चार",
+    5: "पाच",
+    6: "सहा",
+    7: "सात",
+    8: "आठ",
+    9: "नऊ",
+    10: "दहा",
+    11: "अकरा",
+    12: "बारा",
+    13: "तेरा",
+    14: "चौदा",
+    15: "पंधरा",
+    16: "सोळा",
+    17: "सतरा",
+    18: "अठरा",
+    19: "एकोणीस",
+    20: "वीस",
+    21: "एकवीस",
+    22: "बावीस",
+    23: "तेवीस",
+    24: "चोवीस",
+    25: "पंचवीस",
+    26: "सव्वीस",
+    27: "सत्तावीस",
+    28: "अठ्ठावीस",
+    29: "एकोणतीस",
+    30: "तीस",
+    31: "एकतीस",
+    32: "बत्तीस",
+    33: "तेहतीस",
+    34: "चौतीस",
+    35: "पस्तीस",
+    36: "छत्तीस",
+    37: "सदतीस",
+    38: "अडतीस",
+    39: "एकोणचाळीस",
+    40: "चाळीस",
+    41: "एक्केचाळीस",
+    42: "बेचाळीस",
+    43: "त्रेचाळीस",
+    44: "चव्वेचाळीस",
+    45: "पंचेचाळीस",
+    46: "सेहेचाळीस",
+    47: "सत्तेचाळीस",
+    48: "अठ्ठेचाळीस",
+    49: "एकोणपन्नास",
+    50: "पन्नास",
+    51: "एक्कावन्न",
+    52: "बावन्न",
+    53: "त्रेपन्न",
+    54: "चौपन्न",
+    55: "पंचावन्न",
+    56: "छप्पन्न",
+    57: "सत्तावन्न",
+    58: "अठ्ठावन्न",
+    59: "एकोणसाठ",
+    60: "साठ",
+    61: "एकसष्ट",
+    62: "बासष्ट",
+    63: "त्रेसष्ट",
+    64: "चौसष्ट",
+    65: "पासष्ट",
+    66: "सहासष्ट",
+    67: "सदुसष्ट",
+    68: "अडुसष्ट",
+    69: "एकोणसत्तर",
+    70: "सत्तर",
+    71: "एकाहत्तर",
+    72: "बाहत्तर",
+    73: "त्र्याहत्तर",
+    74: "चौर्याहत्तर चौऱ्याहत्तर",
+    75: "पंच्याहत्तर",
+    76: "शहात्तर",
+    77: "सत्त्याहत्तर",
+    78: "अठ्ठ्याहत्तर",
+    79: "एकोणऐंशी",
+    80: "ऐंशी",
+    81: "एक्क्याऐंशी",
+    82: "ब्याऐंशी",
+    83: "त्र्याऐंशी",
+    84: "चौर्याऐंशी चौऱ्याऐंशी",
+    85: "पंच्याऐंशी",
+    86: "शहाऐंशी",
+    87: "सत्त्याऐंशी",
+    88: "अठ्ठ्याऐंशी",
+    89: "एकोणनव्वद",
+    90: "नव्वद",
+    91: "एक्याण्णव",
+    92: "ब्याण्णव",
+    93: "त्र्याण्णव",
+    94: "चौर्याण्णव चौऱ्याण्णव",
+    95: "पंच्याण्णव",
+    96: "शहाण्णव",
+    97: "सत्त्याण्णव",
+    98: "अठ्ठ्याण्णव",
+    99: "नव्व्याण्णव",
+}
+# 100 said alone (शंभर), and a number of hundreds as one word: the unit, then शे (पाचशे 500).
+_MARATHI_HUNDRED, _MARATHI_HUNDREDS_SUFFIX = "शंभर", "शे"
+_MARATHI_SCALE_WORDS = {1_000: "हजार", 100_000: "लाख", 10_000_000: "कोटी"}
+# Not in CLDR: the fractions said before an amount. दीड and अडीच stand alone (दीड हजार 1500);
+# साडे, सव्वा and पावणे change the number after them (साडे तीन 3½, सव्वा दोन 2¼, पावणे दोन
+# 1¾), written apart or as one word; सव्वा alone is 1¼ (सव्वा लाख 125000).
+_MARATHI_FRACTIONS = {"दीड": Fraction(3, 2), "अडीच": Fraction(5, 2), "सव्वा": Fraction(5, 4)}
+_MARATHI_PREFIXES = {"साडे": Fraction(1, 2), "सव्वा": Fraction(1, 4), "पावणे": Fraction(-1, 4)}
+
 Span = tuple[int, int]
 
 
@@ -163,9 +279,64 @@ def _folded_word(word: str) -> str:
     return "".join(_fold(ch) for ch in unicodedata.normalize("NFC", word))
 
 
-UNITS = {_folded_word(w): n for n, words in _UNIT_WORDS.items() for w in words.split()}
-HUNDRED = _folded_word(_HUNDRED)
-SCALES = {_folded_word(w): n for n, words in _SCALE_WORDS.items() for w in words.split()}
+def _table(words: dict[int, str]) -> dict[str, Fraction]:
+    return {_folded_word(w): Fraction(n) for n, forms in words.items() for w in forms.split()}
+
+
+@dataclass(frozen=True)
+class NumberWords:
+    """One language's number words, folded like the text (batch T3: they follow the languages
+    of the visit's org pack)."""
+
+    # 1 to 99, and a fraction said alone (दीड).
+    units: dict[str, Fraction] = field(default_factory=dict)
+    # Multiplies what's before it, or is 100 alone: सौ, शंभर.
+    hundred: frozenset[str] = frozenset()
+    # A number of hundreds as one word: पाचशे 500, अडीचशे 250.
+    hundreds: dict[str, Fraction] = field(default_factory=dict)
+    scales: dict[str, Fraction] = field(default_factory=dict)
+    # Joined to the number after it: साडे तीन is 3½.
+    prefixes: dict[str, Fraction] = field(default_factory=dict)
+
+
+def _marathi() -> NumberWords:
+    whole = _table(_MARATHI_UNIT_WORDS)
+    prefixes = {_folded_word(w): offset for w, offset in _MARATHI_PREFIXES.items()}
+    units = whole | {_folded_word(w): value for w, value in _MARATHI_FRACTIONS.items()}
+    units |= {p + w: n + offset for p, offset in prefixes.items() for w, n in whole.items()}
+    suffix = _folded_word(_MARATHI_HUNDREDS_SUFFIX)
+    # Any number below 100 of hundreds: पाचशे 500, पंधराशे 1500, साडेतीनशे 350.
+    hundreds = {w + suffix: n * 100 for w, n in units.items() if n < 100}
+    return NumberWords(
+        units=units,
+        hundred=frozenset({_folded_word(_MARATHI_HUNDRED)}),
+        hundreds=hundreds,
+        scales=_table(_MARATHI_SCALE_WORDS),
+        prefixes=prefixes,
+    )
+
+
+HINDI = NumberWords(
+    units=_table(_UNIT_WORDS),
+    hundred=frozenset({_folded_word(_HUNDRED)}),
+    scales=_table(_SCALE_WORDS),
+)
+# By language code: every one an org pack may name (playbooks.LANGUAGES) has an entry.
+NUMBER_WORDS = {"hi": HINDI, "en": NumberWords(), "mr": _marathi()}
+
+
+@cache
+def number_words(languages: frozenset[str]) -> NumberWords:
+    """The number words of these languages together. No word is two numbers (a test checks
+    every pair of languages)."""
+    tables = [NUMBER_WORDS[code] for code in sorted(languages)]
+    return NumberWords(
+        units={w: n for table in tables for w, n in table.units.items()},
+        hundred=frozenset().union(*(table.hundred for table in tables)),
+        hundreds={w: n for table in tables for w, n in table.hundreds.items()},
+        scales={w: n for table in tables for w, n in table.scales.items()},
+        prefixes={w: n for table in tables for w, n in table.prefixes.items()},
+    )
 
 
 def _clusters(text: str) -> Iterator[Span]:
@@ -235,33 +406,56 @@ def _words(chars: list[tuple[str, Span]]) -> list[Word]:
     return words
 
 
-def _numbers(words: list[Word]) -> list[Word]:
-    """Runs of Hindi number words as digits: "चार हजार पांच सौ" is 4500. Each digit maps to the
-    whole run."""
+def _prefixed(words: list[Word], table: NumberWords) -> list[Word]:
+    """A fraction word and the number after it as one word, so "साडे तीन" reads as "साडेतीन"."""
+    if not table.prefixes:
+        return words
     out: list[Word] = []
     i = 0
     while i < len(words):
-        total = current = 0
+        word, spans = words[i]
+        if word in table.prefixes and i + 1 < len(words):
+            joined = word + words[i + 1][0]
+            if joined in table.units or joined in table.hundreds:
+                out.append((joined, spans + words[i + 1][1]))
+                i += 2
+                continue
+        out.append(words[i])
+        i += 1
+    return out
+
+
+def _numbers(words: list[Word], table: NumberWords) -> list[Word]:
+    """Runs of number words as digits: "चार हजार पांच सौ" is 4500, "अडीच हजार" 2500. Each digit
+    maps to the whole run. A run that comes to a fraction ("साडेतीन" alone) stays as words: a
+    decimal point is a space here, so its digits would never match."""
+    out: list[Word] = []
+    i = 0
+    while i < len(words):
+        total = current = Fraction(0)
         j = i
         while j < len(words):
             word = words[j][0]
-            unit = UNITS.get(word)
+            unit = table.units.get(word)
             if unit is None and word.isascii() and word.isdigit() and int(word) < 100:
                 # A digit counts as a unit only before what it multiplies: "5 लाख".
                 follows = words[j + 1][0] if j + 1 < len(words) else ""
-                unit = int(word) if follows == HUNDRED or follows in SCALES else None
+                multiplies = follows in table.hundred or follows in table.scales
+                unit = Fraction(int(word)) if multiplies else None
             if unit is not None and current % 100 == 0:
                 current += unit
-            elif word == HUNDRED and current < 100:
+            elif word in table.hundred and current < 100:
                 current = (current or 1) * 100
-            elif word in SCALES:
-                total += (current or 1) * SCALES[word]
-                current = 0
+            elif word in table.hundreds and current == 0:
+                current = table.hundreds[word]
+            elif word in table.scales:
+                total += (current or 1) * table.scales[word]
+                current = Fraction(0)
             else:
                 break
             j += 1
-        if j > i:
-            digits = str(total + current)
+        if j > i and (total + current).denominator == 1:
+            digits = str((total + current).numerator)
             run = (words[i][1][0][0], words[j - 1][1][-1][1])
             out.append((digits, (run,) * len(digits)))
             i = j
@@ -283,10 +477,12 @@ def _once(words: list[Word]) -> list[Word]:
     return kept
 
 
-def normalise(text: str) -> Normalised:
+def normalise(text: str, languages: Sequence[str] = DEFAULT_LANGUAGES) -> Normalised:
+    """With the number words of `languages` (an org pack's); linking keeps the default."""
+    table = number_words(frozenset(languages))
     # Repeats first, so a doubled number word ("हजार हजार") isn't added into the amount; then
     # again, for a number said twice ("दो दो").
-    kept = _once(_numbers(_once(_words(_characters(text)))))
+    kept = _once(_numbers(_prefixed(_once(_words(_characters(text))), table), table))
     out: list[str] = []
     out_spans: list[Span] = []
     for n, (word, spans) in enumerate(kept):
@@ -308,11 +504,15 @@ class TurnText:
 
 
 class Transcript:
-    """A transcript's turns, normalised once for all its quotes."""
+    """A transcript's turns, normalised once for all its quotes, with the number words of its
+    org pack's languages."""
 
-    def __init__(self, turns: Sequence[TurnText]) -> None:
+    def __init__(
+        self, turns: Sequence[TurnText], languages: Sequence[str] = DEFAULT_LANGUAGES
+    ) -> None:
         self.turns = list(turns)
-        self.normalised = [normalise(turn.text) for turn in self.turns]
+        self.languages = tuple(languages)
+        self.normalised = [normalise(turn.text, self.languages) for turn in self.turns]
         self.index = {turn.turn_id: i for i, turn in enumerate(self.turns)}
 
 
@@ -341,7 +541,7 @@ def verify_quote(quote: str, cited_turn: int | None, transcript: Transcript) -> 
     at = transcript.index.get(cited_turn) if cited_turn is not None else None
     cited_role = transcript.turns[at].role if at is not None else None
     unmatched = Verified("none", cited_turn if at is not None else None, cited_role)
-    wanted = normalise(quote).text
+    wanted = normalise(quote, transcript.languages).text
     if not wanted:
         return unmatched
     order = _order(transcript, at)

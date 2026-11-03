@@ -7,6 +7,7 @@ import json
 import logging
 import threading
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -28,7 +29,7 @@ from countertalk.models import (
 from countertalk.playbooks import load_org_pack
 from countertalk.stt import meta
 from countertalk.stt.base import Reply
-from tests.conftest import ORG_PACK_FIXTURES, open_transactions
+from tests.conftest import ORG_PACK_FIXTURES, edit_file, open_transactions
 from tests.test_audio import TALK_WITH_PAUSES, wav_file
 from tests.test_visits import Org_, complete, fail_processing, load, make_org, new_visit, upload
 
@@ -230,7 +231,6 @@ def truncate(visit_id: str) -> None:
     [
         truncate,
         corrupt(lambda r: r["chunk"].update(start_ms=r["chunk"]["start_ms"] + 1)),  # cut again
-        corrupt(lambda r: r.update(languages=[])),
         corrupt(lambda r: r.update(provider="another")),
         corrupt(lambda r: r.update(model="an-older-model")),
         corrupt(lambda r: r.update(reply="not an object")),
@@ -238,7 +238,6 @@ def truncate(visit_id: str) -> None:
     ids=[
         "truncated",
         "other-audio",
-        "other-languages",
         "other-provider",
         "other-model",
         "bad-reply",
@@ -256,6 +255,21 @@ def test_a_saved_reply_that_doesnt_check_out_is_not_reused(
     transcription.transcribe(visit_id, retry)
 
     assert retry.calls == [chunk_bytes(visit_id, 0), chunk_bytes(visit_id, 1)]
+
+
+def test_a_reply_saved_with_other_languages_is_sent_again(org: Org_) -> None:
+    # The first reply's languages are the visit's (batch T3), so a later one's are checked.
+    visit_id = uploaded_visit(org, 25)
+    with pytest.raises(RetryableError):
+        transcription.transcribe(visit_id, FakeStt({2: RetryableError("stt_timeout", "Slow")}))
+    other = saved(visit_id, 1)
+    other["languages"] = []
+    storage.stt_reply_path(visit_id, 1).write_text(json.dumps(other), encoding="utf-8")
+
+    retry = FakeStt()
+    transcription.transcribe(visit_id, retry)
+
+    assert retry.calls == [chunk_bytes(visit_id, 1), chunk_bytes(visit_id, 2)]
 
 
 def transcribed_already(org: Org_) -> str:
@@ -374,7 +388,7 @@ def test_the_visits_orgs_brands_and_products_are_sent_as_keywords(org: Org_) -> 
     visit_id = uploaded_visit(org, 5)
     fake = FakeStt()
 
-    transcription.transcribe(visit_id, fake)
+    transcription.transcribe(visit_id, fake, packs=ORG_PACK_FIXTURES)
 
     assert fake.keywords == [("Crunchy", "Rival", "Crunchy Salted")]
     assert saved(visit_id, 0)["keywords"] == ["Crunchy", "Rival", "Crunchy Salted"]
@@ -388,12 +402,14 @@ def test_a_retry_sends_the_keywords_its_first_reply_was_sent_with(org: Org_) -> 
         )
     visit_id = uploaded_visit(org, 15)
     with pytest.raises(RetryableError):
-        transcription.transcribe(visit_id, FakeStt({1: RetryableError("stt_timeout", "Slow")}))
+        transcription.transcribe(
+            visit_id, FakeStt({1: RetryableError("stt_timeout", "Slow")}), packs=ORG_PACK_FIXTURES
+        )
     with session_scope() as session:
         session.execute(update(CatalogItem).where(CatalogItem.key == "rival").values(active=False))
 
     retry = FakeStt()
-    transcription.transcribe(visit_id, retry)
+    transcription.transcribe(visit_id, retry, packs=ORG_PACK_FIXTURES)
 
     assert retry.calls == [chunk_bytes(visit_id, 1)]
     assert retry.keywords == [("Crunchy", "Rival", "Crunchy Salted")]
@@ -421,13 +437,70 @@ def test_a_reply_saved_with_other_keywords_is_sent_again(org: Org_) -> None:
         )
     visit_id = uploaded_visit(org, 25)
     with pytest.raises(RetryableError):
-        transcription.transcribe(visit_id, FakeStt({2: RetryableError("stt_timeout", "Slow")}))
+        transcription.transcribe(
+            visit_id, FakeStt({2: RetryableError("stt_timeout", "Slow")}), packs=ORG_PACK_FIXTURES
+        )
     without = saved(visit_id, 1)
     without["keywords"] = []
     storage.stt_reply_path(visit_id, 1).write_text(json.dumps(without), encoding="utf-8")
 
     retry = FakeStt()
-    transcription.transcribe(visit_id, retry)
+    transcription.transcribe(visit_id, retry, packs=ORG_PACK_FIXTURES)
 
     assert retry.calls == [chunk_bytes(visit_id, 1), chunk_bytes(visit_id, 2)]
     assert retry.keywords == [("Crunchy", "Rival", "Crunchy Salted")] * 2
+
+
+# --- the hint from the org's pack (batch T3) --------------------------------------------------
+
+
+def test_an_org_without_a_pack_is_heard_in_hindi_and_english(org: Org_) -> None:
+    visit_id = uploaded_visit(org, 5)
+    fake = FakeStt()
+
+    transcription.transcribe(visit_id, fake)
+
+    assert fake.languages == [("hi", "en")]
+
+
+def test_the_hint_is_the_orgs_pack_s_languages(org: Org_, pack_roots: tuple[Path, Path]) -> None:
+    packs, books = pack_roots
+    edit_file(
+        packs / "tiny-demo/v1/org_pack.yaml", "catalog:\n", "languages: [mr, hi, en]\ncatalog:\n"
+    )
+    with session_scope() as session:
+        catalog.import_org_pack(session, org.org_id, load_org_pack("tiny-demo", 1, packs, books))
+    visit_id = uploaded_visit(org, 5)
+    fake = FakeStt()
+
+    handlers = {JobKind.TRANSCRIBE: worker.transcribe_with(fake, packs=packs, playbooks=books)}
+    assert worker.Worker("test-host:1:aaaaaa", handlers=handlers).run_once()
+
+    [transcript] = transcripts(visit_id)
+    assert fake.languages == [("mr", "hi", "en")]
+    assert transcript.language_code == "mr,hi,en"
+    assert saved(visit_id, 0)["languages"] == ["mr", "hi", "en"]
+
+
+def test_a_retry_keeps_the_languages_its_first_reply_was_sent_with(
+    org: Org_, pack_roots: tuple[Path, Path]
+) -> None:
+    # A pack change between tries must not make the saved replies stop matching (§9.4).
+    packs, books = pack_roots
+    with session_scope() as session:
+        catalog.import_org_pack(session, org.org_id, load_org_pack("tiny-demo", 1, packs, books))
+    visit_id = uploaded_visit(org, 15)
+    with pytest.raises(RetryableError):
+        transcription.transcribe(
+            visit_id,
+            FakeStt({1: RetryableError("stt_timeout", "Slow")}),
+            packs=packs,
+            playbooks=books,
+        )
+    edit_file(packs / "tiny-demo/v1/org_pack.yaml", "catalog:\n", "languages: [mr, hi]\ncatalog:\n")
+
+    retry = FakeStt()
+    transcription.transcribe(visit_id, retry, packs=packs, playbooks=books)
+
+    assert retry.calls == [chunk_bytes(visit_id, 1)]
+    assert retry.languages == [("hi", "en")]

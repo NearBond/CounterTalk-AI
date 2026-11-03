@@ -41,6 +41,12 @@ Text = Annotated[str, StringConstraints(min_length=1)]
 # What marks the same likely cause, for batch 15's issues.
 GroupBy = Literal["sku", "competitor", "scheme", "distributor", "area"]
 GROUP_BY_FIELDS: tuple[str, ...] = get_args(GroupBy)
+# The languages an org pack may name, as ISO 639-1 codes (batch T3): speech-to-text is biased
+# towards them, and the quote checker reads their number words. A pack naming none has the
+# default, what every visit had before.
+Language = Literal["hi", "en", "mr"]
+LANGUAGES: tuple[str, ...] = get_args(Language)
+DEFAULT_LANGUAGES: tuple[str, ...] = ("hi", "en")
 
 
 class PackError(Invalid):
@@ -135,6 +141,7 @@ class OrgPackFile(_Strict):
     routing: dict[Key, Key]
     overrides: list[Override]
     catalog: CatalogFiles
+    languages: list[Language] | None = Field(default=None, min_length=1)
 
 
 @dataclass(frozen=True)
@@ -185,6 +192,10 @@ class OrgPack:
     @property
     def version(self) -> int:
         return self.file.version
+
+    @property
+    def languages(self) -> tuple[str, ...]:
+        return DEFAULT_LANGUAGES if self.file.languages is None else tuple(self.file.languages)
 
 
 # --- reading files ---------------------------------------------------------------------------
@@ -454,6 +465,9 @@ def load_org_pack(
     file = _model(OrgPackFile, read_yaml(path), path)
     if (file.id, file.version) != (pack_id, version):
         raise PackError(path, "id", f"says {file.id} v{file.version}, not its folder's")
+    named = file.languages or []
+    if twice := sorted({code for code in named if named.count(code) > 1}):
+        raise PackError(path, "languages", f"{', '.join(twice)} named twice")
     ref = file.playbook
     playbook_folder = _folder(playbooks, ref.id, ref.version, path)  # checked as an ID already
     if not playbook_folder.is_dir():

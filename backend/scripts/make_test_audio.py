@@ -7,7 +7,8 @@
 
 - Scripts are data/samples/scripts/rpNN.toml at the repo root, git-ignored like all of data/.
 - Each turn goes to Sarvam's text-to-speech (Bulbul): bulbul:v3, or the script's own `model`
-  (batch T2: bulbul:v4-flash, whose voices are persona IDs such as kavya_hi_conversational).
+  (batch T2: bulbul:v4-flash, whose voices are persona IDs such as kavya_hi_conversational),
+  in Hindi or the script's own `language` (batch T3: "mr-IN", Marathi).
   Each reply is cached under
   data/samples/tts_cache/, keyed by everything the request sends, so a rerun pays only for what's
   missing (§9.4). Without --yes nothing is sent: it prints the characters and the cost.
@@ -54,7 +55,9 @@ API_URL = "https://api.sarvam.ai/text-to-speech"
 # request and response contract as bulbul:v3" (its docs, 3 Nov).
 DEFAULT_MODEL = "bulbul:v3"
 RUPEES_PER_1000_CHARS = {"bulbul:v3": 3.00, "bulbul:v4-flash": 1.00}
-LANGUAGE = "hi-IN"
+# The languages a script may be spoken in (`language`, batch T3).
+DEFAULT_LANGUAGE = "hi-IN"
+LANGUAGES = ("hi-IN", "mr-IN")
 MAX_CHARS_PER_REQUEST = 2_500
 SAMPLE_RATE = 22_050  # Sarvam's default, kept through the mix
 REQUEST_TIMEOUT_S = 60
@@ -124,6 +127,7 @@ class Script:
     turns: list[Turn]
     noise_db: float | None = None
     model: str = DEFAULT_MODEL
+    language: str = DEFAULT_LANGUAGE
 
 
 def load_script(path: Path) -> Script:
@@ -138,10 +142,14 @@ def load_script(path: Path) -> Script:
         raise problem("there's no such script") from None
     except tomllib.TOMLDecodeError as error:
         raise problem(f"isn't valid TOML ({error})") from None
-    _only(data, {"title", "model", "noise_db", "speakers", "turns"}, problem, "the script")
+    known = {"title", "model", "language", "noise_db", "speakers", "turns"}
+    _only(data, known, problem, "the script")
     model = data.get("model", DEFAULT_MODEL)
     if not isinstance(model, str) or model not in RUPEES_PER_1000_CHARS:
         raise problem(f"model {model!r} isn't one of {', '.join(RUPEES_PER_1000_CHARS)}")
+    language = data.get("language", DEFAULT_LANGUAGE)
+    if not isinstance(language, str) or language not in LANGUAGES:
+        raise problem(f"language {language!r} isn't one of {', '.join(LANGUAGES)}")
     speakers = {}
     for key, value in dict(data.get("speakers", {})).items():
         _only(value, {"role", "voice", "pace"}, problem, f"speaker {key}")
@@ -186,6 +194,7 @@ def load_script(path: Path) -> Script:
         turns,
         None if noise is None else float(noise),
         model,
+        language,
     )
 
 
@@ -234,10 +243,13 @@ class Request:
     voice: str
     pace: float
     model: str
+    language: str
 
     def cache_name(self) -> str:
-        # A v3 request's name is as it was before models could be chosen: rp01–rp10's cache holds.
-        sent = {"model": self.model, "language": LANGUAGE, "voice": self.voice, "pace": self.pace}
+        # A v3 Hindi request's name is as it was before models and languages could be chosen:
+        # rp01–rp10's cache holds.
+        sent = {"model": self.model, "language": self.language, "voice": self.voice}
+        sent |= {"pace": self.pace}
         sent |= {"sample_rate": SAMPLE_RATE, "text": self.text}
         return hashlib.sha256(json.dumps(sent, sort_keys=True).encode()).hexdigest() + ".wav"
 
@@ -251,6 +263,7 @@ def requests_for(script: Script) -> list[list[Request]]:
                 script.speakers[turn.speaker].voice,
                 script.speakers[turn.speaker].pace,
                 script.model,
+                script.language,
             )
             for part in split_text(turn.text)
         ]
@@ -281,7 +294,9 @@ def cost_rupees(requests: Iterable[Request]) -> float:
 
 
 class Tts(Protocol):
-    def synthesize(self, text: str, voice: str, pace: float, model: str) -> bytes: ...
+    def synthesize(
+        self, text: str, voice: str, pace: float, model: str, language: str
+    ) -> bytes: ...
 
 
 class SarvamTts:
@@ -302,10 +317,10 @@ class SarvamTts:
         self._client = client or httpx.Client()
         self._sleep = sleep
 
-    def synthesize(self, text: str, voice: str, pace: float, model: str) -> bytes:
+    def synthesize(self, text: str, voice: str, pace: float, model: str, language: str) -> bytes:
         body = {
             "text": text,
-            "target_language_code": LANGUAGE,
+            "target_language_code": language,
             "speaker": voice,
             "model": model,
             "pace": pace,
@@ -383,7 +398,9 @@ def fetch_missing(script: Script, cache: Path, tts: Tts) -> int:
             path = cache / request.cache_name()
             if path.exists():
                 continue
-            audio = tts.synthesize(request.text, request.voice, request.pace, request.model)
+            audio = tts.synthesize(
+                request.text, request.voice, request.pace, request.model, request.language
+            )
             partial = path.with_suffix(".part")
             partial.write_bytes(audio)
             os.replace(partial, path)
@@ -678,7 +695,7 @@ def main(argv: list[str], *, tts: Tts | None = None) -> int:
             characters = characters_to_send([script], cache)
             print(
                 f"{script.name}: {len(script.turns)} turns, {characters} characters to send"
-                f" ({script.model})"
+                f" ({script.model}, {script.language})"
             )
         missing = _missing(scripts, cache).values()
         total = sum(len(request.text) for request in missing)

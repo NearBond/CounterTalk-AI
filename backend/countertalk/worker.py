@@ -73,15 +73,16 @@ def _sleep(ctx: JobContext) -> None:
 
 
 def transcribe_with(
-    stt: SpeechToText, languages: Sequence[str] = transcription.LANGUAGES
+    stt: SpeechToText, languages: Sequence[str] | None = None, **packs: Path
 ) -> Handler:
-    """The transcribe handler, with this speech-to-text client."""
+    """The transcribe handler, with this speech-to-text client, biased towards `languages`, or
+    else each visit's org pack's (and, for tests, other pack folders)."""
 
     def handler(ctx: JobContext) -> None:
         if ctx.job.visit_id is None:
             raise PermanentError("no_visit", "A transcribe job needs a visit")
         transcription.transcribe(
-            ctx.job.visit_id, stt, claim_lost=ctx.claim_lost, languages=languages
+            ctx.job.visit_id, stt, claim_lost=ctx.claim_lost, languages=languages, **packs
         )
 
     return handler

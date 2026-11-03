@@ -69,10 +69,12 @@ class FakeTts:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
         self.models: list[str] = []
+        self.languages: list[str] = []
 
-    def synthesize(self, text: str, voice: str, pace: float, model: str) -> bytes:
+    def synthesize(self, text: str, voice: str, pace: float, model: str, language: str) -> bytes:
         self.calls.append((text, voice))
         self.models.append(model)
+        self.languages.append(language)
         return tone_wav(20 * len(text))
 
 
@@ -146,7 +148,7 @@ def test_a_second_copy_wont_start_while_one_is_running(
 
 
 class RefusingTts:
-    def synthesize(self, text: str, voice: str, pace: float, model: str) -> bytes:
+    def synthesize(self, text: str, voice: str, pace: float, model: str, language: str) -> bytes:
         raise tool.StopRun("Sarvam said HTTP 401: check SARVAM_API_KEY in backend/.env")
 
 
@@ -194,7 +196,7 @@ def test_a_passing_failure_is_retried_with_backoff(status: int) -> None:
     slept: list[float] = []
     tts = sarvam([httpx.Response(status), httpx.Response(status), audio_reply()], slept)
 
-    audio = tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
+    audio = tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL, tool.DEFAULT_LANGUAGE)
 
     assert audio.startswith(b"RIFF")
     assert len(slept) == 2
@@ -205,7 +207,7 @@ def test_a_wait_the_api_asks_for_is_honoured() -> None:
     slept: list[float] = []
     tts = sarvam([httpx.Response(429, headers={"Retry-After": "7"}), audio_reply()], slept)
 
-    tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
+    tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL, tool.DEFAULT_LANGUAGE)
 
     assert slept == [7.0]
 
@@ -222,7 +224,7 @@ def test_a_request_that_never_left_is_retried() -> None:
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     tool.SarvamTts(FAKE_KEY, client=client, sleep=slept.append).synthesize(
-        "नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL
+        "नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL, tool.DEFAULT_LANGUAGE
     )
 
     assert len(slept) == 1
@@ -240,7 +242,7 @@ def test_a_lost_reply_stops_the_run_instead_of_paying_again() -> None:
     tts = tool.SarvamTts(FAKE_KEY, client=client, sleep=lambda s: None)
 
     with pytest.raises(tool.StopRun):
-        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
+        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL, tool.DEFAULT_LANGUAGE)
 
     assert sends == [1]
 
@@ -249,7 +251,7 @@ def test_retries_end_and_the_run_stops() -> None:
     tts = sarvam([httpx.Response(429)] * tool.MAX_TRIES, [])
 
     with pytest.raises(tool.StopRun):
-        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
+        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL, tool.DEFAULT_LANGUAGE)
 
 
 @pytest.mark.parametrize("status", [400, 401, 402, 403, 422])
@@ -259,7 +261,7 @@ def test_a_refusal_stops_the_run_at_once_without_the_key(status: int) -> None:
     tts = sarvam([httpx.Response(status, json=body)], slept)
 
     with pytest.raises(tool.StopRun) as stopped:
-        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
+        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL, tool.DEFAULT_LANGUAGE)
 
     assert slept == []
     assert str(status) in str(stopped.value)
@@ -285,7 +287,7 @@ def test_a_reply_without_usable_audio_stops_the_run(reply: dict) -> None:
     tts = sarvam([httpx.Response(200, json=reply)], [])
 
     with pytest.raises(tool.StopRun):
-        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL)
+        tts.synthesize("नमस्ते", "shubh", 1.0, tool.DEFAULT_MODEL, tool.DEFAULT_LANGUAGE)
 
 
 # --- scripts and long turns -----------------------------------------------------------------------
@@ -445,7 +447,7 @@ def with_model(samples: Path, line: str) -> Path:
 def test_a_script_naming_no_model_is_bulbul_v3_as_before(samples: Path) -> None:
     loaded = tool.load_script(samples / "scripts" / "rp01.toml")
     [first, *_] = tool.requests_for(loaded)[0]
-    as_before = {"model": "bulbul:v3", "language": tool.LANGUAGE, "voice": first.voice}
+    as_before = {"model": "bulbul:v3", "language": "hi-IN", "voice": first.voice}
     as_before |= {"pace": first.pace, "sample_rate": tool.SAMPLE_RATE, "text": first.text}
     hashed = hashlib.sha256(json.dumps(as_before, sort_keys=True).encode()).hexdigest()
 
@@ -542,7 +544,56 @@ def test_the_api_is_sent_the_script_s_model(samples: Path) -> None:
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     tool.SarvamTts(FAKE_KEY, client=client).synthesize(
-        "नमस्ते", "kavya_hi_conversational", 1.0, "bulbul:v4-flash"
+        "नमस्ते", "kavya_hi_conversational", 1.0, "bulbul:v4-flash", "hi-IN"
     )
 
     assert sent == ["bulbul:v4-flash"]
+
+
+# --- the language a script names (batch T3) ---------------------------------------------------
+
+MARATHI = 'language = "mr-IN"\n'
+
+
+def test_a_script_naming_no_language_is_hindi(samples: Path) -> None:
+    loaded = tool.load_script(samples / "scripts" / "rp01.toml")
+
+    assert loaded.language == "hi-IN"
+    assert tool.requests_for(loaded)[0][0].language == "hi-IN"
+
+
+def test_marathi_is_sent_and_cached_apart(samples: Path) -> None:
+    loaded = tool.load_script(with_model(samples, MARATHI))
+    first = tool.requests_for(loaded)[0][0]
+    tts = FakeTts()
+
+    run(samples, "rp01", "--yes", tts=tts)
+
+    assert set(tts.languages) == {"mr-IN"}
+    hindi = dataclasses.replace(first, language=tool.DEFAULT_LANGUAGE)
+    assert first.cache_name() != hindi.cache_name()
+
+
+@pytest.mark.parametrize(("value", "shown"), [('"ta-IN"', "'ta-IN'"), ("1", "1")])
+def test_an_unknown_language_is_refused(samples: Path, value: str, shown: str) -> None:
+    script = with_model(samples, f"language = {value}\n")
+
+    with pytest.raises(tool.ScriptError) as refused:
+        tool.load_script(script)
+
+    assert str(refused.value) == f"rp01.toml: language {shown} isn't one of hi-IN, mr-IN"
+
+
+def test_the_api_is_sent_the_script_s_language(samples: Path) -> None:
+    sent: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content)["target_language_code"])
+        return httpx.Response(200, json={"audios": [base64.b64encode(tone_wav(100)).decode()]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    tool.SarvamTts(FAKE_KEY, client=client).synthesize(
+        "नमस्कार", "ritu_mr_conversational", 1.0, "bulbul:v4-flash", "mr-IN"
+    )
+
+    assert sent == ["mr-IN"]
