@@ -295,8 +295,12 @@ def team_page(w: World) -> dict[str, Any]:
 
 CASES = [
     case("GET", "/api/auth/me", at("/api/auth/me"), EVERYONE),
+    # Batch 17b: a rep's own counts this month, and only a rep's.
+    case("GET", "/api/me/counts", at("/api/me/counts"), REPS),
     # Everyone: a team member's visit page names its shop.
     case("GET", "/api/shops", at("/api/shops"), EVERYONE),
+    # Batch 17b: what's been fixed for a shop since its last visit, for the org's own staff.
+    case("GET", "/api/shops/{shop_id}/fixed", at("/api/shops/{w.shop_id}/fixed"), (*REPS, *WHOLE)),
     # Batch 17: the org's own staff share a shop's consent link or mark its paper form.
     case(
         "POST",

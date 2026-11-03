@@ -24,6 +24,7 @@ from countertalk.api import (
     health,
     insights,
     issues,
+    me,
     shops,
     summaries,
     visits,
@@ -149,6 +150,7 @@ def create_app() -> FastAPI:
     # fails) is the whole path: an include_router prefix isn't part of route.path.
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(me.router)
     app.include_router(shops.router)
     app.include_router(consent.router)
     app.include_router(visits.router)

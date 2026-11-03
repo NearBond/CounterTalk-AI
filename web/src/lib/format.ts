@@ -57,6 +57,13 @@ export function formatPeriod(kind: PeriodKind, start: string, end: string): stri
   return `${DAY_MONTH.format(first)}${from === to ? "" : ` ${from}`} – ${DAY_MONTH.format(last)} ${to}`;
 }
 
+/** 2 Nov 2026: a moment's day in IST. */
+export function formatDay(iso: string): string {
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) return "–";
+  return `${DAY_MONTH.format(when)} ${YEAR.format(when)}`;
+}
+
 const ISO_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: IST, year: "numeric", month: "2-digit", day: "2-digit" });
 
 /** 2026-10-26: a moment's day in IST, as the API takes a period's start. */

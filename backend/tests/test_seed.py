@@ -1,15 +1,29 @@
+import re
 import threading
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
-from countertalk import consent
+from countertalk import consent, fixed
 from countertalk.db import session_scope
 from countertalk.errors import Conflict
 from countertalk.limits import LOCK_TIMEOUT_MS
-from countertalk.models import Consent, Distributor, Org, Role, Shop, User
+from countertalk.models import Consent, Distributor, Insight, Org, Role, Shop, User, Visit
 from countertalk.playbooks import load_org_pack
-from scripts.seed_dev import DEMO_ORG_NAME, DEMO_PACK, DEMO_REP, DEMO_SHOPS, main, seed
+from scripts.seed_dev import (
+    DEMO_FIXED,
+    DEMO_ORG_NAME,
+    DEMO_PACK,
+    DEMO_REP,
+    DEMO_RESOLVER,
+    DEMO_SHOPS,
+    FIXED_MADE,
+    FIXED_SKIPPED,
+    FIXED_THERE,
+    main,
+    seed,
+    seed_fixed,
+)
 
 PACK = load_org_pack(*DEMO_PACK)
 # A racing seed waits at most one lock timeout for the other; allow two before giving up.
@@ -125,10 +139,14 @@ def test_main_prints_what_it_created(capsys: pytest.CaptureFixture[str]) -> None
     main()
     main()
 
-    total = sum(counts())
-    first, second = capsys.readouterr().out.strip().splitlines()
-    assert first == f"seeded: created {total}, already there 0"
-    assert second == f"seeded: created 0, already there {total}"
+    # The org, its rep and its shops: the fixed example's team member isn't the seed's own.
+    total = 2 + len(DEMO_SHOPS)
+    assert capsys.readouterr().out.strip().splitlines() == [
+        f"seeded: created {total}, already there 0",
+        "fixed since the last visit: made at Sunrise Kirana",
+        f"seeded: created 0, already there {total}",
+        "fixed since the last visit: already there",
+    ]
 
 
 def test_a_shop_with_a_beat_but_no_distributor_gets_one_and_keeps_its_beat() -> None:
@@ -175,3 +193,56 @@ def test_seeding_again_keeps_a_shop_s_own_answer() -> None:
 
     with session_scope(read_only=True) as session:
         assert consent.current(session, shop.org_id, [shop.id]) == {shop.id: "no"}
+
+
+# --- fixed since the last visit (batch 17b) ---------------------------------------------------
+
+
+def test_the_demo_shows_one_problem_fixed_since_sunrise_kiranas_last_visit() -> None:
+    with session_scope() as session:
+        seed(session, PACK)
+
+    assert seed_fixed(PACK) == FIXED_MADE
+    assert seed_fixed(PACK) == FIXED_THERE  # once
+
+    with session_scope(read_only=True) as session:
+        org_id = session.scalars(select(Org.id)).one()
+        sunrise = session.scalars(select(Shop.id).where(Shop.name == "Sunrise Kirana")).one()
+        found = fixed.since_last_visit(session, org_id, sunrise)
+    assert [(f.team, f.category, f.problem, f.note) for f in found] == [
+        ("Distribution", "supply", DEMO_FIXED["summary"], DEMO_FIXED["note"])
+    ]
+
+
+def test_the_example_never_joins_a_real_issue() -> None:
+    with session_scope() as session:
+        seed(session, PACK)
+    assert seed_fixed(PACK) == FIXED_MADE
+    with session_scope() as session:  # its finding, as if a real one: the issue is a real one
+        session.execute(
+            update(Insight)
+            .where(Insight.summary_en == DEMO_FIXED["summary"])
+            .values(summary_en="Late again.")
+        )
+
+    assert seed_fixed(PACK) == FIXED_SKIPPED
+
+    with session_scope(read_only=True) as session:
+        assert session.scalar(select(func.count()).select_from(Visit)) == 1
+
+
+def test_the_example_refuses_a_resolver_from_another_org() -> None:
+    with session_scope() as session:
+        seed(session, PACK)
+        other = Org(name="Other Org")
+        session.add(other)
+        session.flush()
+        email = DEMO_RESOLVER["email"]
+        session.add(User(org_id=other.id, email=email, name="Other", role=Role.REP))
+
+    said = f"demo_resolver_elsewhere: {email} is in another org or team"
+    with pytest.raises(Conflict, match=f"^{re.escape(said)}$"):
+        seed_fixed(PACK)
+
+    with session_scope(read_only=True) as session:
+        assert session.scalar(select(func.count()).select_from(Visit)) == 0

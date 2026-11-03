@@ -12,11 +12,13 @@ import type {
   ConsentLink,
   ConsentPage,
   Drill,
+  FixedItem,
   ErrorBody,
   FrameworkErrorCode,
   Health,
   InboxOptions,
   Me,
+  MyCounts,
   NameReview,
   NewAlias,
   NewCatalogItem,
@@ -373,6 +375,18 @@ export function retrySummary(summaryId: string, signal?: AbortSignal): Promise<S
 /** The visit's audio, for an <audio> element: the browser fetches it, seeking with Range. */
 export function audioUrl(visitId: string): string {
   return `${BASE_URL}/visits/${encodeURIComponent(visitId)}/audio`;
+}
+
+// --- the shop pick (batch 17b) --------------------------------------------------------------
+
+/** What got fixed for the shop since its last visit before today, newest first. */
+export function getFixed(shopId: string, signal?: AbortSignal): Promise<Page<FixedItem>> {
+  return apiRequest(`/shops/${encodeURIComponent(shopId)}/fixed`, { signal });
+}
+
+/** The signed-in rep's own counts this month: never anyone else's. */
+export function getMyCounts(signal?: AbortSignal): Promise<MyCounts> {
+  return apiRequest("/me/counts", { signal });
 }
 
 // --- consent before the visit (batch 17) ---------------------------------------------------

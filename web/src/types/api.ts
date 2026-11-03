@@ -95,6 +95,24 @@ export interface Shop {
   consent: ConsentDecision | null;
 }
 
+/** GET /api/shops/{id}/fixed (batch 17b): fixed since the shop's last visit, FixedOut. Never a
+ * rep's name or a quote. */
+export interface FixedItem {
+  team: string;
+  category: string;
+  /** The shop's own insight, as its summary said it. */
+  problem: string;
+  /** The team's resolution note: the line the rep says. */
+  note: string;
+  resolved_at: string;
+}
+
+/** GET /api/me/counts (batch 17b): the rep's own, this IST month. */
+export interface MyCounts {
+  raised: number;
+  fixed: number;
+}
+
 /** POST /api/shops/{id}/consent-links: the shop's consent page, from the app's own origin. */
 export interface ConsentLink {
   path: string;

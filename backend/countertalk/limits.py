@@ -130,6 +130,8 @@ SUMMARY_MAX_CHARS = 500
 REOPEN_WINDOW_DAYS = 30
 # What a team member writes when resolving an issue: the rep reads it back to the shop.
 RESOLUTION_NOTE_MAX_CHARS = 2_000
+# Fixed since the last visit (batch 17b): the newest this many, on the shop pick.
+FIXED_MAX = 10
 
 # Summaries' trend labels (batch 15b; BRIEF D16). An issue is `growing` with this many shops in
 # the period or more, and a Poisson chance under GROWING_MAX_P of that many at its baseline: the

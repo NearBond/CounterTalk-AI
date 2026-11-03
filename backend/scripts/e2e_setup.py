@@ -45,7 +45,7 @@ from countertalk.models import (
 from countertalk.playbooks import load_org_pack
 from countertalk.summaries import last_complete
 from scripts import _k6
-from scripts.seed_dev import DEMO_PACK, DEMO_REP, seed
+from scripts.seed_dev import DEMO_PACK, DEMO_REP, seed, seed_fixed
 
 E2E_SUFFIX = "_e2e"
 PLAYBACK_MS = 20_000
@@ -169,6 +169,7 @@ def main() -> int:
         ]
         transcription.add_transcript(session, transcribed, "e2e", "seeded", "hi,en", turns)
     make_playback(transcribed.id)
+    seed_fixed(pack)  # the record screen's "fixed since your last visit" (batch 17b)
     found = k6()
     with session_scope() as session:
         for email in (DEMO_REP["email"], found["email"]):

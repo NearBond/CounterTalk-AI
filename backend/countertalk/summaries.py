@@ -77,7 +77,8 @@ class Period:
         return self.start <= moment < self.end
 
 
-def _at_midnight(day: date) -> datetime:
+def at_midnight(day: date) -> datetime:
+    """The IST midnight a date starts at, in UTC."""
     return datetime.combine(day, time(), IST).astimezone(UTC)
 
 
@@ -85,10 +86,10 @@ def period_of(kind: PeriodKind, day: date) -> Period:
     """The week or month an IST date is in."""
     if kind == "week":
         monday = day - timedelta(days=day.weekday())
-        return Period(kind, _at_midnight(monday), _at_midnight(monday + WEEK))
+        return Period(kind, at_midnight(monday), at_midnight(monday + WEEK))
     first = day.replace(day=1)
     following = (first + timedelta(days=32)).replace(day=1)
-    return Period(kind, _at_midnight(first), _at_midnight(following))
+    return Period(kind, at_midnight(first), at_midnight(following))
 
 
 def previous(period: Period) -> Period:
