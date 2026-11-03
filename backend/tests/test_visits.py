@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from countertalk import shops, storage, visits
+from countertalk import consent, shops, storage, visits
 from countertalk.db import session_scope
 from countertalk.errors import Conflict, Invalid, NotFound, TooLarge
 from countertalk.limits import ABANDONED_UPLOAD_MS, LOCK_TIMEOUT_MS, MAX_SEGMENTS_PER_VISIT
@@ -54,6 +54,8 @@ def make_org(name: str = "Visit Test Org") -> Org_:
         shop = Shop(org_id=org.id, name="Test Shop", area="Test Area")
         session.add_all([rep, shop])
         session.flush()
+        # Batch 17: it agreed to recording on paper, so a conversation can start.
+        consent.mark_unanswered(session, org.id, rep.id, "hi")
         return Org_(org.id, rep.id, shop.id)
 
 
@@ -121,13 +123,28 @@ def test_each_forward_step_is_allowed(start: str, end: str) -> None:
     assert visit.status == end
 
 
-@pytest.mark.parametrize("start", [s for s in VisitStatus if s != VisitStatus.FAILED])
+@pytest.mark.parametrize(
+    "start", [s for s in VisitStatus if s not in (VisitStatus.FAILED, VisitStatus.CONFIRMED)]
+)
 def test_any_status_can_fail_with_a_reason(start: str) -> None:
     visit = Visit(status=start, client=VisitClient.WEB)
 
     visits.set_status(visit, VisitStatus.FAILED, reason="The audio can't be read.")
 
     assert (visit.status, visit.failure_reason) == (VisitStatus.FAILED, "The audio can't be read.")
+
+
+def test_a_confirmed_visit_never_fails() -> None:
+    # Confirmed is final: its confirmed_at is when its audio's retention began (batch 17).
+    visit = Visit(status=VisitStatus.CONFIRMED, client=VisitClient.WEB)
+
+    with pytest.raises(Conflict) as error:
+        visits.set_status(visit, VisitStatus.FAILED, reason="The audio can't be read.")
+
+    assert (error.value.code, str(error.value)) == (
+        "invalid_status_change",
+        "invalid_status_change: A confirmed visit can't change",
+    )
 
 
 def test_failing_needs_a_reason() -> None:

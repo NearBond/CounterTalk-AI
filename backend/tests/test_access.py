@@ -297,6 +297,19 @@ CASES = [
     case("GET", "/api/auth/me", at("/api/auth/me"), EVERYONE),
     # Everyone: a team member's visit page names its shop.
     case("GET", "/api/shops", at("/api/shops"), EVERYONE),
+    # Batch 17: the org's own staff share a shop's consent link or mark its paper form.
+    case(
+        "POST",
+        "/api/shops/{shop_id}/consent-links",
+        at("/api/shops/{w.shop_id}/consent-links"),
+        (*REPS, *WHOLE),
+    ),
+    case(
+        "POST",
+        "/api/shops/{shop_id}/consent",
+        at("/api/shops/{w.shop_id}/consent", json={"language": "hi"}),
+        (*REPS, *WHOLE),
+    ),
     case(
         "POST",
         "/api/visits",

@@ -277,3 +277,25 @@ def test_an_exception_escaping_a_thread_prints_only_its_frames(
     assert "ValueError" in printed
     assert "heartbeat_that_breaks" in printed
     assert "leaky" not in printed
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/api/consent/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_abcde", "/consent/AbCdEfGhIj?x=1"],
+    ids=["api", "page"],
+)
+def test_access_log_lines_leave_out_a_consent_token(path: str) -> None:
+    record = logging.LogRecord(
+        "uvicorn.access",
+        logging.INFO,
+        __file__,
+        1,
+        '%s - "%s %s HTTP/%s" %d',
+        ("127.0.0.1:50000", "GET", path, "1.1", 200),
+        None,
+    )
+
+    assert logging.getLogger("uvicorn.access").filter(record)
+
+    shown = path.split("/consent/")[0] + "/consent/…"
+    assert record.getMessage() == f'127.0.0.1:50000 - "GET {shown} HTTP/1.1" 200'

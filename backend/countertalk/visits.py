@@ -17,7 +17,7 @@ from sqlalchemy import ColumnElement, func, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from countertalk import jobs, rows, storage
+from countertalk import consent, jobs, rows, storage
 from countertalk.errors import Conflict, Invalid, NotFound, TooLarge
 from countertalk.limits import ABANDONED_UPLOAD_MS, MAX_SEGMENT_BYTES, VISITS_PAGE_SIZE
 from countertalk.models import (
@@ -57,6 +57,9 @@ _REVIVABLE_CLIENTS = frozenset({VisitClient.WEB, VisitClient.UPLOAD})
 def set_status(visit: Visit, new_status: str, *, reason: str | None = None) -> None:
     """The only way a visit's status changes (§2.5). Call it under lock_visit."""
     old = visit.status
+    if old == S.CONFIRMED:
+        # Final (batch 17's CHECK): confirmed_at is when its audio's retention period started.
+        raise Conflict("invalid_status_change", "A confirmed visit can't change")
     if not (new_status == S.FAILED and old != S.FAILED or new_status in _STEPS[old]):
         raise Conflict("invalid_status_change", f"A visit can't go from {old} to {new_status}")
     if new_status == S.FAILED and not reason:
@@ -72,6 +75,8 @@ def set_status(visit: Visit, new_status: str, *, reason: str | None = None) -> N
     visit.status = new_status
     # Now, not at the flush: a route reports the visit before its commit flushes it.
     visit.updated_at = utc_now()
+    if new_status == S.CONFIRMED:
+        visit.confirmed_at = visit.updated_at  # when its audio's retention period starts
     if new_status == S.FAILED:
         visit.failure_reason = reason
     elif old == S.FAILED:
@@ -216,10 +221,20 @@ def _shop_for_sharing(session: Session, org_id: str, shop_id: str) -> Shop | Non
     return session.scalars(query.execution_options(populate_existing=True)).one_or_none()
 
 
-def _refuse_if_shop_said_no(shop: Shop, kind: str) -> None:
-    # Enforced here, not only in the UI (§7.4). Notes are the rep's own summary, so they stay.
-    if shop.do_not_record and kind == VisitKind.CONVERSATION:
+def _refuse_if_shop_said_no(session: Session, shop: Shop, kind: str) -> None:
+    # Enforced here, not only in the UI (§7.4), under the shop's FOR SHARE lock, which a consent
+    # answer's FOR UPDATE waits for. Notes are the rep's own summary, so they stay.
+    if kind != VisitKind.CONVERSATION:
+        return
+    if shop.do_not_record:
         raise Conflict("shop_do_not_record", "This shop said no to recording; record notes instead")
+    if not consent.agreed(session, shop):
+        # Batch 17: a yes given before the visit, by the shop's link or on paper.
+        raise Conflict(
+            "consent_needed",
+            "This shop hasn't agreed to recording yet: share its consent link, or mark the paper"
+            " form it signed",
+        )
 
 
 def create_visit(
@@ -230,7 +245,7 @@ def create_visit(
     shop = _shop_for_sharing(session, org_id, shop_id)
     if shop is None:
         raise NotFound("shop_not_found", "There's no such shop")
-    _refuse_if_shop_said_no(shop, kind)
+    _refuse_if_shop_said_no(session, shop, kind)
     visit = Visit(org_id=org_id, rep_id=rep_id, shop_id=shop.id, kind=kind, client=client)
     session.add(visit)
     session.flush()
@@ -240,7 +255,7 @@ def create_visit(
 def _check_visit_takes_audio(session: Session, visit: Visit) -> None:
     shop = _shop_for_sharing(session, visit.org_id, visit.shop_id)
     assert shop is not None  # the composite key keeps a visit's shop in its org
-    _refuse_if_shop_said_no(shop, visit.kind)
+    _refuse_if_shop_said_no(session, shop, visit.kind)
 
 
 @dataclass(frozen=True)

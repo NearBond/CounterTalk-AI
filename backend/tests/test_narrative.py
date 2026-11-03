@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from sqlalchemy import select, update
 
-from countertalk import narrative, worker
+from countertalk import consent, narrative, worker
 from countertalk.db import session_scope
 from countertalk.errors import PermanentError, RetryableError
 from countertalk.llm.base import Outcome
@@ -37,6 +37,7 @@ def at_shop(org: Org_, name: str, area: str = "Test Area") -> Org_:
         shop = Shop(org_id=org.org_id, name=name, area=area)
         session.add(shop)
         session.flush()
+        consent.mark_unanswered(session, org.org_id, org.rep_id, "hi")  # batch 17
         return Org_(org.org_id, org.rep_id, shop.id)
 
 

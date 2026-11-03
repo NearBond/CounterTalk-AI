@@ -16,13 +16,13 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
-from countertalk import auth, storage, visits
+from countertalk import auth, consent, storage, visits
 from countertalk.db import session_scope
 from countertalk.limits import LOCK_TIMEOUT_MS, MAX_SEGMENT_BYTES, MAX_SEGMENTS_PER_VISIT
 from countertalk.models import Org, Role, Shop, User, Visit
-from tests.conftest import HTTPS, give_transcript
+from tests.conftest import HTTPS, a_user, give_transcript, sign_in
 from tests.test_review_api import signed_in_demo
 from tests.test_visits import staged_files
 
@@ -67,14 +67,20 @@ def other_org() -> tuple[str, str]:
         shop = Shop(org_id=org.id, name="Other Shop", area="Other Area")
         session.add_all([rep, shop])
         session.flush()
+        consent.mark_unanswered(session, org.id, rep.id, "hi")  # batch 17
         visit = visits.create_visit(session, org.id, rep.id, shop.id, "conversation", "web")
         return visit.id, shop.id
 
 
-def remove_the_demo_rep() -> None:
+def remove_the_signed_in_user(client: TestClient) -> None:
+    """Signs the client in as a rep made for it, then removes them, and their session with
+    them. Not the demo rep: the paper consents they marked are history (batch 17)."""
+    with session_scope(read_only=True) as session:
+        org_id = session.scalars(select(User.org_id).where(User.email == "rep@example.com")).one()
+    gone = a_user(org_id, Role.REP, "Gone Rep")
+    sign_in(client, gone)
     with session_scope() as session:
-        session.execute(delete(Visit))
-        session.delete(session.scalars(select(User).where(User.email == "rep@example.com")).one())
+        session.delete(session.get_one(User, gone))
 
 
 def a_do_not_record_shop(client: TestClient) -> str:
@@ -93,7 +99,7 @@ def test_shops_are_listed_in_the_list_shape(client: TestClient) -> None:
     body = client.get("/api/shops").json()
 
     assert body["next_cursor"] is None
-    assert {"id", "name", "area", "do_not_record"} == set(body["items"][0])
+    assert {"id", "name", "area", "do_not_record", "consent"} == set(body["items"][0])
 
 
 def test_a_created_visit_is_returned_recording_and_read_back(client: TestClient) -> None:
@@ -220,8 +226,8 @@ def a_malformed_cursor(client: TestClient) -> httpx.Response:
     return client.get("/api/visits", params={"cursor": "not-a-cursor"})
 
 
-def without_the_demo_rep(client: TestClient) -> httpx.Response:
-    remove_the_demo_rep()
+def without_the_signed_in_user(client: TestClient) -> httpx.Response:
+    remove_the_signed_in_user(client)
     return client.get("/api/visits")
 
 
@@ -249,7 +255,7 @@ def without_the_demo_rep(client: TestClient) -> httpx.Response:
             "audio_not_found",
         ),
         (lambda client: client.get(f"/api/visits/{other_org()[0]}/audio"), 404, "visit_not_found"),
-        (without_the_demo_rep, 401, "signed_out"),  # their session went with them
+        (without_the_signed_in_user, 401, "signed_out"),  # their session went with them
     ],
 )
 def test_visit_and_list_errors(
@@ -485,7 +491,7 @@ def test_the_route_refuses_before_reading_or_beyond_the_limit(
 ) -> None:
     visit_id = "not-a-uuid" if visit == "malformed" else new_visit(client)
     if visit == "no_user":
-        remove_the_demo_rep()
+        remove_the_signed_in_user(client)
 
     seq = MAX_SEGMENTS_PER_VISIT if visit == "bad_seq" else 0
     path = f"/api/visits/{visit_id}/segments/{seq}"

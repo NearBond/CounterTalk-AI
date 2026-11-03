@@ -1,7 +1,8 @@
 """Seeds the demo org, its rep and a few shops: `uv run python scripts/seed_dev.py`.
 
 The demo org runs on the PepsiCo India example pack (batch 8): its teams, distributors and
-catalog are imported, and the shops are spread across the distributors and their beats.
+catalog are imported, and the shops are spread across the distributors and their beats. Each
+shop that hasn't answered gets a paper consent yes, marked by the rep (batch 17).
 
 Safe to run again, even twice at once: rows are matched on their natural keys, and existing
 ones are left exactly as they are. A shop's distributor, and its beat, are each filled in only
@@ -16,6 +17,7 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from countertalk import consent
 from countertalk.catalog import import_org_pack
 from countertalk.db import SETUP_ERRORS, session_scope, setup_trouble
 from countertalk.errors import Conflict, DomainError, describe
@@ -27,6 +29,8 @@ DEMO_ORG_NAME = "Demo Org"
 # The dev org's rep: scripts/set_password.py gives them a password to sign in with.
 DEMO_REP = {"email": "rep@example.com", "name": "Demo Rep"}
 DEMO_PACK = ("pepsico-india-demo", 1)
+# The language of the paper forms the seeded shops signed.
+SEEDED_CONSENT_LANGUAGE = "hi"
 # (name, area, distributor key, beat): fictional kirana shops in made-up areas, on the pack's
 # made-up distributors.
 DEMO_SHOPS = [
@@ -49,7 +53,9 @@ def seed(session: Session, pack: OrgPack) -> SeedResult:
     org_id = session.scalars(select(Org.id).where(Org.name == DEMO_ORG_NAME)).one()
     rep = {"org_id": org_id, "role": Role.REP.value, **DEMO_REP}
     inserted.append(_insert_missing(session, User, rep, ["email"]))
-    rep_org_id = session.scalars(select(User.org_id).where(User.email == DEMO_REP["email"])).one()
+    rep_org_id, rep_id = session.execute(
+        select(User.org_id, User.id).where(User.email == DEMO_REP["email"])
+    ).one()
     if rep_org_id != org_id:
         # Emails are unique across orgs, so the demo org would silently have no rep.
         raise Conflict("demo_rep_in_another_org", f"{DEMO_REP['email']} is in another org")
@@ -70,6 +76,9 @@ def seed(session: Session, pack: OrgPack) -> SeedResult:
             .values(distributor_id=distributors[distributor])
         )
         session.execute(update(Shop).where(*this_shop, Shop.beat.is_(None)).values(beat=beat))
+    # Batch 17: the demo records at once, so its shops agreed on paper, marked by its rep. A
+    # shop's own answer since is never changed.
+    consent.mark_unanswered(session, org_id, rep_id, SEEDED_CONSENT_LANGUAGE)
     return SeedResult(created=sum(inserted), existing=len(inserted) - sum(inserted))
 
 

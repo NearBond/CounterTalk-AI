@@ -383,6 +383,9 @@ PUBLIC = {
     ("POST", "/api/auth/signin"),
     ("POST", "/api/auth/signout"),
     ("GET", "/api/health"),
+    # A shop's consent page: the token is the key (batch 17).
+    ("GET", "/api/consent/{token}"),
+    ("POST", "/api/consent/{token}"),
 }
 SOME_ID = "00000000-0000-4000-8000-000000000000"
 

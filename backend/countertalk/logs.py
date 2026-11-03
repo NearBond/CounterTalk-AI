@@ -10,6 +10,7 @@ what §1.9 forbids:
 
 import logging
 import logging.config
+import re
 import sys
 import threading
 import traceback
@@ -53,13 +54,20 @@ class FramesOnlyFormatter(logging.Formatter):
         return frames_only(ei[1]) if ei[1] is not None else ""
 
 
+# A consent page's path, the app's or the API's, up to its token.
+_CONSENT_TOKEN = re.compile(r"^((?:/api)?/consent/)[^/]+")
+
+
 class DropQueryString(logging.Filter):
-    """uvicorn's access lines carry the full path; a query string can hold names or text."""
+    """uvicorn's access lines carry the full path; a query string can hold names or text,
+    and a consent page's path its token, which is the key to that shop's answer (batch 17):
+    the token goes too."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         args = record.args
         if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str):
-            record.args = (*args[:2], args[2].split("?", 1)[0], *args[3:])
+            path = _CONSENT_TOKEN.sub(r"\1…", args[2].split("?", 1)[0])
+            record.args = (*args[:2], path, *args[3:])
         return True
 
 

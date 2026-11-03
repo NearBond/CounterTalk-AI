@@ -3,10 +3,11 @@ import threading
 import pytest
 from sqlalchemy import func, select
 
+from countertalk import consent
 from countertalk.db import session_scope
 from countertalk.errors import Conflict
 from countertalk.limits import LOCK_TIMEOUT_MS
-from countertalk.models import Distributor, Org, Role, Shop, User
+from countertalk.models import Consent, Distributor, Org, Role, Shop, User
 from countertalk.playbooks import load_org_pack
 from scripts.seed_dev import DEMO_ORG_NAME, DEMO_PACK, DEMO_REP, DEMO_SHOPS, main, seed
 
@@ -147,3 +148,30 @@ def test_a_shop_with_a_beat_but_no_distributor_gets_one_and_keeps_its_beat() -> 
             .where(Shop.name == "Sunrise Kirana")
         ).one()
     assert tuple(found) == ("d1", "Saturday route")
+
+
+def test_the_seeded_shops_agreed_on_paper_marked_by_the_rep() -> None:
+    with session_scope() as session:
+        seed(session, PACK)
+
+    with session_scope(read_only=True) as session:
+        rep = session.scalars(select(User.id)).one()
+        rows = session.execute(select(Consent.decision, Consent.method, Consent.recorded_by)).all()
+    assert sorted(tuple(row) for row in rows) == [("yes", "paper", rep)] * len(DEMO_SHOPS)
+
+
+def test_seeding_again_keeps_a_shop_s_own_answer() -> None:
+    with session_scope() as session:
+        seed(session, PACK)
+    with session_scope() as session:
+        shop = session.scalars(select(Shop).where(Shop.name == "Sunrise Kirana")).one()
+        rep = session.scalars(select(User.id)).one()
+        token = consent.new_link(session, shop.org_id, shop.id, rep)
+    with session_scope() as session:
+        consent.answer(session, token, "no", "hi")
+
+    with session_scope() as session:
+        seed(session, PACK)
+
+    with session_scope(read_only=True) as session:
+        assert consent.current(session, shop.org_id, [shop.id]) == {shop.id: "no"}

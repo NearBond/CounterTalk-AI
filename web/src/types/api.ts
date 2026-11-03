@@ -79,12 +79,38 @@ export interface Page<T> {
   next_cursor: string | null;
 }
 
+/** A shop's answer about recording its visits (batch 17): models.py, ConsentDecision. */
+export type ConsentDecision = "yes" | "no";
+
+/** The languages of the consent notice (consent/v1). */
+export type ConsentLanguage = "hi" | "en" | "mr";
+
 /** GET /api/shops: countertalk/api/shops.py, ShopOut. */
 export interface Shop {
   id: string;
   name: string;
   area: string;
   do_not_record: boolean;
+  /** Its current answer; null until it gives one. A conversation needs a "yes". */
+  consent: ConsentDecision | null;
+}
+
+/** POST /api/shops/{id}/consent-links: the shop's consent page, from the app's own origin. */
+export interface ConsentLink {
+  path: string;
+}
+
+/** POST /api/shops/{id}/consent (the paper form): ConsentOut. */
+export interface PaperConsent {
+  consent: ConsentDecision;
+}
+
+/** GET and POST /api/consent/{token}: countertalk/api/consent.py, ConsentPageOut. */
+export interface ConsentPage {
+  company: string;
+  shop: string;
+  decision: ConsentDecision | null;
+  notice_version: number;
 }
 
 export type VisitStatus =

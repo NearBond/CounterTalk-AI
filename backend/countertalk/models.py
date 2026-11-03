@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal, get_args
 
 from sqlalchemy import (
     BigInteger,
@@ -240,6 +240,80 @@ class Shop(Base):
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
 
 
+class ConsentDecision(StrEnum):
+    YES = "yes"
+    NO = "no"
+
+
+class ConsentMethod(StrEnum):
+    # On the shop's consent page, from a link the rep shared (batch 17).
+    LINK = "link"
+    # A paper form signed with the invoice, which the rep marked in the app: always a yes.
+    PAPER = "paper"
+
+
+# The languages the consent notice is in (consent/v1), as ISO 639-1 codes.
+ConsentLanguage = Literal["hi", "en", "mr"]
+CONSENT_LANGUAGES: tuple[str, ...] = get_args(ConsentLanguage)
+
+
+class Consent(Base):
+    """One answer from a shop about recording its visits, given before any visit (batch 17;
+    the user, 3 Nov). The shop's latest row, by seq, is its current answer; the rest is its
+    history, never changed."""
+
+    __tablename__ = "consents"
+    __table_args__ = (
+        CheckConstraint(_one_of("decision", ConsentDecision), name="decision"),
+        CheckConstraint(_one_of("method", ConsentMethod), name="method"),
+        CheckConstraint(_one_of("language", CONSENT_LANGUAGES), name="language"),
+        CheckConstraint("notice_version >= 1", name="notice_version"),
+        # A paper form is marked by a person in the app; a link's answer is the shop's own.
+        CheckConstraint(
+            f"(method = '{ConsentMethod.PAPER}') = (recorded_by IS NOT NULL)", name="recorded_by"
+        ),
+        CheckConstraint(
+            f"method <> '{ConsentMethod.PAPER}' OR decision = '{ConsentDecision.YES}'",
+            name="paper_is_yes",
+        ),
+        # A shop's latest answer, at once.
+        Index("ix_consents_shop_id_seq", "shop_id", "seq"),
+        ForeignKeyConstraint(["org_id", "shop_id"], ["shops.org_id", "shops.id"]),
+        ForeignKeyConstraint(["org_id", "recorded_by"], ["users.org_id", "users.id"]),
+    )
+    __mapper_args__ = {"eager_defaults": True}
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(), unique=True)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    shop_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    decision: Mapped[str] = mapped_column(String)
+    method: Mapped[str] = mapped_column(String)
+    notice_version: Mapped[int]
+    language: Mapped[str] = mapped_column(String)
+    recorded_by: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class ConsentLink(Base):
+    """A link to a shop's consent page that someone shared (batch 17). Only the token's hash is
+    kept, like a session's. Every link a shop has been sent stays valid: each shows and
+    changes that shop's one current answer."""
+
+    __tablename__ = "consent_links"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id", "shop_id"], ["shops.org_id", "shops.id"]),
+        ForeignKeyConstraint(["org_id", "created_by"], ["users.org_id", "users.id"]),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    shop_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), index=True)
+    token_hash: Mapped[str] = mapped_column(String, unique=True)
+    created_by: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
 class CatalogKind(StrEnum):
     OWN = "own"
     COMPETITOR = "competitor"
@@ -332,6 +406,16 @@ class Visit(Base):
         CheckConstraint(_one_of("status", VisitStatus), name="status"),
         CheckConstraint(_one_of("kind", VisitKind), name="kind"),
         CheckConstraint(_one_of("client", VisitClient), name="client"),
+        # Confirmed is final, and it's when the retention period starts (batch 17).
+        CheckConstraint(
+            f"(status = '{VisitStatus.CONFIRMED}') = (confirmed_at IS NOT NULL)",
+            name="confirmed_at",
+        ),
+        # Only a confirmed visit's audio is ever deleted (§9.7).
+        CheckConstraint(
+            f"audio_deleted_at IS NULL OR status = '{VisitStatus.CONFIRMED}'",
+            name="audio_deleted_at",
+        ),
         # Newest first within an org; seq breaks created_at ties (BRIEF §7).
         Index("ix_visits_org_id_created_at_seq", "org_id", "created_at", "seq"),
         # The target of insights' (org_id, visit_id): an insight's org is its visit's.
@@ -366,6 +450,10 @@ class Visit(Base):
     stt_wall_ms: Mapped[int] = mapped_column(default=0)
     abandoned_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    # Set by set_status as it confirms (batch 17).
+    confirmed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    # The recording went under the retention policy; transcripts and quotes stay (batch 17).
+    audio_deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now, onupdate=utc_now)
 

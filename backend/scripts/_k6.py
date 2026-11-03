@@ -20,7 +20,7 @@ from unittest import mock
 import yaml
 from sqlalchemy import select
 
-from countertalk import catalog, issues, review, routing
+from countertalk import catalog, consent, issues, review, routing
 from countertalk.config import BACKEND_DIR
 from countertalk.db import session_scope
 from countertalk.models import (
@@ -170,6 +170,8 @@ def _org(spec: dict[str, Any], pack: OrgPack) -> tuple[World, dict[str, str]]:
             shops[name] = shop.id
         for letter, name in spec["letters"].items():
             shops[letter] = shops[name]
+        # Batch 17: its shops agreed on paper, like every shop in the data (the user, 3 Nov).
+        consent.mark_unanswered(session, org.id, next(iter(people.values())), "hi")
         teams = routing.team_ids(session, org.id)
         items = {
             key: item_id

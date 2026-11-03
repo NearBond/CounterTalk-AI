@@ -9,7 +9,7 @@ from unittest import mock
 import pytest
 from sqlalchemy import select, update
 
-from countertalk import issues, limits, review
+from countertalk import consent, issues, limits, review
 from countertalk.db import session_scope
 from countertalk.models import InsightRoute, Issue, Shop, Team, Visit
 from countertalk.summaries import (
@@ -344,6 +344,7 @@ def reopened_by_a_low_one(org: Org_) -> tuple[str, datetime]:
         other = Shop(org_id=org.org_id, name="Another Shop", area="Test Area")
         session.add(other)
         session.flush()
+        consent.mark_unanswered(session, org.org_id, org.rep_id, "hi")  # batch 17
         elsewhere = Org_(org.org_id, org.rep_id, other.id)
     w1, w2, w3 = (datetime(2026, 10, 5 + 7 * n, 6, 0, tzinfo=UTC) for n in range(3))
     high = insight(category="payments", severity="high", suggested_team="money")
