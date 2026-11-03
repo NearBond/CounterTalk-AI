@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ConsentNeeded } from "../components/ConsentNeeded";
-import { FixedSinceLastVisit } from "../components/FixedSinceLastVisit";
-import { MyCountsLine } from "../components/MyCountsLine";
 import { RetryAlert } from "../components/RetryAlert";
 import { UploadPanel } from "../components/UploadPanel";
 import { messageOf } from "../lib/api";
@@ -174,7 +172,6 @@ export function RecordPage() {
         </Link>
       )}
       <h1 className="text-2xl font-semibold">Record a visit</h1>
-      <MyCountsLine />
 
       <label className="flex flex-col gap-1">
         <span className="font-medium">Shop</span>
@@ -196,7 +193,6 @@ export function RecordPage() {
       {shops.error !== null && (
         <RetryAlert onRetry={shops.reload}>{shops.error.message}</RetryAlert>
       )}
-      {picked !== undefined && !locked && <FixedSinceLastVisit shopId={picked.id} />}
       {picked !== undefined && !picked.do_not_record && !agreed && !locked && (
         <ConsentNeeded key={picked.id} shop={picked} onAnswered={shops.reload} />
       )}

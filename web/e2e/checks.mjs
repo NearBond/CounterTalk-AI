@@ -313,14 +313,41 @@ export const CHECKS = [
     },
   },
   {
-    name: "at 390 px, picking a shop shows what got fixed since its last visit, with the line to say",
+    name: "at 390 px, Updates shows what got fixed for each shop since its last visit, with the line to say",
     async run({ page, web }) {
-      await onAPhoneFor(page, web, "Sunrise Kirana, Old Market · consent: yes");
-      const fixed = page.getByRole("region", { name: "Fixed since the last visit here" });
-      await fixed.waitFor();
-      const text = await fixed.textContent();
-      expect(text.includes("Distribution") && text.includes("Tell them: Your distributor now delivers every Monday"), `the list said: ${text}`);
-      await fitsAPhone(page, "the shop pick with its fixed list");
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`${web}/`);
+      await page.getByRole("navigation", { name: "Pages" }).getByRole("link", { name: "Updates" }).click();
+      const sunrise = page.getByRole("region", { name: "Sunrise Kirana, Old Market" });
+      await sunrise.waitFor();
+      const text = await sunrise.textContent();
+      expect(text.includes("Distribution") && text.includes("Tell them: Your distributor now delivers every Monday"), `Sunrise Kirana said: ${text}`);
+      await fitsAPhone(page, "Updates");
+    },
+  },
+  {
+    name: "at 390 px, the rep's name in the header opens their profile: their position, and Sign out",
+    async run({ page, web }) {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`${web}/`);
+      await page.getByRole("banner").getByRole("link", { name: "Demo Rep" }).click();
+      await page.getByRole("heading", { level: 1, name: "Profile" }).waitFor();
+      const text = await page.locator("main dl").textContent();
+      expect(text.includes("Sales rep") && text.includes("Demo Org") && !text.includes("Team"), `the profile said: ${text}`);
+      expect((await page.getByRole("main").getByRole("button", { name: "Sign out" }).count()) === 1, "no Sign out on the profile");
+      await fitsAPhone(page, "the profile");
+    },
+  },
+  {
+    name: "at 390 px, a team member's profile names their team",
+    as: "k6",
+    async run({ page, web }) {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`${web}/profile`);
+      await page.getByRole("heading", { level: 1, name: "Profile" }).waitFor();
+      const text = await page.locator("main dl").textContent();
+      expect(text.includes("Team member") && text.includes("Finance"), `the profile said: ${text}`);
+      await fitsAPhone(page, "a team member's profile");
     },
   },
   CLICK_CHECK,

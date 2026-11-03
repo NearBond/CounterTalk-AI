@@ -3,7 +3,7 @@ import { getMyCounts } from "../lib/api";
 import { countOf } from "../lib/format";
 import type { MyCounts } from "../types/api";
 
-/** The rep's own line at the top of the shop pick (batch 17b): "This month you raised 12
+/** The rep's own line at the top of Updates (batches 17b, 17e): "This month you raised 12
  * problems. 7 are fixed." Only their own numbers, never a ranking; hidden when they raised none. */
 export function MyCountsLine() {
   const [counts, setCounts] = useState<MyCounts | null>(null);

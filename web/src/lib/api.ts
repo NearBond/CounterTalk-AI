@@ -13,7 +13,6 @@ import type {
   ConsentLink,
   ConsentPage,
   Drill,
-  FixedItem,
   ErrorBody,
   FrameworkErrorCode,
   Health,
@@ -44,6 +43,7 @@ import type {
   RouteTo,
   Segment,
   Shop,
+  ShopFixed,
   SignIn,
   Summary,
   SummaryAsk,
@@ -390,11 +390,11 @@ export function askQuestion(question: string, signal?: AbortSignal): Promise<Ask
   return apiRequest("/ask", { method: "POST", body: { question }, signal });
 }
 
-// --- the shop pick (batch 17b) --------------------------------------------------------------
+// --- the rep's Updates (batches 17b, 17e) ---------------------------------------------------
 
-/** What got fixed for the shop since its last visit before today, newest first. */
-export function getFixed(shopId: string, signal?: AbortSignal): Promise<Page<FixedItem>> {
-  return apiRequest(`/shops/${encodeURIComponent(shopId)}/fixed`, { signal });
+/** Every shop with something fixed since its last visit here, newest fix first (batch 17e). */
+export function getMyFixed(signal?: AbortSignal): Promise<Page<ShopFixed>> {
+  return apiRequest("/me/fixed", { signal });
 }
 
 /** The signed-in rep's own counts this month: never anyone else's. */

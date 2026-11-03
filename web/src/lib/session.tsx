@@ -29,11 +29,25 @@ export const VISITS: Role[] = [...RECORDS, ...WHOLE_ORG];
 /** The header's pages, each with who uses it: App.tsx's gates read the same lists. */
 export const PAGE_LINKS: Array<{ to: string; label: string; roles: Role[] }> = [
   { to: "/", label: "Visits", roles: VISITS },
+  // Batch 17e: what got fixed for each shop, and the rep's own counts.
+  { to: "/updates", label: "Updates", roles: RECORDS },
   { to: "/inbox", label: "Inbox", roles: TEAM_WORK },
   { to: "/inbox/triage", label: "Triage", roles: WHOLE_ORG },
   { to: "/summaries", label: "Summaries", roles: TEAM_WORK },
   { to: "/catalog", label: "Catalog", roles: ADMINS },
 ];
+
+/** Each role as the profile names it (batch 17e). */
+const POSITIONS: Record<Role, string> = {
+  rep: "Sales rep",
+  team_member: "Team member",
+  manager: "Manager",
+  admin: "Admin",
+};
+
+export function positionOf(me: Me): string {
+  return POSITIONS[me.role];
+}
 
 export function wholeOrg(me: Me): boolean {
   return WHOLE_ORG.includes(me.role);

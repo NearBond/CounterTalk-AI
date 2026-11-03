@@ -1,26 +1,13 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router";
-import { messageOf, signOut } from "../lib/api";
+import { Link } from "react-router";
+import { useSignOut } from "../lib/hooks";
 import { PAGE_LINKS } from "../lib/session";
 import type { Me } from "../types/api";
 import { RetryAlert } from "./RetryAlert";
 
-/** The signed-in pages' header: their links, who's signed in, and Sign out. */
+/** The signed-in pages' header: their links, who's signed in (a link to their profile, batch
+ * 17e), and Sign out. */
 export function AppHeader({ me }: { me: Me }) {
-  const navigate = useNavigate();
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState<string | null>(null);
-  const leave = async () => {
-    setBusy(true);
-    setFailed(null);
-    try {
-      await signOut();
-      navigate("/signin", { replace: true });
-    } catch (error) {
-      setFailed(messageOf(error, "Signing out didn't work. Try again."));
-      setBusy(false);
-    }
-  };
+  const { leave, busy, failed } = useSignOut();
 
   return (
     <header className="mx-auto flex w-full max-w-md flex-col gap-2 px-4 pt-4">
@@ -32,7 +19,9 @@ export function AppHeader({ me }: { me: Me }) {
             </Link>
           ))}
         </nav>
-        <span className="ml-auto text-sm text-gray-600">{me.team === null ? me.name : `${me.name}, ${me.team.name}`}</span>
+        <Link to="/profile" className="ml-auto text-sm text-gray-700 underline">
+          {me.team === null ? me.name : `${me.name}, ${me.team.name}`}
+        </Link>
         <button
           type="button"
           onClick={() => void leave()}

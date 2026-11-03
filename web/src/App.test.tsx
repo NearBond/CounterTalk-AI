@@ -90,7 +90,7 @@ describe("App", () => {
   });
 
   it.each([
-    [REP, ["Visits"]],
+    [REP, ["Visits", "Updates"]],
     [FINANCE_MEMBER, ["Inbox", "Summaries"]],
     [MANAGER, ["Visits", "Inbox", "Triage", "Summaries"]],
     [ADMIN, ["Visits", "Inbox", "Triage", "Summaries", "Catalog"]],

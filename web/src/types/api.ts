@@ -107,6 +107,14 @@ export interface FixedItem {
   resolved_at: string;
 }
 
+/** GET /api/me/fixed (batch 17e): ShopFixedOut, one shop on Updates, its fixes newest first. */
+export interface ShopFixed {
+  shop_id: string;
+  name: string;
+  area: string;
+  items: FixedItem[];
+}
+
 /** GET /api/me/counts (batch 17b): the rep's own, this IST month. */
 export interface MyCounts {
   raised: number;

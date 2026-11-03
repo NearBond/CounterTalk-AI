@@ -130,7 +130,7 @@ SUMMARY_MAX_CHARS = 500
 REOPEN_WINDOW_DAYS = 30
 # What a team member writes when resolving an issue: the rep reads it back to the shop.
 RESOLUTION_NOTE_MAX_CHARS = 2_000
-# Fixed since the last visit (batch 17b): the newest this many, on the shop pick.
+# Fixed since the last visit (batch 17b): the newest this many a shop, on Updates (17e).
 FIXED_MAX = 10
 # The inbox's period filter (batch 17c): its days are in these years, far wider than any visit
 # and well inside what a date can add a day to.

@@ -6,10 +6,12 @@ import { DrillPage } from "./pages/DrillPage";
 import { HealthPage } from "./pages/HealthPage";
 import { InboxPage } from "./pages/InboxPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { RecordPage } from "./pages/RecordPage";
 import { SignInPage } from "./pages/SignInPage";
 import { SummariesPage } from "./pages/SummariesPage";
 import { TriagePage } from "./pages/TriagePage";
+import { UpdatesPage } from "./pages/UpdatesPage";
 import { VisitPage } from "./pages/VisitPage";
 import { VisitsPage } from "./pages/VisitsPage";
 
@@ -34,6 +36,16 @@ export const routes: RouteObject[] = [
           </Only>
         ),
       },
+      {
+        path: "/updates",
+        element: (
+          <Only roles={RECORDS}>
+            <UpdatesPage />
+          </Only>
+        ),
+      },
+      // Everyone's own (batch 17e).
+      { path: "/profile", element: <ProfilePage /> },
       // Whose visit it is, the server says (a team member reads those routed to their team).
       { path: "/visits/:visitId", element: <VisitPage /> },
       {

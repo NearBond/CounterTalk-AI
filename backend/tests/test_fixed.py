@@ -1,5 +1,5 @@
 """Fixed since the last visit (batch 17b): a shop's issues resolved since anyone last visited it,
-with the team's note, on the rep's shop pick. Never a rep's name or a quote."""
+with the team's note, on the rep's Updates page (batch 17e). Never a rep's name or a quote."""
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -175,6 +175,56 @@ def test_a_shop_that_isnt_one_is_404(client: TestClient, org: Org_) -> None:
     response = client.get("/api/shops/00000000-0000-4000-8000-000000000000/fixed")
 
     assert (response.status_code, response.json()["error"]["code"]) == (404, "shop_not_found")
+
+
+# --- every shop's, for the rep's Updates page (batch 17e) -------------------------------------
+
+
+def everywhere(client: TestClient) -> list[dict[str, Any]]:
+    response = client.get("/api/me/fixed")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["next_cursor"] is None
+    return body["items"]
+
+
+def test_updates_lists_each_shop_with_a_fix_its_newest_fix_first(
+    client: TestClient, org: Org_
+) -> None:
+    here = raised(org, 5, category="payments", severity="low")
+    resolve(org, issues_of(here)["money"], NOW - 3 * DAY)
+    second = another_shop(org, "Second Shop")
+    there = raised(second, 5, category="supply", severity="low")
+    resolve(org, issues_of(there)["field"], NOW - 1 * DAY)
+    another_shop(org, "Quiet Shop")  # nothing fixed: not listed
+
+    found = everywhere(client)
+
+    assert [shop["shop_id"] for shop in found] == [second.shop_id, org.shop_id]
+    assert set(found[0]) == {"shop_id", "name", "area", "items"}
+    assert (found[0]["name"], found[0]["area"]) == ("Second Shop", "Test Area")
+    [item] = found[0]["items"]
+    assert set(item) == KEYS  # never a rep's name or a quote
+    assert (item["team"], item["category"]) == ("Field team", "supply")
+
+
+def test_each_shop_counts_from_its_own_last_visit(client: TestClient, org: Org_) -> None:
+    visit = raised(org, 5, category="payments", severity="low")
+    resolve(org, issues_of(visit)["money"], NOW - 2 * DAY)
+    raised(another_shop(org, "Second Shop"), 1, category="supply", severity="low")  # just a visit
+
+    assert [shop["shop_id"] for shop in everywhere(client)] == [org.shop_id]
+
+
+def test_a_shop_s_own_later_visit_hides_its_earlier_fix(client: TestClient, org: Org_) -> None:
+    here = raised(org, 6, category="payments", severity="low")
+    resolve(org, issues_of(here)["money"], NOW - 2 * DAY)  # after its last visit: listed
+    second = another_shop(org, "Second Shop")
+    there = raised(second, 5, category="supply", severity="low")
+    resolve(org, issues_of(there)["field"], NOW - 3 * DAY)
+    raised(second, 1, category="demand", severity="low")  # its last visit, after its fix
+
+    assert [shop["shop_id"] for shop in everywhere(client)] == [org.shop_id]
 
 
 # --- the rep's own counts this month -----------------------------------------------------------

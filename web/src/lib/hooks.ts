@@ -6,8 +6,9 @@
  * answer that still arrives is ignored.
  */
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import type { Page, Shop } from "../types/api";
-import { ABORTED, ApiError, listShops, recordingDeleted } from "./api";
+import { ABORTED, ApiError, listShops, messageOf, recordingDeleted, signOut } from "./api";
 import { POLL_MS, READ_ATTEMPTS } from "./limits";
 import { withRetry } from "./retry";
 
@@ -124,6 +125,25 @@ export interface Save {
   run: <T>(work: (signal: AbortSignal) => Promise<T>, onDone: (value: T) => void) => void;
   /** Sends the last work again, as it was: for work with no inputs to change, like confirm. */
   retry: () => void;
+}
+
+/** Sign out, then on to sign in: the header's, and the profile's (batch 17e). */
+export function useSignOut(): { leave: () => Promise<void>; busy: boolean; failed: string | null } {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const leave = async () => {
+    setBusy(true);
+    setFailed(null);
+    try {
+      await signOut();
+      navigate("/signin", { replace: true });
+    } catch (error) {
+      setFailed(messageOf(error, "Signing out didn't work. Try again."));
+      setBusy(false);
+    }
+  };
+  return { leave, busy, failed };
 }
 
 export function useSave(): Save {
