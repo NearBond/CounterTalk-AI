@@ -375,6 +375,7 @@ def test_an_ambiguous_name_is_tried_without_its_ending_too() -> None:
         ("क्रीम अँड ओनियन", "lays_cream_onion", "exact"),
         ("ॲपी फिझ", "appy_fizz", "exact"),
         ("अॅपी फिझ", "appy_fizz", "exact"),  # ॲ as two letters
+        ("ऍपी फिझ", "appy_fizz", "exact"),  # and as the candra E letter
         ("अॅक्वाफिना", "aquafina", "exact"),
     ],
 )

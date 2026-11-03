@@ -1,0 +1,192 @@
+{
+  "recording": "rp21",
+  "title": "A short Lay's supply, Bingo's better margin and a Doritos flavour, in Hindi and Marathi",
+  "duration_ms": 144669,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "neha_mr_narration"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "nilesh_mr_conversation"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते जाधव जी! कैसे हैं आप?",
+      "start_ms": 500,
+      "end_ms": 2900
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "या मॅडम, या. मजेत. बसा.",
+      "start_ms": 3112,
+      "end_ms": 5352
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आज बहुत traffic था, आधा घंटा तो signal पे ही खड़ी रही।",
+      "start_ms": 6236,
+      "end_ms": 9916
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, सध्या दिवाळीमुळे सगळीकडे गर्दी आहे.",
+      "start_ms": 10327,
+      "end_ms": 13767
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और बताइए, Kurkure, Lay's सब ठीक चल रहा है?",
+      "start_ms": 14010,
+      "end_ms": 18250
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "चालतंय. पण लेझचं एक सांगायचं होतं. मागच्या ऑर्डरमध्ये Magic Masala चे सहा डबे सांगितले होते, आले फक्त तीन.",
+      "start_ms": 19071,
+      "end_ms": 31151
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "सिर्फ़ तीन? bill कितने का बना था?",
+      "start_ms": 31618,
+      "end_ms": 33938
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बिल तीनचंच दिलं. पण मला सहा पाहिजे होते ना. distributor म्हणतो वरूनच माल कमी आलाय.",
+      "start_ms": 34272,
+      "end_ms": 39872
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, मैं distributor से पूछती हूँ कि बाकी तीन कब आएँगे।",
+      "start_ms": 40138,
+      "end_ms": 44298
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बघा. दिवाळीत जास्त लागणार आहे.",
+      "start_ms": 45266,
+      "end_ms": 48466
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और आजकल आपके rack पे आगे Bingo ज़्यादा दिख रहा है।",
+      "start_ms": 49052,
+      "end_ms": 53292
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, Bingo वाले मला बारा टक्के margin देतात. तुमचं आठ टक्केच आहे. मग मी Mad Angles पुढे ठेवणार ना.",
+      "start_ms": 53625,
+      "end_ms": 61225
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पर Kurkure तो customer खुद माँगते हैं।",
+      "start_ms": 61532,
+      "end_ms": 63932
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "मागतात, पण Bingo वर माझे जास्त पैसे सुटतात. एका डब्यामागे जवळपास चाळीस रुपये जास्त.",
+      "start_ms": 64890,
+      "end_ms": 72170
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, margin की बात मैं अपने area manager को बताती हूँ।",
+      "start_ms": 72914,
+      "end_ms": 76754
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "सांगा. आणि अजून एक, ते डोरिटोझचं Nacho Cheese आणा ना. कॉलेजची पोरं विचारतात, माझ्याकडे फक्त Sweet Chilli आहे.",
+      "start_ms": 77745,
+      "end_ms": 90625
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Nacho Cheese, अच्छा। मैं check करती हूँ distributor के पास है या नहीं।",
+      "start_ms": 90940,
+      "end_ms": 95660
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आधी थोडे आणून बघा, चाललं तर जास्त घेईन.",
+      "start_ms": 96260,
+      "end_ms": 99460
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है। आज का order बता दीजिए।",
+      "start_ms": 99766,
+      "end_ms": 102086
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Kurkure Masala Munch चार डबे, Lay's Classic Salted दोन, आणि Magic Masala जेवढे मिळतील तेवढे.",
+      "start_ms": 102706,
+      "end_ms": 111666
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "और Pepsi पे winter scheme है, दस crate पे offer। लगा दूँ?",
+      "start_ms": 112080,
+      "end_ms": 117920
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "पुढच्या वेळी बघू.",
+      "start_ms": 118557,
+      "end_ms": 119597
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है जाधव जी। तो order हुआ: Masala Munch चार, Classic Salted दो, और Magic Masala जितने मिलें। बाकी बातें मैं आज ही आगे बताती हूँ।",
+      "start_ms": 119912,
+      "end_ms": 130392
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ठीक आहे मॅडम. नमस्कार.",
+      "start_ms": 130837,
+      "end_ms": 141877
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते जाधव जी!",
+      "start_ms": 142669,
+      "end_ms": 143869
+    }
+  ]
+}

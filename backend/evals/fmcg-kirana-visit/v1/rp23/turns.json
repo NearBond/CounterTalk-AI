@@ -1,0 +1,228 @@
+{
+ "version": 1,
+ "recording": "rp23",
+ "org_pack": {
+  "id": "pepsico-india-demo",
+  "version": 1
+ },
+ "visited_at": "2026-11-03T07:51:55.559357+00:00",
+ "transcript": {
+  "provider": "meta",
+  "model": "muse-voice-transcribe-1.0",
+  "language_code": "hi,en,mr"
+ },
+ "roles": {
+  "playbook": {
+   "id": "fmcg-kirana-visit",
+   "version": 1
+  },
+  "speakers": {
+   "c0:A": {
+    "role": "rep",
+    "confidence": 0.99
+   },
+   "c0:B": {
+    "role": "shopkeeper",
+    "confidence": 0.99
+   }
+  }
+ },
+ "turns": [
+  {
+   "turn_id": 0,
+   "label": "c0:A",
+   "start_ms": 780,
+   "end_ms": 2700,
+   "text": "नमस्कार जोशी काका,"
+  },
+  {
+   "turn_id": 1,
+   "label": "c0:B",
+   "start_ms": 2780,
+   "end_ms": 5340,
+   "text": "ये पल्लवी, ये आज लवकर?"
+  },
+  {
+   "turn_id": 2,
+   "label": "c0:A",
+   "start_ms": 5500,
+   "end_ms": 12220,
+   "text": "हो, आज या भागातली सगळी दुकानं करायची आहेत, काल रात्रीची मॅच बघितली का?"
+  },
+  {
+   "turn_id": 3,
+   "label": "c0:B",
+   "start_ms": 12380,
+   "end_ms": 16540,
+   "text": "बघितली तर, शेवटच्या ओव्हरपर्यंत जीव टांगणीला लागला होता."
+  },
+  {
+   "turn_id": 4,
+   "label": "c0:A",
+   "start_ms": 16780,
+   "end_ms": 20300,
+   "text": "हो ना, मी तर शेवटच्या दोन ओव्हरला उभीच होते."
+  },
+  {
+   "turn_id": 5,
+   "label": "c0:B",
+   "start_ms": 20540,
+   "end_ms": 23180,
+   "text": "पामचा ना तू तर टीव्हीसमोर नाचायलाच लागला."
+  },
+  {
+   "turn_id": 6,
+   "label": "c0:A",
+   "start_ms": 23340,
+   "end_ms": 25020,
+   "text": "किती वर्षांचा आहे तो?"
+  },
+  {
+   "turn_id": 7,
+   "label": "c0:B",
+   "start_ms": 25340,
+   "end_ms": 29900,
+   "text": "सात वर्षांचा. आता रोज संध्याकाळी बॅटॅड घेऊन खाली खेळायला जातो."
+  },
+  {
+   "turn_id": 8,
+   "label": "c0:A",
+   "start_ms": 30060,
+   "end_ms": 32300,
+   "text": "दिवाळीची तयारी कुठपर्यंत तयारी कुठपर्यंत आली?"
+  },
+  {
+   "turn_id": 9,
+   "label": "c0:B",
+   "start_ms": 32700,
+   "end_ms": 39660,
+   "text": "चालली, सुनवाईने सकल्या लाडू, करंज्या, सगळं केलं आहे. कंदील आणि पंट्या उद्या लावणार."
+  },
+  {
+   "turn_id": 10,
+   "label": "c0:A",
+   "start_ms": 40060,
+   "end_ms": 45740,
+   "text": "वा, आमच्याकडे पण आई फराळ करते, माझं काम फक्त खायचं आणि आता थंडी पण पडायला लागली,"
+  },
+  {
+   "turn_id": 11,
+   "label": "c0:B",
+   "start_ms": 45900,
+   "end_ms": 51580,
+   "text": "हो, सकाळी फिरायला गेलो की स्वेटर लागतो, आमच्या वयाला थंडी जरा जास्तच जाणवते."
+  },
+  {
+   "turn_id": 12,
+   "label": "c0:A",
+   "start_ms": 51980,
+   "end_ms": 54460,
+   "text": "बरं काका, आजची ऑर्डर लिहू?"
+  },
+  {
+   "turn_id": 13,
+   "label": "c0:B",
+   "start_ms": 54700,
+   "end_ms": 62860,
+   "text": "लिही. Kurkure Masala Munch तीन तीन डबे, Lay's Classic Salted दोन डबे, आणि Magic Masala दोन"
+  },
+  {
+   "turn_id": 14,
+   "label": "c0:A",
+   "start_ms": 62940,
+   "end_ms": 64540,
+   "text": "आणि Cold Drink"
+  },
+  {
+   "turn_id": 15,
+   "label": "c0:B",
+   "start_ms": 64620,
+   "end_ms": 68940,
+   "text": "Pepsi एक क्रेट, Mountain Dew एक क्रेट"
+  },
+  {
+   "turn_id": 16,
+   "label": "c0:A",
+   "start_ms": 69020,
+   "end_ms": 74380,
+   "text": "Pepsi आणि Mountain Dew वर विंटर स्कीम चालू झाली आहे. डिस्ट्रिब्यूटरने सांगितलं ना"
+  },
+  {
+   "turn_id": 17,
+   "label": "c0:B",
+   "start_ms": 74540,
+   "end_ms": 76300,
+   "text": "हो, सांगितलं"
+  },
+  {
+   "turn_id": 18,
+   "label": "c0:A",
+   "start_ms": 76540,
+   "end_ms": 80220,
+   "text": "Uncle Chipps पण एक डब्बा टाकू का? दहा कार्टन वर एक फ्री आहे"
+  },
+  {
+   "turn_id": 19,
+   "label": "c0:B",
+   "start_ms": 80780,
+   "end_ms": 83500,
+   "text": "नको आता नको पुढच्या वेळी बघू."
+  },
+  {
+   "turn_id": 20,
+   "label": "c0:A",
+   "start_ms": 83580,
+   "end_ms": 87340,
+   "text": "ठीक आहे Kurkure पुढे लावले તે छान दिसतंय नाही?"
+  },
+  {
+   "turn_id": 21,
+   "label": "c0:B",
+   "start_ms": 87420,
+   "end_ms": 88300,
+   "text": "हो"
+  },
+  {
+   "turn_id": 22,
+   "label": "c0:A",
+   "start_ms": 88460,
+   "end_ms": 91340,
+   "text": "आणि मागची डिलिव्हरी सगळी बरोबर आली ना?"
+  },
+  {
+   "turn_id": 23,
+   "label": "c0:B",
+   "start_ms": 91580,
+   "end_ms": 92860,
+   "text": "हो, आली."
+  },
+  {
+   "turn_id": 24,
+   "label": "c0:A",
+   "start_ms": 93100,
+   "end_ms": 104140,
+   "text": "छान, मग ऑर्डर अशी Masala Munch तीन, Classic Salted दोन, Magic Masala दोन, Pepsi Pepsi एक क्रेट, Dew एक क्रेट, परवा सकाळी डिलिव्हरी डिलिव्हरी येईल."
+  },
+  {
+   "turn_id": 25,
+   "label": "c0:B",
+   "start_ms": 104540,
+   "end_ms": 109260,
+   "text": "बरं दिवाळीला फराळाला येह घरी सुनबाईच्या चकल्या खाऊन जा."
+  },
+  {
+   "turn_id": 26,
+   "label": "c0:A",
+   "start_ms": 109260,
+   "end_ms": 112780,
+   "text": "नक्की येते काका आधीच दिवाळीच्या शुभेच्छा."
+  },
+  {
+   "turn_id": 27,
+   "label": "c0:B",
+   "start_ms": 112940,
+   "end_ms": 114860,
+   "text": "तुलाही सावकाश जा."
+  }
+ ]
+}

@@ -1,0 +1,44 @@
+# K2 for rp21: a short Lay's supply, Bingo's better margin and a Doritos flavour, in Hindi and Marathi.
+# Answer key, checked 3 Nov 2026.
+# Set: tuning. The rep speaks Hindi, the shopkeeper Marathi.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov (the Marathi pack keeps its
+# catalog keys, teams and routing).
+# Not insights: the traffic and the Diwali crowds (small talk), "चालतंय" on Kurkure and Lay's,
+# "पुढच्या वेळी बघू" on the Pepsi winter scheme, and the order (with "Magic Masala जेवढे मिळतील
+# तेवढे"). What the rep says (Kurkure, the area manager) is context only.
+recording: rp21
+insights:
+  - kind: problem
+    category: supply               # short supply: six cartons ordered, three came and three were billed, so not a disputed bill
+    severity: medium               # half the Magic Masala order short, more needed for Diwali, but the shop still has some; "high" if you count it as a fast seller short before the festival
+    speaker: shopkeeper
+    phrase: "सहा डबे सांगितले होते, आले फक्त तीन"
+    skus: [lays_magic_masala, lays] # "लेझचं ... Magic Masala" (line 006): either the product or its brand
+    competitors: []
+    scheme: null
+    teams: [distribution]
+    # One insight for lines 006–010.
+
+  - kind: competitor_preference    # reason: margin (12% against 8%, about ₹40 more a carton)
+    category: pricing
+    severity: medium               # Mad Angles goes to the front of the rack, but he still orders Kurkure; as rp03 and rp17 (medium)
+    speaker: shopkeeper
+    phrase: "Bingo वाले मला बारा टक्के margin देतात"
+    skus: []                       # "तुमचं": only the rep names Kurkure (line 013); as rp03
+    competitors: [bingo_mad_angles, bingo] # either the product or its brand
+    scheme: null
+    teams: [sales_ops]
+    # One insight for lines 012–014. The "हो" adds his own numbers and what he does about them, so
+    # it isn't a bare yes (as rp17). The rack is his own ("आपके rack"), so it isn't a visibility
+    # problem, and the front of the shelf stays in this insight, as in rp03.
+
+  - kind: product_request
+    category: demand               # a flavour customers ask for, not a cheaper pack
+    severity: low                  # a request: college boys ask, and he'd try a few first; as rp01's and rp17's Doritos (low)
+    speaker: shopkeeper
+    phrase: "ते डोरिटोझचं Nacho Cheese आणा ना"
+    skus: [doritos_nacho_cheese, doritos] # "डोरिटोझचं", spelt as the script says (not an alias); either the product or its brand
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]
+    # One insight for lines 016–018. The Sweet Chilli he already stocks is context.

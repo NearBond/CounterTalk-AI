@@ -1,0 +1,32 @@
+# K2 for rp19: a Diwali payout still owed, plain yeses, and a new flavour asked for.
+# Answer key, checked 3 Nov 2026.
+# Set: tuning. Marathi.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov (the Marathi pack keeps its
+# catalog keys, teams and routing).
+# The plain yeses to the rep's leading questions (all well, Kurkure Masala Munch selling, the last
+# delivery on time, the new Lay's rack, the winter scheme) are not insights, nor are "बघू, पुढच्या
+# वेळी" on the Uncle Chipps scheme, "बघू, पुढच्या आठवड्यात सांगतो" on the ten-crate target, the
+# tea, or the order.
+recording: rp19
+insights:
+  - kind: problem
+    category: schemes              # a scheme's payout, not payments (the codebook's excludes)
+    severity: high                 # money owed to the shop: ₹1,800 for 25 cartons bought in October, promised before Diwali and still not paid
+    speaker: shopkeeper
+    phrase: "त्याचे अठराशे रुपये दिवाळीच्या आधी मिळणार होते"
+    skus: [kurkure]                # "कुरकुरेची दिवाळी स्कीम" (line 016)
+    competitors: []
+    scheme: kurkure_diwali_payout
+    teams: [finance]
+    # One insight for lines 016–020: the payout, the distributor waiting on the company, and having
+    # to remind every time (as rp11 kept "having to say it every time" in its insight).
+
+  - kind: product_request
+    category: demand               # a flavour customers ask for, not a cheaper pack
+    severity: low                  # a request: school children ask daily, but he has never stocked it, so nothing is lost yet; as rp01's Doritos and rp11's Sting (low)
+    speaker: shopkeeper
+    phrase: "कुरकुरेचं ते Puffcorn, चीजवालं, ते पाठव"
+    skus: [kurkure_puffcorn, kurkure] # either the product or its brand
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]

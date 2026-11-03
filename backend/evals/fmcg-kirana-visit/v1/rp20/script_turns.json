@@ -1,0 +1,206 @@
+{
+  "recording": "rp20",
+  "title": "A pending credit note, torn cartons, short yeses and one real compliment",
+  "duration_ms": 167299,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "nilesh_mr_conversation"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "rupali_mr_stories"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्कार कदम ताई!",
+      "start_ms": 500,
+      "end_ms": 1540
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "या अमोल भाऊ, या. आज उशीर केलात.",
+      "start_ms": 2456,
+      "end_ms": 5656
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हो, सकाळी गोडाऊनला गेलो होतो. आता थंडी पडायला लागली, नाही?",
+      "start_ms": 6114,
+      "end_ms": 11714
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो ना. बसा, पाणी आणते.",
+      "start_ms": 12657,
+      "end_ms": 15217
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Lay's चा rack नीट लावलाय ना? पुढून लोकांना दिसतोय ना?",
+      "start_ms": 16090,
+      "end_ms": 19770
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो.",
+      "start_ms": 20711,
+      "end_ms": 21031
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आणि Magic Masala चं नवं pack design लोकांना आवडलं असेल ना?",
+      "start_ms": 21812,
+      "end_ms": 26452
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हं, असेल.",
+      "start_ms": 27189,
+      "end_ms": 63909
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आपला नवीन salesman आठवड्यातून एकदा येतो ना?",
+      "start_ms": 64860,
+      "end_ms": 68060
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो हो, येतो.",
+      "start_ms": 69002,
+      "end_ms": 70122
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "छान. बाकी काय म्हणता?",
+      "start_ms": 70589,
+      "end_ms": 72109
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "दोन गोष्टी आहेत. एक तर, मागच्या महिन्याची क्रेडिट नोट अजून मिळाली नाही. साडेतीन हजारांची आहे.",
+      "start_ms": 72654,
+      "end_ms": 79294
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "साडेतीन हजार? मला वाटलं ती मागच्या आठवड्यातच आली.",
+      "start_ms": 79896,
+      "end_ms": 83496
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नाही आली. distributor ला दोनदा विचारलं, तो म्हणतो पुढच्या bill मध्ये. दोन बिलं आली, तरी त्यात काही नाही.",
+      "start_ms": 84188,
+      "end_ms": 93388
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "मी आज संध्याकाळी distributor ला भेटतो आणि उद्या तुम्हाला फोन करतो.",
+      "start_ms": 93685,
+      "end_ms": 96885
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आणि दुसरं, परवाच्या डिलिव्हरीमध्ये कुरकुरेचे दोन carton फाटलेले आले. एक तर पूर्ण ओला होता, tempo मध्ये पाणी गेलं असेल.",
+      "start_ms": 97109,
+      "end_ms": 106469
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अरे बापरे. माल वापरण्यासारखा आहे का?",
+      "start_ms": 107453,
+      "end_ms": 110173
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नाही ना. जवळपास साठ पाकिटं खराब झाली. मी बाजूला काढून ठेवली आहेत, बघा.",
+      "start_ms": 110533,
+      "end_ms": 116293
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बरं, मी फोटो काढून घेतो. पुढच्या डिलिव्हरीत ती बदलून देतो.",
+      "start_ms": 117287,
+      "end_ms": 121207
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "चालेल. पण एक सांगते, Kurkure Chilli Chatka मात्र एकदम जोरात चाललंय. आठवड्याला दोन डबे संपतात, मुलं परत परत येऊन घेतात.",
+      "start_ms": 122071,
+      "end_ms": 132231
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "वा, छान! मग आज Chilli Chatka जास्त टाकू?",
+      "start_ms": 132921,
+      "end_ms": 137161
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, चार डबे टाका. Masala Munch तीन, आणि Lay's Classic Salted दोन.",
+      "start_ms": 137989,
+      "end_ms": 144549
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Uncle Chipps ची दहाला एक free scheme distributor ने सांगितली ना तुम्हाला?",
+      "start_ms": 145398,
+      "end_ms": 150358
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, सांगितली.",
+      "start_ms": 151191,
+      "end_ms": 151991
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक आहे ताई. ऑर्डर झाली: Chilli Chatka चार, Masala Munch तीन, Lay's दोन. क्रेडिट नोट आणि carton दोन्ही मी बघतो.",
+      "start_ms": 152198,
+      "end_ms": 160678
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बघा हं, नक्की. चहा घेणार का?",
+      "start_ms": 161140,
+      "end_ms": 163460
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नको ताई, आज घाई आहे. येतो!",
+      "start_ms": 163859,
+      "end_ms": 166499
+    }
+  ]
+}

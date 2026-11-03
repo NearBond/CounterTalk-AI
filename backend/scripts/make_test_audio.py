@@ -248,9 +248,14 @@ class Request:
     def cache_name(self) -> str:
         # A v3 Hindi request's name is as it was before models and languages could be chosen:
         # rp01–rp10's cache holds.
-        sent = {"model": self.model, "language": self.language, "voice": self.voice}
-        sent |= {"pace": self.pace}
-        sent |= {"sample_rate": SAMPLE_RATE, "text": self.text}
+        sent = {
+            "model": self.model,
+            "language": self.language,
+            "voice": self.voice,
+            "pace": self.pace,
+            "sample_rate": SAMPLE_RATE,
+            "text": self.text,
+        }
         return hashlib.sha256(json.dumps(sent, sort_keys=True).encode()).hexdigest() + ".wav"
 
 

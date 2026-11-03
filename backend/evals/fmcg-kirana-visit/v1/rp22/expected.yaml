@@ -1,0 +1,43 @@
+# K2 for rp22: a dead cooler, cheaper Campa and a salesman who stopped coming, in Hindi and Marathi.
+# Answer key, checked 3 Nov 2026.
+# Set: held back. The rep speaks Hindi, the shopkeeper Marathi.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov (the Marathi pack keeps its
+# catalog keys, teams and routing).
+# "बऱ्याच दिवसांनी आलात" is a greeting: the rep was on leave, which isn't the distributor's
+# salesman skipping the beat. The order is not an insight; "cold drink आता नको, cooler ठीक
+# झाल्यावर" (line 020) belongs to the cooler.
+recording: rp22
+insights:
+  - kind: problem
+    category: visibility
+    severity: medium               # eight days, 10–12 cold-drink customers a day turned away, the complaint unanswered; as rp06's and rp14's coolers (medium); "high" if you count the held-back cold-drink order as a risk to the shop
+    speaker: shopkeeper
+    phrase: "तुमच्या company चा cooler आठ दिवसांपासून बंद आहे"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [trade_marketing]
+    # One insight for lines 006–010 and the cold drinks held out of the order until it's fixed
+    # (line 020), as rp14.
+
+  - kind: competitor_preference    # reason: price (Campa Cola ₹10 against ₹20 for the same Pepsi)
+    category: pricing
+    severity: medium               # customers ask for Campa and she now stocks more of it; as rp18's Campa (medium); "high" if you count it as a risk of losing the shop's cola sales
+    speaker: shopkeeper
+    phrase: "म्हणून मी पण आता कॅम्पाच जास्त ठेवते"
+    skus: [pepsi]                  # she names Pepsi as the one losing out (lines 010, 012), as rp18
+    competitors: [campa_cola, campa] # "Campa Cola", "कॅम्पा": either the product or its brand
+    scheme: null
+    teams: [sales_ops]
+    # One insight for lines 010–014.
+
+  - kind: problem
+    category: servicing            # the distributor's salesman skipping the beat, not a late delivery (the codebook's excludes)
+    severity: medium               # two weeks without a visit, but the shop copes by phoning its orders in; as rp09 (medium)
+    speaker: shopkeeper
+    phrase: "दोन आठवडे झाले, तो आलाच नाही"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [sales_ops]
+    # One insight for lines 016–018.

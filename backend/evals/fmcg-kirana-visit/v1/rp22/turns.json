@@ -1,0 +1,193 @@
+{
+ "version": 1,
+ "recording": "rp22",
+ "org_pack": {
+  "id": "pepsico-india-demo",
+  "version": 1
+ },
+ "visited_at": "2026-11-03T07:51:55.156770+00:00",
+ "transcript": {
+  "provider": "meta",
+  "model": "muse-voice-transcribe-1.0",
+  "language_code": "hi,en,mr"
+ },
+ "roles": {
+  "playbook": {
+   "id": "fmcg-kirana-visit",
+   "version": 1
+  },
+  "speakers": {
+   "c0:A": {
+    "role": "rep",
+    "confidence": 0.99
+   },
+   "c0:B": {
+    "role": "shopkeeper",
+    "confidence": 0.99
+   }
+  }
+ },
+ "turns": [
+  {
+   "turn_id": 0,
+   "label": "c0:A",
+   "start_ms": 220,
+   "end_ms": 2540,
+   "text": "नमस्ते गायकवाड ताई"
+  },
+  {
+   "turn_id": 1,
+   "label": "c0:B",
+   "start_ms": 2620,
+   "end_ms": 5900,
+   "text": "या या राकेश भाऊ, बर्याच दिवसांनी आलात."
+  },
+  {
+   "turn_id": 2,
+   "label": "c0:A",
+   "start_ms": 5980,
+   "end_ms": 9740,
+   "text": "हा ताई, बीच में छुट्टी पे था, गाँव गया था."
+  },
+  {
+   "turn_id": 3,
+   "label": "c0:B",
+   "start_ms": 9820,
+   "end_ms": 12940,
+   "text": "बरं झालं, घरी सगळे सगळे वऱ्या आहेत ना?"
+  },
+  {
+   "turn_id": 4,
+   "label": "c0:A",
+   "start_ms": 13260,
+   "end_ms": 16300,
+   "text": "हाँ, सब बढ़िया. और यहाँ क्या हाल है?"
+  },
+  {
+   "turn_id": 5,
+   "label": "c0:B",
+   "start_ms": 16300,
+   "end_ms": 23260,
+   "text": "हाल काय सांगू, तुमच्या कंपनीचा कुलर, आठ दिवसांपासून बंद आहे, थंडच होत नाही."
+  },
+  {
+   "turn_id": 6,
+   "label": "c0:A",
+   "start_ms": 23500,
+   "end_ms": 26540,
+   "text": "आठ दिन से कंप्लेंट डाली थी,"
+  },
+  {
+   "turn_id": 7,
+   "label": "c0:B",
+   "start_ms": 26860,
+   "end_ms": 34380,
+   "text": "हो, डिस्ट्रिब्युटरला सांगितलं, सांगितलं, कोणीच आलंच नाही, रोज दहा बारा ग्राहक थंड पाहिजे म्हणून परत जातात"
+  },
+  {
+   "turn_id": 8,
+   "label": "c0:A",
+   "start_ms": 34620,
+   "end_ms": 39020,
+   "text": "ये तो बड़ा नुकसान है, मैं आज ही सर्विस वालों को एस्केलेट करता हूँ"
+  },
+  {
+   "turn_id": 9,
+   "label": "c0:B",
+   "start_ms": 39260,
+   "end_ms": 44300,
+   "text": "करा लवकर करा आणि पेप्सीचं पण सांगते आता लोक Campa घेतात"
+  },
+  {
+   "turn_id": 10,
+   "label": "c0:A",
+   "start_ms": 44300,
+   "end_ms": 45820,
+   "text": "Campa क्यों"
+  },
+  {
+   "turn_id": 11,
+   "label": "c0:B",
+   "start_ms": 45900,
+   "end_ms": 56220,
+   "text": "स्वस्त आहे ना Campa CocaCola ची बाटली दहा रुपयांना आणि तेवढीच Pepsi वीसला गिऱ्हाईक सरळ Campa मागत म्हणून मी पण आता Campa जास्त ठेवते"
+  },
+  {
+   "turn_id": 12,
+   "label": "c0:A",
+   "start_ms": 56700,
+   "end_ms": 59900,
+   "text": "पर Pepsi का टेस्ट अलग है ना लोग वापस आएंगे"
+  },
+  {
+   "turn_id": 13,
+   "label": "c0:B",
+   "start_ms": 59980,
+   "end_ms": 62780,
+   "text": "असेल पण इथे लोक आधी दहा रुपये बघतात"
+  },
+  {
+   "turn_id": 14,
+   "label": "c0:A",
+   "start_ms": 63340,
+   "end_ms": 66860,
+   "text": "ठीक है ये बात मैं ऊपर बताता हूँ और कुछ?"
+  },
+  {
+   "turn_id": 15,
+   "label": "c0:B",
+   "start_ms": 67260,
+   "end_ms": 77900,
+   "text": "ओ तुमच्या डिस्ट्रिब्युटरचा सेल्समॅन दोन आठवडे झाले तो आलाच नाही आधी दर मंगळवारी यायचा आता पत्ताच नाही मलाच फोन करून ऑर्डर द्यावी लागते"
+  },
+  {
+   "turn_id": 16,
+   "label": "c0:A",
+   "start_ms": 78060,
+   "end_ms": 82940,
+   "text": "दो हफ्ते मैं डिस्ट्रिब्यूटर से बात करता हूँ शायद उसका बीट बदल बदल गया हो"
+  },
+  {
+   "turn_id": 17,
+   "label": "c0:B",
+   "start_ms": 83100,
+   "end_ms": 86860,
+   "text": "काहीही असो आठवड्यातून एकदा दा तरी आलाच पाहिजे"
+  },
+  {
+   "turn_id": 18,
+   "label": "c0:A",
+   "start_ms": 87580,
+   "end_ms": 91420,
+   "text": "बिल्कुल आज का ऑर्डर बता दीजिए मैं ही लिख लेता हूँ"
+  },
+  {
+   "turn_id": 19,
+   "label": "c0:B",
+   "start_ms": 91580,
+   "end_ms": 102860,
+   "text": "Kurkure Masala Munch, तीन डबे, डबे, Lay's Chile Limon, दोन, आणि Aquafina, एक कार्टन, कोल्ड ड्रिंक आता नको, कूलर ठीक झाल्यावर,"
+  },
+  {
+   "turn_id": 20,
+   "label": "c0:A",
+   "start_ms": 103180,
+   "end_ms": 110620,
+   "text": "ठीक है तो Masala Munch तीन Chile Limon दो Aquafina Aquafina एक कार्टन कूलर वाले को मैं कल तक भेजता हूँ"
+  },
+  {
+   "turn_id": 21,
+   "label": "c0:B",
+   "start_ms": 110700,
+   "end_ms": 113820,
+   "text": "बघा नक्की नमस्कार"
+  },
+  {
+   "turn_id": 22,
+   "label": "c0:A",
+   "start_ms": 113980,
+   "end_ms": 114860,
+   "text": "नमस्ते ताई"
+  }
+ ]
+}

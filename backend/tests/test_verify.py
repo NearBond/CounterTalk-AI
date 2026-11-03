@@ -409,7 +409,9 @@ def test_a_hindi_visit_is_normalised_as_before() -> None:
         ("नव्व्याण्णव पेटी", "99 पेटी"),
         ("चौऱ्याहत्तर", "74"),
         ("चौर्याहत्तर", "74"),
-        ("साडे तीन", "साडेतीन"),  # a fraction on its own stays words
+        ("साडे तीन", "साडे 3"),  # a fraction on its own stays words, its number not
+        ("दोन हजार, साडेतीन किलो", "2000 साडेतीन किलो"),  # cut back to what is whole
+        ("पाचशे, दीड किलो", "500 दीड किलो"),
         ("सव्वा", "सव्वा"),
         ("पावणे", "पावणे"),
     ],
@@ -449,3 +451,18 @@ def test_no_word_is_two_numbers_or_two_kinds_of_number_word() -> None:
     for i, one in enumerate(kinds):
         for other in kinds[i + 1 :]:
             assert one & other == set()
+
+
+@pytest.mark.parametrize(
+    ("said", "quoted", "found"),
+    [
+        ("साडे तीन किलो चिप्स पाठवा", "तीन किलो चिप्स पाठवा", "तीन किलो चिप्स पाठवा"),
+        ("दोन हजार, साडेतीन किलो", "दोन हजार", "दोन हजार"),
+    ],
+)
+def test_part_of_a_marathi_amount_can_be_quoted(said: str, quoted: str, found: str) -> None:
+    verified = verify_quote(
+        quoted, 0, Transcript([TurnText(0, "shopkeeper", 0, 5_000, said)], MARATHI)
+    )
+
+    assert (verified.match, verified.quote_final) == ("exact", found)

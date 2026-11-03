@@ -1,0 +1,44 @@
+# K2 for rp20: a pending credit note, torn cartons, short yeses and one real compliment.
+# Answer key, checked 3 Nov 2026.
+# Set: held back. Marathi.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov (the Marathi pack keeps its
+# catalog keys, teams and routing).
+# "हो", "हं, असेल" and "हो हो, येतो" to the rep's leading questions (the Lay's rack, the new Magic
+# Masala pack, the weekly salesman) are agreements, not praise; "हं, असेल" is only a maybe. "आज
+# उशीर केलात" is a greeting. "हो, सांगितली" on the Uncle Chipps scheme and the order are not
+# insights.
+recording: rp20
+insights:
+  - kind: problem
+    category: payments
+    severity: high                 # money owed to the shop: a ₹3,500 credit note from last month, promised "in the next bill" and missing from two bills
+    speaker: shopkeeper
+    phrase: "मागच्या महिन्याची क्रेडिट नोट अजून मिळाली नाही"
+    skus: []
+    competitors: []
+    scheme: null
+    teams: [finance, area_manager] # payments, high: the override adds the area manager
+    # One insight for lines 012–014.
+
+  - kind: problem
+    category: damage               # cartons torn and soaked on the way (the tempo), not a fault in the pack itself
+    severity: medium               # about sixty packets spoiled, and the rep will replace them in the next delivery; as rp02's and rp18's damaged cartons (medium); "high" if you count sixty packets as money owed
+    speaker: shopkeeper
+    phrase: "कुरकुरेचे दोन carton फाटलेले आले"
+    skus: [kurkure]
+    competitors: []
+    scheme: null
+    teams: [distribution]
+    # One insight for lines 016–018.
+
+  - kind: praise
+    category: praise
+    severity: low                  # praise: nothing at risk
+    speaker: shopkeeper
+    phrase: "Kurkure Chilli Chatka मात्र एकदम जोरात चाललंय"
+    skus: [kurkure_chilli_chatka, kurkure] # either the product or its brand
+    competitors: []
+    scheme: null
+    teams: [area_manager]
+    # Said of her own accord, with numbers (two cartons a week, children coming back for more):
+    # not a yes to the rep's question.

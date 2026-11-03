@@ -3,12 +3,12 @@
 from collections.abc import Callable
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
-from countertalk import catalog, jobs, storage
+from countertalk import catalog, jobs, reprocess, storage, transcription
 from countertalk.db import session_scope
 from countertalk.errors import RetryableError
-from countertalk.models import Job, JobKind, JobState, VisitStatus
+from countertalk.models import Job, JobKind, JobState, Visit, VisitStatus
 from countertalk.playbooks import load_org_pack
 from scripts.transcribe_visit import main
 from tests.test_transcription import (
@@ -159,3 +159,21 @@ def test_a_visit_is_heard_in_its_org_pack_s_languages(
     assert main([visit_id, "--yes"], stt=fake) == 0
 
     assert fake.languages == [("hi", "en", "mr")]
+
+
+def test_a_visit_transcribed_again_is_heard_in_its_pack_s_languages_now(org: Org_) -> None:
+    # Its old replies, sent before the pack named Marathi, go as the redo starts: not their hint.
+    with session_scope() as session:
+        catalog.import_org_pack(session, org.org_id, load_org_pack("pepsico-india-demo", 1))
+    visit_id = uploaded_visit(org, 5)
+    transcription.transcribe(visit_id, FakeStt(), languages=("hi", "en"))
+    with session_scope() as session:
+        # As if extracted: in review, its extract job done.
+        session.execute(update(Job).where(Job.visit_id == visit_id).values(state=JobState.DONE))
+        session.execute(update(Visit).where(Visit.id == visit_id).values(status=VisitStatus.REVIEW))
+        reprocess.reprocess(session, org.org_id, visit_id, "transcribe")
+    again = FakeStt()
+
+    assert main([visit_id, "--yes"], stt=again) == 0
+
+    assert again.languages == [("hi", "en", "mr")]

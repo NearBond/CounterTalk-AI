@@ -1,0 +1,178 @@
+{
+  "recording": "rp22",
+  "title": "A dead cooler, cheaper Campa and a salesman who stopped coming, in Hindi and Marathi",
+  "duration_ms": 115275,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "soham_mr_narration"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "mrunal_mr_narration"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते गायकवाड ताई!",
+      "start_ms": 500,
+      "end_ms": 1700
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "या या राकेश भाऊ. बऱ्याच दिवसांनी आलात.",
+      "start_ms": 2671,
+      "end_ms": 5631
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ ताई, बीच में छुट्टी पे था, गाँव गया था।",
+      "start_ms": 6123,
+      "end_ms": 8923
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बरं झालं. घरी सगळे बरे आहेत ना?",
+      "start_ms": 9793,
+      "end_ms": 12113
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हाँ, सब बढ़िया। और यहाँ क्या हाल है?",
+      "start_ms": 13060,
+      "end_ms": 15540
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हाल काय सांगू. तुमच्या company चा cooler आठ दिवसांपासून बंद आहे. थंडच होत नाही.",
+      "start_ms": 16153,
+      "end_ms": 22473
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आठ दिन से? complaint डाली थी?",
+      "start_ms": 23402,
+      "end_ms": 25642
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, distributor ला सांगितलं. कोणी आलंच नाही. रोज दहा-बारा गिऱ्हाईक थंड पाहिजे म्हणून परत जातात.",
+      "start_ms": 26642,
+      "end_ms": 33922
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ये तो बड़ा नुकसान है। मैं आज ही service वालों को escalate करता हूँ।",
+      "start_ms": 34593,
+      "end_ms": 38753
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "करा, लवकर करा. आणि पेप्सीचं पण सांगते. आता लोक कॅम्पा घेतात.",
+      "start_ms": 39184,
+      "end_ms": 43664
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Campa? क्यों?",
+      "start_ms": 43978,
+      "end_ms": 45338
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "स्वस्त आहे ना. Campa Cola ची बाटली दहा रुपयांना, आणि तेवढीच Pepsi वीसला. गिऱ्हाईक सरळ कॅम्पा मागतं, म्हणून मी पण आता कॅम्पाच जास्त ठेवते.",
+      "start_ms": 45615,
+      "end_ms": 56095
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पर Pepsi का taste अलग है ना, लोग वापस आएँगे।",
+      "start_ms": 56449,
+      "end_ms": 59729
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "असेल, पण इथे लोक आधी दहा रुपये बघतात.",
+      "start_ms": 59966,
+      "end_ms": 62526
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है, ये बात मैं ऊपर बताता हूँ। और कुछ?",
+      "start_ms": 63272,
+      "end_ms": 66152
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, तुमच्या distributor चा salesman. दोन आठवडे झाले, तो आलाच नाही. आधी दर मंगळवारी यायचा, आता पत्ताच नाही. मलाच फोन करून ऑर्डर द्यावी लागते.",
+      "start_ms": 67037,
+      "end_ms": 77357
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दो हफ़्ते? मैं distributor से बात करता हूँ। शायद उसका beat बदल गया हो।",
+      "start_ms": 77984,
+      "end_ms": 82384
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "काहीही असो, आठवड्यातून एकदा तरी आलाच पाहिजे.",
+      "start_ms": 83138,
+      "end_ms": 86578
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बिलकुल। आज का order बता दीजिए, मैं ही लिख लेता हूँ।",
+      "start_ms": 87434,
+      "end_ms": 91114
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Kurkure Masala Munch तीन डबे, Lay's Chile Limon दोन, आणि Aquafina एक carton. cold drink आता नको, cooler ठीक झाल्यावर.",
+      "start_ms": 91588,
+      "end_ms": 102388
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक है। तो Masala Munch तीन, Chile Limon दो, Aquafina एक carton। cooler वाले को मैं कल तक भेजता हूँ।",
+      "start_ms": 103056,
+      "end_ms": 110256
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बघा हं, नक्की. नमस्कार.",
+      "start_ms": 110778,
+      "end_ms": 113178
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्ते ताई!",
+      "start_ms": 113755,
+      "end_ms": 114475
+    }
+  ]
+}

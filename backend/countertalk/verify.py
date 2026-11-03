@@ -406,36 +406,31 @@ def _words(chars: list[tuple[str, Span]]) -> list[Word]:
     return words
 
 
-def _prefixed(words: list[Word], table: NumberWords) -> list[Word]:
-    """A fraction word and the number after it as one word, so "साडे तीन" reads as "साडेतीन"."""
-    if not table.prefixes:
-        return words
-    out: list[Word] = []
-    i = 0
-    while i < len(words):
-        word, spans = words[i]
-        if word in table.prefixes and i + 1 < len(words):
-            joined = word + words[i + 1][0]
-            if joined in table.units or joined in table.hundreds:
-                out.append((joined, spans + words[i + 1][1]))
-                i += 2
-                continue
-        out.append(words[i])
-        i += 1
-    return out
+def _token(words: list[Word], j: int, table: NumberWords) -> tuple[str, int]:
+    """The word at j as a number word, and how many words it takes: a fraction word with the
+    number after it ("साडे तीन" reads as साडेतीन), else the word as it is."""
+    word = words[j][0]
+    if word in table.prefixes and j + 1 < len(words):
+        joined = word + words[j + 1][0]
+        if joined in table.units or joined in table.hundreds:
+            return joined, 2
+    return word, 1
 
 
 def _numbers(words: list[Word], table: NumberWords) -> list[Word]:
     """Runs of number words as digits: "चार हजार पांच सौ" is 4500, "अडीच हजार" 2500. Each digit
-    maps to the whole run. A run that comes to a fraction ("साडेतीन" alone) stays as words: a
-    decimal point is a space here, so its digits would never match."""
+    maps to the whole run. A run that comes to a fraction is cut back to its longest start that
+    is whole ("दोन हजार साडेतीन" is 2000, then साडेतीन); words that never come to one stay as
+    they are ("साडे तीन" is साडे 3): a decimal point is a space here, so its digits would never
+    match."""
     out: list[Word] = []
     i = 0
     while i < len(words):
         total = current = Fraction(0)
         j = i
+        whole: tuple[int, Fraction] | None = None  # where the longest whole run ends, and its value
         while j < len(words):
-            word = words[j][0]
+            word, width = _token(words, j, table)
             unit = table.units.get(word)
             if unit is None and word.isascii() and word.isdigit() and int(word) < 100:
                 # A digit counts as a unit only before what it multiplies: "5 लाख".
@@ -453,12 +448,15 @@ def _numbers(words: list[Word], table: NumberWords) -> list[Word]:
                 current = Fraction(0)
             else:
                 break
-            j += 1
-        if j > i and (total + current).denominator == 1:
-            digits = str((total + current).numerator)
-            run = (words[i][1][0][0], words[j - 1][1][-1][1])
+            j += width
+            if (total + current).denominator == 1:
+                whole = (j, total + current)
+        if whole is not None:
+            end, value = whole
+            digits = str(value.numerator)
+            run = (words[i][1][0][0], words[end - 1][1][-1][1])
             out.append((digits, (run,) * len(digits)))
-            i = j
+            i = end
         else:
             out.append(words[i])
             i += 1
@@ -482,7 +480,7 @@ def normalise(text: str, languages: Sequence[str] = DEFAULT_LANGUAGES) -> Normal
     table = number_words(frozenset(languages))
     # Repeats first, so a doubled number word ("हजार हजार") isn't added into the amount; then
     # again, for a number said twice ("दो दो").
-    kept = _once(_numbers(_prefixed(_once(_words(_characters(text))), table), table))
+    kept = _once(_numbers(_once(_words(_characters(text))), table))
     out: list[str] = []
     out_spans: list[Span] = []
     for n, (word, spans) in enumerate(kept):

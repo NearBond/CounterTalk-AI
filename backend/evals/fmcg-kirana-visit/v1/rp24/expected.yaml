@@ -1,0 +1,42 @@
+# K2 for rp24: Kurkure gone for days, flat Lay's packets and a festival combo idea, with a customer in between.
+# Answer key, checked 3 Nov 2026.
+# Set: held back. Marathi.
+# Teams follow the PepsiCo India pack's routing as decided on 1 Nov (the Marathi pack keeps its
+# catalog keys, teams and routing).
+# The customer (role "other") asks for Kurkure Green Chutney, takes Bingo Mad Angles instead, buys
+# a Pepsi and asks when Kurkure will come: none of that is an insight, though it shows the
+# stock-out. The sales to him (lines 006, 017, 019), the order and "कुरकुरेची ऑर्डर तर आधीच दिली
+# आहे" are not insights either.
+recording: rp24
+insights:
+  - kind: problem
+    category: supply
+    severity: high                 # her fastest seller ("सगळ्यात जास्त खपणारा माल") out for four days, customers turned away daily, the order given on Monday; as rp09 and rp16 (high)
+    speaker: shopkeeper
+    phrase: "चार दिवसांपासून कुरकुरेचं एकही पाकीट नाही"
+    skus: [kurkure, kurkure_masala_munch, kurkure_chilli_chatka] # the brand, or either variant she names (line 008); Green Chutney is the customer's
+    competitors: []                # Bingo Mad Angles is named only by the customer (line 005), and links take the quote's speaker's own names, as rp14 left the customer's Thums Up unlinked; review: [bingo_mad_angles, bingo] if you'd fold the switch in as rp09 and rp16 did, where the shopkeeper named Bingo herself
+    scheme: null
+    teams: [distribution]
+    # One insight for lines 004, 008–010 and 023.
+
+  - kind: problem
+    category: quality              # air-less, crushed packets: the codebook's quality example, as rp07 and rp12
+    severity: medium               # this week's packets in two flavours, five or six returned by customers; the shop copes; as rp07 and rp12 (medium)
+    speaker: shopkeeper
+    phrase: "या आठवड्यात आलेल्या पाकिटांमध्ये हवाच नाही"
+    skus: [lays_classic_salted, lays_magic_masala, lays] # either flavour she names (line 014), or the brand ("लेझचं", line 012)
+    competitors: []
+    scheme: null
+    teams: [distribution]
+    # One insight for lines 012–014.
+
+  - kind: suggestion
+    category: pricing              # a bundle at a price point (₹50), as rp16's combo; review: "schemes" (a festival promotion, finance) is a fair reading, and the rep says he'll tell trade marketing
+    severity: low                  # a suggestion, no harm
+    speaker: shopkeeper
+    phrase: "दिवाळीत कुरकुरे आणि छोट्या Pepsi चं combo करा"
+    skus: [kurkure, pepsi]
+    competitors: []
+    scheme: null                   # an idea for a new offer, none of the pack's 4 schemes
+    teams: [sales_ops]

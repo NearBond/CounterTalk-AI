@@ -1,0 +1,218 @@
+{
+ "version": 1,
+ "recording": "rp24",
+ "org_pack": {
+  "id": "pepsico-india-demo",
+  "version": 1
+ },
+ "visited_at": "2026-11-03T07:51:55.937907+00:00",
+ "transcript": {
+  "provider": "meta",
+  "model": "muse-voice-transcribe-1.0",
+  "language_code": "hi,en,mr"
+ },
+ "roles": {
+  "playbook": {
+   "id": "fmcg-kirana-visit",
+   "version": 1
+  },
+  "speakers": {
+   "c0:A": {
+    "role": "rep",
+    "confidence": 0.98
+   },
+   "c0:B": {
+    "role": "shopkeeper",
+    "confidence": 0.98
+   },
+   "c0:C": {
+    "role": "other",
+    "confidence": 0.99
+   }
+  }
+ },
+ "turns": [
+  {
+   "turn_id": 0,
+   "label": "c0:A",
+   "start_ms": 300,
+   "end_ms": 2700,
+   "text": "नमस्कार, भोसले काकू,"
+  },
+  {
+   "turn_id": 1,
+   "label": "c0:B",
+   "start_ms": 2700,
+   "end_ms": 5580,
+   "text": "या तुषार भाऊ, एक मिनट गिराए गिराए कहेंगे."
+  },
+  {
+   "turn_id": 2,
+   "label": "c0:C",
+   "start_ms": 5820,
+   "end_ms": 9340,
+   "text": "मोहिनी, दोन Kurkure दे, ते हिरवा, Green Chutney च."
+  },
+  {
+   "turn_id": 3,
+   "label": "c0:B",
+   "start_ms": 9420,
+   "end_ms": 12140,
+   "text": "Kurkure नाहीये हो, कुठलेच नाही."
+  },
+  {
+   "turn_id": 4,
+   "label": "c0:C",
+   "start_ms": 12380,
+   "end_ms": 18300,
+   "text": "अजूनही नाही? मागच्या आठवड्यात पण नव्हतं. बरं मग मग ते Bingo चं Mad angles द्या. या."
+  },
+  {
+   "turn_id": 5,
+   "label": "c0:B",
+   "start_ms": 18380,
+   "end_ms": 19980,
+   "text": "हे घ्या. वीस रुपये."
+  },
+  {
+   "turn_id": 6,
+   "label": "c0:C",
+   "start_ms": 19980,
+   "end_ms": 21980,
+   "text": "हे घ्या. येतो मैनी."
+  },
+  {
+   "turn_id": 7,
+   "label": "c0:B",
+   "start_ms": 22220,
+   "end_ms": 31420,
+   "text": "बघितलंत? चार दिवसांपासून Kurkure चे एकही पॅकेट पॉकेट नाही. Masala Munch नाही, Chilli Chatka नाही, रोज लोक विचारून परत जातात."
+  },
+  {
+   "turn_id": 8,
+   "label": "c0:A",
+   "start_ms": 31500,
+   "end_ms": 34220,
+   "text": "चार दिवस ऑर्डर तर दिली होती ना?"
+  },
+  {
+   "turn_id": 9,
+   "label": "c0:B",
+   "start_ms": 34300,
+   "end_ms": 41500,
+   "text": "सोमवारी दिली होती, डिस्ट्रिब्यूटर म्हणतो गाडी आली नाही आणि माझा सगळ्यात जास्त खपणारा माल तोच आहे."
+  },
+  {
+   "turn_id": 10,
+   "label": "c0:A",
+   "start_ms": 41660,
+   "end_ms": 46620,
+   "text": "मी आत्ताच डिस्ट्रिब्यूटरला फोन करतो उद्यापर्यंत माल पाठवायला सांगतो."
+  },
+  {
+   "turn_id": 11,
+   "label": "c0:B",
+   "start_ms": 46780,
+   "end_ms": 54060,
+   "text": "करा आणि Lay's चं पण बघा या आठवड्यात आलेल्या पॅकेटांमध्ये हवाच नाही आज सगळ्यात सुरा"
+  },
+  {
+   "turn_id": 12,
+   "label": "c0:A",
+   "start_ms": 54300,
+   "end_ms": 55820,
+   "text": "कुठला फ्लेवर"
+  },
+  {
+   "turn_id": 13,
+   "label": "c0:B",
+   "start_ms": 56140,
+   "end_ms": 63260,
+   "text": "Classic Salted आणि Magic Masala दोन्ही पाच सहा सहा पॅकेट गिरायकांनी परत आणून दिली हे बघा हे"
+  },
+  {
+   "turn_id": 14,
+   "label": "c0:A",
+   "start_ms": 63340,
+   "end_ms": 69020,
+   "text": "हो, अगदी सपाट झालंय. मी फोटो घेतो आणि बॅच नंबर लिहून लिहून घेतो."
+  },
+  {
+   "turn_id": 15,
+   "label": "c0:C",
+   "start_ms": 69180,
+   "end_ms": 73260,
+   "text": "वोइनी, परत आलो, एक मोठी Pepsi द्या हो."
+  },
+  {
+   "turn_id": 16,
+   "label": "c0:B",
+   "start_ms": 73340,
+   "end_ms": 74940,
+   "text": "ही घ्या, शंभर रुपये."
+  },
+  {
+   "turn_id": 17,
+   "label": "c0:C",
+   "start_ms": 75020,
+   "end_ms": 78460,
+   "text": "Kurkure कधी येणार हो? नातवाला पाहिजे."
+  },
+  {
+   "turn_id": 18,
+   "label": "c0:B",
+   "start_ms": 78540,
+   "end_ms": 80860,
+   "text": "उद्या येईल बहुतेक, उद्या या."
+  },
+  {
+   "turn_id": 19,
+   "label": "c0:A",
+   "start_ms": 81020,
+   "end_ms": 84860,
+   "text": "काकू, Kurkure आणि Lay's दोन्ही मी आज लिहून देतो."
+  },
+  {
+   "turn_id": 20,
+   "label": "c0:B",
+   "start_ms": 84940,
+   "end_ms": 94620,
+   "text": "आणि एक सुचवू का, दिवाळी येत Kurkure आणि छोट्या Pepsi च कॉम्बो करा, दोन्ही मिळून पन्नास रुपयात लोक पाहुण्यांसाठी घेऊन जातील चांगलं खपेल"
+  },
+  {
+   "turn_id": 21,
+   "label": "c0:A",
+   "start_ms": 95020,
+   "end_ms": 100700,
+   "text": "चांगली आयडिया आहे मी ट्रेड मार्केटिंगला सांगतो सांगतो आजची ऑर्डर काय लिहू"
+  },
+  {
+   "turn_id": 22,
+   "label": "c0:B",
+   "start_ms": 100780,
+   "end_ms": 108220,
+   "text": "आज Lay's Chile Limon दोन दोन डबे आणि Pepsi दोन क्रेट Kurkure ची ऑर्डर तर आधीच दिली आहे"
+  },
+  {
+   "turn_id": 23,
+   "label": "c0:A",
+   "start_ms": 108540,
+   "end_ms": 114220,
+   "text": "ठीक आहे Chile Limon Pepsi दोन क्रेट Kurkure च मी स्वतः बघतो"
+  },
+  {
+   "turn_id": 24,
+   "label": "c0:B",
+   "start_ms": 114540,
+   "end_ms": 116300,
+   "text": "बरं नमस्कार"
+  },
+  {
+   "turn_id": 25,
+   "label": "c0:A",
+   "start_ms": 116460,
+   "end_ms": 117740,
+   "text": "नमस्कार काकू"
+  }
+ ]
+}

@@ -97,7 +97,9 @@ def dry_run(visit_id: str, stt: SpeechToText, languages: tuple[str, ...]) -> int
     return 0
 
 
-def run(visit_id: str, stt: SpeechToText, languages: tuple[str, ...]) -> int:
+def run(visit_id: str, stt: SpeechToText, languages: tuple[str, ...] | None) -> int:
+    """The job, the worker's way: with `languages` None, the hint is worked out as the
+    worker does, after a redo has removed the replies it replaces."""
     runner = worker.Worker(handlers={JobKind.TRANSCRIBE: worker.transcribe_with(stt, languages)})
     with session_scope() as session:
         job = jobs.claim_for_visit(session, runner.id, visit_id, JobKind.TRANSCRIBE)
@@ -164,7 +166,7 @@ def main(argv: list[str], stt: SpeechToText | None = None) -> int:
         languages = () if args.no_language_bias else hint_for(visit_id)
         if not args.yes:
             return dry_run(visit_id, stt, languages)
-        return run(visit_id, stt, languages)
+        return run(visit_id, stt, () if args.no_language_bias else None)
     except DomainError as error:
         print(f"failed: {describe(error)}", file=sys.stderr)
         return 1

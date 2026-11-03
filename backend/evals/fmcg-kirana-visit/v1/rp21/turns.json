@@ -1,0 +1,207 @@
+{
+ "version": 1,
+ "recording": "rp21",
+ "org_pack": {
+  "id": "pepsico-india-demo",
+  "version": 1
+ },
+ "visited_at": "2026-11-03T07:51:54.762927+00:00",
+ "transcript": {
+  "provider": "meta",
+  "model": "muse-voice-transcribe-1.0",
+  "language_code": "hi,en,mr"
+ },
+ "roles": {
+  "playbook": {
+   "id": "fmcg-kirana-visit",
+   "version": 1
+  },
+  "speakers": {
+   "c0:A": {
+    "role": "rep",
+    "confidence": 0.99
+   },
+   "c0:B": {
+    "role": "shopkeeper",
+    "confidence": 0.99
+   }
+  }
+ },
+ "turns": [
+  {
+   "turn_id": 0,
+   "label": "c0:A",
+   "start_ms": 220,
+   "end_ms": 3180,
+   "text": "नमस्ते जाधव जी, कैसे हैं आप?"
+  },
+  {
+   "turn_id": 1,
+   "label": "c0:B",
+   "start_ms": 3180,
+   "end_ms": 6220,
+   "text": "Yeah madam, yeah, मजे. बसा."
+  },
+  {
+   "turn_id": 2,
+   "label": "c0:A",
+   "start_ms": 6460,
+   "end_ms": 10140,
+   "text": "आज बहुत ट्रैफिक था. आधा घंटा तो सिग्नल पे ही खड़ी रही. रही."
+  },
+  {
+   "turn_id": 3,
+   "label": "c0:B",
+   "start_ms": 10300,
+   "end_ms": 13980,
+   "text": "ओह, सध्या दिवाळीमुळे सगळीकडे गर्दी आहे."
+  },
+  {
+   "turn_id": 4,
+   "label": "c0:A",
+   "start_ms": 14140,
+   "end_ms": 18940,
+   "text": "और बताइए, Kurkure, Lay's सब ठीक चल रहा है?"
+  },
+  {
+   "turn_id": 5,
+   "label": "c0:B",
+   "start_ms": 19260,
+   "end_ms": 31660,
+   "text": "चालतंय. पण Lay's चं एक सांगायचं होतं मागच्या ऑर्डरमध्ये Magic Masala चे सहा डबे सांगितले होते आले फक्त तीन"
+  },
+  {
+   "turn_id": 6,
+   "label": "c0:A",
+   "start_ms": 31900,
+   "end_ms": 34220,
+   "text": "सिर्फ तीन बिल कितने का बना था"
+  },
+  {
+   "turn_id": 7,
+   "label": "c0:B",
+   "start_ms": 34380,
+   "end_ms": 40060,
+   "text": "बिल तीनसच दिलं पण मला सहा पाहिजे होते ना डिस्ट्रीब्युटर म्हणतो वरूनच माल कमी आला आहे"
+  },
+  {
+   "turn_id": 8,
+   "label": "c0:A",
+   "start_ms": 40060,
+   "end_ms": 44300,
+   "text": "ठीक है मैं डिस्ट्रीब्यूटर से पूछती हूँ कि बाकी तीन कब आएंगे"
+  },
+  {
+   "turn_id": 9,
+   "label": "c0:B",
+   "start_ms": 45580,
+   "end_ms": 49100,
+   "text": "बघा दिवाळी जास्त लागणार आहे"
+  },
+  {
+   "turn_id": 10,
+   "label": "c0:A",
+   "start_ms": 49420,
+   "end_ms": 53820,
+   "text": "और आजकल आपके रैक पे आगे Bingo ज्यादा दिख रहा है"
+  },
+  {
+   "turn_id": 11,
+   "label": "c0:B",
+   "start_ms": 53900,
+   "end_ms": 61420,
+   "text": "हो Bingo वाले Bingo वाले मला बारा टक्के मार्जिन देतात तुमचं आठ टक्केच आहे मॅडंगल्स पुढे ठेवणार ना"
+  },
+  {
+   "turn_id": 12,
+   "label": "c0:A",
+   "start_ms": 61500,
+   "end_ms": 64860,
+   "text": "पर Kurkure तो कस्टमर खुद मांगते हैं."
+  },
+  {
+   "turn_id": 13,
+   "label": "c0:B",
+   "start_ms": 64940,
+   "end_ms": 72700,
+   "text": "मग पण Bingo वर माझे जास्त पैसे सुटतात, एका डब्यामागे जवळपास चाळीस रुपये जास्त"
+  },
+  {
+   "turn_id": 14,
+   "label": "c0:A",
+   "start_ms": 72860,
+   "end_ms": 77740,
+   "text": "ठीक है, मार्जिन की बात मैं अपने एरिया मैनेजर को बताती हूँ."
+  },
+  {
+   "turn_id": 15,
+   "label": "c0:B",
+   "start_ms": 77980,
+   "end_ms": 90940,
+   "text": "सांगा आणि अजून एक ते Doritos Nacho Cheese आणा ना कॉलेजची पोरं विचारतात माझ्याकडे फक्त Sweet Chilli आहे"
+  },
+  {
+   "turn_id": 16,
+   "label": "c0:A",
+   "start_ms": 91180,
+   "end_ms": 96300,
+   "text": "Nacho Cheese? अच्छा, मैं चेक करती हूँ डिस्ट्रीब्यूटर के पास है या नहीं नहीं"
+  },
+  {
+   "turn_id": 17,
+   "label": "c0:B",
+   "start_ms": 96460,
+   "end_ms": 99900,
+   "text": "आधी थोड़े आणून बघा चाललं तर जास्त घेईन"
+  },
+  {
+   "turn_id": 18,
+   "label": "c0:A",
+   "start_ms": 99900,
+   "end_ms": 102700,
+   "text": "ठीक है आज का ऑर्डर बता दीजिए"
+  },
+  {
+   "turn_id": 19,
+   "label": "c0:B",
+   "start_ms": 102780,
+   "end_ms": 112220,
+   "text": "Kurkure Masala Munch चार डबे Lay's Classic Salted दोन आणि Magic Masala जेवढे मिळतील तेवढे"
+  },
+  {
+   "turn_id": 20,
+   "label": "c0:A",
+   "start_ms": 112380,
+   "end_ms": 118460,
+   "text": "और Pepsi पे winter scheme है दस क्रेट पे offer लगा दूँ दूँ"
+  },
+  {
+   "turn_id": 21,
+   "label": "c0:B",
+   "start_ms": 118860,
+   "end_ms": 119820,
+   "text": "फुटच्या वेळी बघू"
+  },
+  {
+   "turn_id": 22,
+   "label": "c0:A",
+   "start_ms": 119980,
+   "end_ms": 130780,
+   "text": "ठीक है जाधव जी जाधव जी तो ऑर्डर हुआ मसाला मंच चार Classic Salted दो और Magic Masala जितने मिले बाकी बातें मैं आगे आगे बताती हूँ"
+  },
+  {
+   "turn_id": 23,
+   "label": "c0:B",
+   "start_ms": 130860,
+   "end_ms": 132220,
+   "text": "ठीक है मैडम"
+  },
+  {
+   "turn_id": 24,
+   "label": "c0:A",
+   "start_ms": 142620,
+   "end_ms": 144220,
+   "text": "नमस्ते जाधव जी"
+  }
+ ]
+}

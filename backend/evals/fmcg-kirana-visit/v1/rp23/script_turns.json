@@ -1,0 +1,213 @@
+{
+  "recording": "rp23",
+  "title": "A routine visit: last night's match, Diwali and the usual order",
+  "duration_ms": 115287,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "ritu_mr_narration"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "mukul_mr_stories"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्कार जोशी काका!",
+      "start_ms": 500,
+      "end_ms": 1860
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ये पल्लवी, ये. आज लवकर?",
+      "start_ms": 2854,
+      "end_ms": 5094
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हो, आज या भागातली सगळी दुकानं करायची आहेत. काल रात्रीची match बघितली का?",
+      "start_ms": 5497,
+      "end_ms": 11337
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बघितली तर! शेवटच्या over पर्यंत जीव टांगणीला लागला होता.",
+      "start_ms": 12168,
+      "end_ms": 16008
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हो ना, मी तर शेवटच्या दोन over ला उभीच होते.",
+      "start_ms": 16606,
+      "end_ms": 19806
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आमचा नातू तर टीव्हीसमोर नाचायलाच लागला.",
+      "start_ms": 20388,
+      "end_ms": 22628
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "किती वर्षांचा आहे तो?",
+      "start_ms": 23117,
+      "end_ms": 24397
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "सात वर्षांचा. आता रोज संध्याकाळी bat घेऊन खाली खेळायला जातो.",
+      "start_ms": 25056,
+      "end_ms": 29136
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "दिवाळीची तयारी कुठपर्यंत आली?",
+      "start_ms": 29825,
+      "end_ms": 31745
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "चाललीय. सूनबाईने चकल्या, लाडू, करंज्या सगळं केलंय. कंदील आणि पणत्या उद्या लावणार.",
+      "start_ms": 32351,
+      "end_ms": 38911
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "वा! आमच्याकडे पण आई फराळ करतेय, माझं काम फक्त खायचं. आणि आता थंडी पण पडायला लागली.",
+      "start_ms": 39825,
+      "end_ms": 45665
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, सकाळी फिरायला गेलो की स्वेटर लागतो. आमच्या वयाला थंडी जरा जास्तच जाणवते.",
+      "start_ms": 45878,
+      "end_ms": 51158
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बरं काका, आजची ऑर्डर लिहू?",
+      "start_ms": 51624,
+      "end_ms": 53864
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "लिही. Kurkure Masala Munch तीन डबे, लेझ Classic Salted दोन डबे, आणि Magic Masala दोन.",
+      "start_ms": 54545,
+      "end_ms": 62385
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आणि cold drink?",
+      "start_ms": 63006,
+      "end_ms": 63966
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Pepsi एक crate, Mountain Dew एक crate.",
+      "start_ms": 64744,
+      "end_ms": 68104
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Pepsi आणि Mountain Dew वर winter scheme चालू झाली आहे. distributor ने सांगितलं ना?",
+      "start_ms": 69102,
+      "end_ms": 74142
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, सांगितलं.",
+      "start_ms": 74594,
+      "end_ms": 75794
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Uncle Chipps पण एक डबा टाकू का? दहा carton वर एक free आहे.",
+      "start_ms": 76287,
+      "end_ms": 80047
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "नको, आत्ता नको. पुढच्या वेळी बघू.",
+      "start_ms": 80484,
+      "end_ms": 82804
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक आहे. Kurkure पुढे लावलंय ते छान दिसतंय, नाही?",
+      "start_ms": 83397,
+      "end_ms": 86917
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, ठीक आहे.",
+      "start_ms": 87513,
+      "end_ms": 87913
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आणि मागची डिलिव्हरी सगळी बरोबर आली ना?",
+      "start_ms": 88457,
+      "end_ms": 90937
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, आली.",
+      "start_ms": 91440,
+      "end_ms": 92480
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "छान. मग ऑर्डर अशी: Masala Munch तीन, Classic Salted दोन, Magic Masala दोन, Pepsi एक crate, Dew एक crate. परवा सकाळी डिलिव्हरी येईल.",
+      "start_ms": 92910,
+      "end_ms": 104110
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बरं. दिवाळीला फराळाला ये हं, घरी. सूनबाईच्या चकल्या खाऊन जा.",
+      "start_ms": 104724,
+      "end_ms": 108884
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नक्की येते काका! आधीच दिवाळीच्या शुभेच्छा.",
+      "start_ms": 109183,
+      "end_ms": 112223
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "तुलाही. सावकाश जा.",
+      "start_ms": 112807,
+      "end_ms": 114487
+    }
+  ]
+}

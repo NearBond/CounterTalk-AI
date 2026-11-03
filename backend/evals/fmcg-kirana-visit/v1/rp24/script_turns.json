@@ -1,0 +1,203 @@
+{
+  "recording": "rp24",
+  "title": "Kurkure gone for days, flat Lay's packets and a festival combo idea, with a customer in between",
+  "duration_ms": 118173,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "soham_mr_narration"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "ritu_mr_insurance"
+    },
+    "customer": {
+      "role": "other",
+      "voice": "mukul_mr_stories"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्कार भोसले काकू!",
+      "start_ms": 500,
+      "end_ms": 1860
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "या तुषार भाऊ. एक मिनिट हं, गिऱ्हाईक आहे.",
+      "start_ms": 2526,
+      "end_ms": 5006
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "वहिनी, दोन Kurkure द्या, ते हिरवं, ग्रीन चटनीचं.",
+      "start_ms": 5594,
+      "end_ms": 8874
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Kurkure नाहीये हो. कुठलंच नाही.",
+      "start_ms": 9497,
+      "end_ms": 11897
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "अजूनही नाही? मागच्या आठवड्यात पण नव्हतं. बरं, मग ते Bingo चं Mad Angles द्या.",
+      "start_ms": 12251,
+      "end_ms": 17691
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हे घ्या. वीस रुपये.",
+      "start_ms": 18313,
+      "end_ms": 19753
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "हे घ्या. येतो वहिनी.",
+      "start_ms": 20047,
+      "end_ms": 21487
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बघितलंत? चार दिवसांपासून कुरकुरेचं एकही पाकीट नाही. Masala Munch नाही, Chilli Chatka नाही. रोज लोक विचारून परत जातात.",
+      "start_ms": 22042,
+      "end_ms": 30362
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "चार दिवस? ऑर्डर तर दिली होती ना?",
+      "start_ms": 31229,
+      "end_ms": 33709
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "सोमवारीच दिली होती. distributor म्हणतो गाडी आली नाही. आणि माझा सगळ्यात जास्त खपणारा माल तोच आहे.",
+      "start_ms": 34200,
+      "end_ms": 40760
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "मी आत्ताच distributor ला फोन करतो. उद्यापर्यंत माल पाठवायला सांगतो.",
+      "start_ms": 41491,
+      "end_ms": 45731
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "करा. आणि लेझचं पण बघा. या आठवड्यात आलेल्या पाकिटांमध्ये हवाच नाही. आत सगळा चुरा.",
+      "start_ms": 46670,
+      "end_ms": 53310
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "कुठला flavour?",
+      "start_ms": 54129,
+      "end_ms": 55009
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "Classic Salted आणि Magic Masala, दोन्ही. पाच-सहा पाकिटं गिऱ्हाईकांनी परत आणून दिली. हे बघा, हे एक.",
+      "start_ms": 55925,
+      "end_ms": 62725
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हो, अगदी सपाट झालंय. मी फोटो घेतो आणि batch number लिहून घेतो.",
+      "start_ms": 63501,
+      "end_ms": 68621
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "वहिनी, परत आलो. एक मोठी Pepsi द्या हो.",
+      "start_ms": 69171,
+      "end_ms": 72771
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ही घ्या. शंभर रुपये.",
+      "start_ms": 73271,
+      "end_ms": 74791
+    },
+    {
+      "speaker": "customer",
+      "role": "other",
+      "text": "Kurkure कधी येणार हो? नातवाला पाहिजे.",
+      "start_ms": 75019,
+      "end_ms": 77659
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "उद्या येईल बहुतेक. उद्या या.",
+      "start_ms": 78471,
+      "end_ms": 80151
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "काकू, Kurkure आणि Lay's दोन्ही मी आज लिहून देतो.",
+      "start_ms": 80800,
+      "end_ms": 84080
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आणि एक सुचवू का? दिवाळीत कुरकुरे आणि छोट्या Pepsi चं combo करा. दोन्ही मिळून पन्नास रुपयांत. लोक पाहुण्यांसाठी घेऊन जातील, चांगलं खपेल.",
+      "start_ms": 84828,
+      "end_ms": 94348
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "चांगली idea आहे, मी trade marketing ला सांगतो. आजची ऑर्डर काय लिहू?",
+      "start_ms": 94831,
+      "end_ms": 99631
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "आज Lay's Chile Limon दोन डबे आणि Pepsi दोन crate. कुरकुरेची ऑर्डर तर आधीच दिली आहे.",
+      "start_ms": 100611,
+      "end_ms": 107731
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक आहे. Chile Limon दोन, Pepsi दोन crate. कुरकुरेचं मी स्वतः बघतो.",
+      "start_ms": 108398,
+      "end_ms": 113518
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बरं. नमस्कार.",
+      "start_ms": 114283,
+      "end_ms": 115563
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्कार काकू!",
+      "start_ms": 116413,
+      "end_ms": 117373
+    }
+  ]
+}

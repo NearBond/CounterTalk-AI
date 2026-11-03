@@ -1,0 +1,227 @@
+{
+  "recording": "rp19",
+  "title": "A Diwali payout still owed, plain yeses, and a new flavour asked for",
+  "duration_ms": 126109,
+  "speakers": {
+    "rep": {
+      "role": "rep",
+      "voice": "ishita_mr_conversational"
+    },
+    "shopkeeper": {
+      "role": "shopkeeper",
+      "voice": "mukul_mr_stories"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नमस्कार देशमुख काका! कसे आहात?",
+      "start_ms": 500,
+      "end_ms": 2580
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "ये ये स्नेहल, बस. मजेत आहे.",
+      "start_ms": 2805,
+      "end_ms": 6725
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आज लवकर आले, बाकीची दुकानं नंतर करणार आहे. सगळं ठीक चाललंय ना?",
+      "start_ms": 7634,
+      "end_ms": 12834
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, ठीक आहे.",
+      "start_ms": 13179,
+      "end_ms": 13579
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Kurkure Masala Munch छान चाललंय ना?",
+      "start_ms": 13794,
+      "end_ms": 17154
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, ठीक आहे.",
+      "start_ms": 18126,
+      "end_ms": 18526
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आणि मागची डिलिव्हरी वेळेवर आली होती ना?",
+      "start_ms": 19509,
+      "end_ms": 21669
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, आली होती.",
+      "start_ms": 22234,
+      "end_ms": 23514
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "लेझचा नवा rack लावलाय, छान दिसतोय ना?",
+      "start_ms": 23906,
+      "end_ms": 26786
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, ठीक आहे.",
+      "start_ms": 27553,
+      "end_ms": 27953
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बरं. मग आजची ऑर्डर लिहून घेऊ?",
+      "start_ms": 28480,
+      "end_ms": 30560
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "लिही. Kurkure Masala Munch चार डबे, Lay's Classic Salted तीन डबे, आणि Lay's Magic Masala दोन डबे.",
+      "start_ms": 30935,
+      "end_ms": 38215
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Uncle Chipps वर दहा carton ला एक free अशी scheme चालू आहे. घेऊन बघता का?",
+      "start_ms": 38748,
+      "end_ms": 44748
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बघू, पुढच्या वेळी. पण एक महत्त्वाचं सांगायचं होतं.",
+      "start_ms": 45730,
+      "end_ms": 48850
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "हो, बोला ना काका.",
+      "start_ms": 49128,
+      "end_ms": 50248
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "कुरकुरेची दिवाळी स्कीम होती ना? मी ऑक्टोबरमध्ये पंचवीस डबे घेतले. त्याचे अठराशे रुपये दिवाळीच्या आधी मिळणार होते. अजून काहीच आलं नाही.",
+      "start_ms": 50557,
+      "end_ms": 58237
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "अठराशे? distributor ने काहीच कळवलं नाही का?",
+      "start_ms": 59009,
+      "end_ms": 62209
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "तो म्हणतो, company कडून आले की देतो. आता दिवाळी तोंडावर आली, आणि माझे पैसे अडकलेत.",
+      "start_ms": 62687,
+      "end_ms": 67727
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "बरोबर आहे काका. मी आजच office ला कळवते आणि दोन दिवसांत तुम्हाला सांगते.",
+      "start_ms": 68554,
+      "end_ms": 73274
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बघ हं. दर वेळी मीच आठवण करून द्यायची, बरं नाही वाटत.",
+      "start_ms": 73918,
+      "end_ms": 77118
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "नक्की. अजून काही?",
+      "start_ms": 77808,
+      "end_ms": 79168
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, अजून एक. कुरकुरेचं ते Puffcorn, चीजवालं, ते पाठव. शाळेतली मुलं रोज विचारतात. मी कधी ठेवलं नाही, पण आता ठेवायचं आहे.",
+      "start_ms": 79645,
+      "end_ms": 88365
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "Puffcorn, ठीक आहे. distributor कडे आहे का ते बघते.",
+      "start_ms": 88848,
+      "end_ms": 92928
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "आणि Pepsi आणि Mountain Dew वर winter scheme चालू झाली आहे. सांगितलं होतं ना तुम्हाला?",
+      "start_ms": 93339,
+      "end_ms": 100699
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "हो, सांगितलं होतं.",
+      "start_ms": 101481,
+      "end_ms": 102761
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "मग या महिन्यात दहा crate चं target ठेवूया?",
+      "start_ms": 103228,
+      "end_ms": 105948
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बघू, पुढच्या आठवड्यात सांगतो.",
+      "start_ms": 106481,
+      "end_ms": 108321
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "ठीक आहे काका. ऑर्डर झाली: Kurkure चार, Lay's Classic तीन, Magic Masala दोन. आणि पैशांचं मी आजच बघते.",
+      "start_ms": 109305,
+      "end_ms": 118985
+    },
+    {
+      "speaker": "shopkeeper",
+      "role": "shopkeeper",
+      "text": "बरं. चहा घेऊन जा.",
+      "start_ms": 119905,
+      "end_ms": 121345
+    },
+    {
+      "speaker": "rep",
+      "role": "rep",
+      "text": "पुढच्या वेळी नक्की, आज खूप दुकानं आहेत. येते काका!",
+      "start_ms": 122029,
+      "end_ms": 125309
+    }
+  ]
+}

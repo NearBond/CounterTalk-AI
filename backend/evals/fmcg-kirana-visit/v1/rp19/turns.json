@@ -1,0 +1,235 @@
+{
+ "version": 1,
+ "recording": "rp19",
+ "org_pack": {
+  "id": "pepsico-india-demo",
+  "version": 1
+ },
+ "visited_at": "2026-11-03T07:51:53.974089+00:00",
+ "transcript": {
+  "provider": "meta",
+  "model": "muse-voice-transcribe-1.0",
+  "language_code": "hi,en,mr"
+ },
+ "roles": {
+  "playbook": {
+   "id": "fmcg-kirana-visit",
+   "version": 1
+  },
+  "speakers": {
+   "c0:A": {
+    "role": "rep",
+    "confidence": 0.98
+   },
+   "c0:B": {
+    "role": "shopkeeper",
+    "confidence": 0.98
+   }
+  }
+ },
+ "turns": [
+  {
+   "turn_id": 0,
+   "label": "c0:A",
+   "start_ms": 140,
+   "end_ms": 4060,
+   "text": "નમસ્કાર દેશમુક काका, કસે आहात?"
+  },
+  {
+   "turn_id": 1,
+   "label": "c0:B",
+   "start_ms": 4300,
+   "end_ms": 7500,
+   "text": "ये स्नेहाल, बस मजे ते. ते."
+  },
+  {
+   "turn_id": 2,
+   "label": "c0:A",
+   "start_ms": 7740,
+   "end_ms": 12940,
+   "text": "आज लवकर आले? बाकीची दुकानं दुकानं नंतर करणार आहे. सगळं ठीक चाललंय ना?"
+  },
+  {
+   "turn_id": 3,
+   "label": "c0:B",
+   "start_ms": 13100,
+   "end_ms": 13820,
+   "text": "हो,"
+  },
+  {
+   "turn_id": 4,
+   "label": "c0:A",
+   "start_ms": 13980,
+   "end_ms": 17900,
+   "text": "Kurkure Kurkure Masala Munch, छान छान चाललंय ना?"
+  },
+  {
+   "turn_id": 5,
+   "label": "c0:B",
+   "start_ms": 18140,
+   "end_ms": 19340,
+   "text": "हो,"
+  },
+  {
+   "turn_id": 6,
+   "label": "c0:A",
+   "start_ms": 19500,
+   "end_ms": 22060,
+   "text": "आणि मागची डिलिव्हरी वेळेवर आली होती ना?"
+  },
+  {
+   "turn_id": 7,
+   "label": "c0:B",
+   "start_ms": 22140,
+   "end_ms": 23980,
+   "text": "हो, आली होती."
+  },
+  {
+   "turn_id": 8,
+   "label": "c0:A",
+   "start_ms": 24220,
+   "end_ms": 27420,
+   "text": "Lay's चा नवा रॅक लावलाय, छान दिसतोय ना?"
+  },
+  {
+   "turn_id": 9,
+   "label": "c0:B",
+   "start_ms": 27580,
+   "end_ms": 28700,
+   "text": "हो."
+  },
+  {
+   "turn_id": 10,
+   "label": "c0:A",
+   "start_ms": 28700,
+   "end_ms": 31020,
+   "text": "बरं, मग आजची ऑर्डर लिहून घेऊ?"
+  },
+  {
+   "turn_id": 11,
+   "label": "c0:B",
+   "start_ms": 31100,
+   "end_ms": 38620,
+   "text": "लिही, Kurkure Masala Munch चार डबे, Lay's Classic Salted तीन डबे आणि Lay's Magic Masala दोन डबे."
+  },
+  {
+   "turn_id": 12,
+   "label": "c0:A",
+   "start_ms": 38860,
+   "end_ms": 45740,
+   "text": "Uncle Chipps वर दहा कार्टन Lay's free अशी स्कीम चालू आहे, घेऊन बघता का?"
+  },
+  {
+   "turn_id": 13,
+   "label": "c0:B",
+   "start_ms": 45820,
+   "end_ms": 49260,
+   "text": "बघू. पुढच्या वेळी, पण एक महत्त्वाचं सांगायचं होतं,"
+  },
+  {
+   "turn_id": 14,
+   "label": "c0:A",
+   "start_ms": 49260,
+   "end_ms": 50460,
+   "text": "हो, बोला ना काका."
+  },
+  {
+   "turn_id": 15,
+   "label": "c0:B",
+   "start_ms": 50700,
+   "end_ms": 59100,
+   "text": "Kurkure ची दिवाळी स्कीम होती ना, मी ऑक्टोबर मध्ये पंचवीस डबे घेतले, त्याचे अठराशे रुपये दिवाळीच्या आधी मिळणार होते, अजून काही चाल नाही."
+  },
+  {
+   "turn_id": 16,
+   "label": "c0:A",
+   "start_ms": 59260,
+   "end_ms": 62460,
+   "text": "अठराशे, डिस्ट्रिब्यूटरने काहीच कळवलं नाही का?"
+  },
+  {
+   "turn_id": 17,
+   "label": "c0:B",
+   "start_ms": 62780,
+   "end_ms": 68460,
+   "text": "तो म्हणतो कंपनीकडून आले की देतो. आता दिवाळी तोंडावर आली आणि माझे पैसे अडकलेत."
+  },
+  {
+   "turn_id": 18,
+   "label": "c0:A",
+   "start_ms": 68700,
+   "end_ms": 73900,
+   "text": "बरोबर आहे काका, मी आजच ऑफिसला कळवते आणि दोन दिवसात तुम्हाला सांगते."
+  },
+  {
+   "turn_id": 19,
+   "label": "c0:B",
+   "start_ms": 73980,
+   "end_ms": 77740,
+   "text": "बघा, दरवेळी मीच आठवण करून द्यायची बरं नाही वाटत."
+  },
+  {
+   "turn_id": 20,
+   "label": "c0:A",
+   "start_ms": 78060,
+   "end_ms": 79740,
+   "text": "नक्की, अजून काही?"
+  },
+  {
+   "turn_id": 21,
+   "label": "c0:B",
+   "start_ms": 79900,
+   "end_ms": 88620,
+   "text": "हो, अजून एक Kurkure चं ते पफकॉर्न चीझ व्हाल, ते पाठव, शाळेतली मुलं रोज विचारतात, मी कधी ठेवला नाही, पण पण आता ठेवायचा आहे."
+  },
+  {
+   "turn_id": 22,
+   "label": "c0:A",
+   "start_ms": 88860,
+   "end_ms": 100620,
+   "text": "पफकॉर्न, ठीक आहे, डिस्ट्रिब्यूटर कडे आहे का ते बघते. आणि Pepsi आणि Mountain Dew वर winter स्कीम मी चालू झाली आहे. सांगितलं होतं ना तुम्हाला?"
+  },
+  {
+   "turn_id": 23,
+   "label": "c0:B",
+   "start_ms": 101420,
+   "end_ms": 103180,
+   "text": "हो, सांगितलं होतं."
+  },
+  {
+   "turn_id": 24,
+   "label": "c0:A",
+   "start_ms": 103420,
+   "end_ms": 106380,
+   "text": "मग या महिन्यात दहा क्रेटचं टार्गेट ठेवूया."
+  },
+  {
+   "turn_id": 25,
+   "label": "c0:B",
+   "start_ms": 106540,
+   "end_ms": 108780,
+   "text": "बघू, पुढच्या आठवड्यात सांगतो."
+  },
+  {
+   "turn_id": 26,
+   "label": "c0:A",
+   "start_ms": 109180,
+   "end_ms": 119900,
+   "text": "ठीक आहात, काका? ऑर्डर झाली, Kurkure चार, Lay's Classic तीन, Magic Masala दोन आणि पैशांचं मी आजच बघते."
+  },
+  {
+   "turn_id": 27,
+   "label": "c0:B",
+   "start_ms": 120140,
+   "end_ms": 121900,
+   "text": "बरं, चहा घेऊन जा."
+  },
+  {
+   "turn_id": 28,
+   "label": "c0:A",
+   "start_ms": 122140,
+   "end_ms": 125660,
+   "text": "पुढच्या वेळी नक्की आज खूप दुकानं आहेत, येते काका?"
+  }
+ ]
+}
