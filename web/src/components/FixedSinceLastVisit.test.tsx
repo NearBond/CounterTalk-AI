@@ -21,7 +21,7 @@ describe("FixedSinceLastVisit", () => {
     fakeApi({ "GET /api/shops/s1/fixed": () => json(200, { items: [FIXED], next_cursor: null }) });
     render(<FixedSinceLastVisit shopId="s1" />);
 
-    expect(await screen.findByRole("heading", { name: "Fixed since your last visit" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Fixed since the last visit here" })).toBeInTheDocument();
     const [item] = screen.getAllByRole("listitem");
     expect(item).toHaveTextContent("Distribution · 2 Nov 2026");
     expect(item).toHaveTextContent(FIXED.problem);

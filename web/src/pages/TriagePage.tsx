@@ -8,7 +8,7 @@ import { ApiError, assignTeam, audioUrl, getInboxOptions, listTriage } from "../
 import { formatDateTime } from "../lib/format";
 import { usePlayer, usePolling, useSave } from "../lib/hooks";
 import { INBOX_POLL_MS } from "../lib/limits";
-import type { Team, Untriaged } from "../types/api";
+import type { Team, Finding } from "../types/api";
 
 /** `/inbox/triage`: confirmed insights no team was found for (batch 15). Someone gives each a
  * team, and it joins that team's issue. */
@@ -57,7 +57,7 @@ function TriageItem({
   onPlay,
   onAssigned,
 }: {
-  item: Untriaged;
+  item: Finding;
   teams: Team[];
   onPlay: (ms: number) => void;
   onAssigned: () => void;

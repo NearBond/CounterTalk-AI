@@ -11,6 +11,7 @@ import pytest
 from pydantic import BaseModel
 
 from countertalk import limits, narrative, storage, summaries
+from countertalk.api.ask import AskIn, AskOut, ChipOut
 from countertalk.api.auth import MeOut, SignInIn
 from countertalk.api.catalog import (
     AliasIn,
@@ -41,6 +42,7 @@ from countertalk.api.insights import (
     TeamFor,
 )
 from countertalk.api.issues import (
+    FindingOut,
     IssueChange,
     IssueDetailOut,
     IssueOut,
@@ -52,7 +54,6 @@ from countertalk.api.issues import (
     PeriodOut,
     SuggestionOut,
     TeamOut,
-    UntriagedOut,
 )
 from countertalk.api.shops import ShopOut
 from countertalk.api.summaries import (
@@ -112,12 +113,15 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "Team": TeamOut,
     "Named": NamedOut,
     "InboxPeriod": PeriodOut,
+    "AskIn": AskIn,
+    "AskChip": ChipOut,
+    "AskAnswer": AskOut,
     "InboxOptions": OptionsOut,
     "Issue": IssueOut,
     "Member": MemberOut,
     "IssueDetail": IssueDetailOut,
     "IssueChange": IssueChange,
-    "Untriaged": UntriagedOut,
+    "Finding": FindingOut,
     "RouteSeen": RouteSeen,
     "RouteTo": RouteTo,
     "TeamFor": TeamFor,
@@ -194,6 +198,7 @@ def test_the_web_app_mirrors_the_servers_upload_limits() -> None:
         ("SUMMARY_MAX_CHARS", limits.SUMMARY_MAX_CHARS),
         ("RESOLUTION_NOTE_MAX_CHARS", limits.RESOLUTION_NOTE_MAX_CHARS),
         ("PERIOD_FIRST_YEAR", limits.PERIOD_FIRST_YEAR),
+        ("ASK_QUESTION_MAX_CHARS", limits.ASK_QUESTION_MAX_CHARS),
         ("PERIOD_LAST_YEAR", limits.PERIOD_LAST_YEAR),
     ],
 )

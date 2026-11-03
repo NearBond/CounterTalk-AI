@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { routes } from "../App";
 import { FINANCE_MEMBER, type Handler, fakeApi, jsonResponse as json } from "../testUtils";
-import type { InboxOptions, Insight, Issue, IssueDetail, Route, Untriaged } from "../types/api";
+import type { InboxOptions, Insight, Issue, IssueDetail, Route, Finding } from "../types/api";
 
 const OPTIONS: InboxOptions = {
   teams: [
@@ -467,7 +467,7 @@ describe("InboxPage", () => {
 });
 
 describe("TriagePage", () => {
-  const WAITING: Untriaged = {
+  const WAITING: Finding = {
     insight: { ...INSIGHT, id: "i-2", ai_team: null, routes: [], summary_en: "Road work outside the shop." },
     shop_name: "Corner Daily Needs",
     area: "Station Road",

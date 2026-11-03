@@ -297,6 +297,13 @@ CASES = [
     case("GET", "/api/auth/me", at("/api/auth/me"), EVERYONE),
     # Batch 17b: a rep's own counts this month, and only a rep's.
     case("GET", "/api/me/counts", at("/api/me/counts"), REPS),
+    # Batch 17d: a question for the whole org (a team member's: their team's). No key here: 503.
+    case(
+        "POST",
+        "/api/ask",
+        at("/api/ask", json={"question": "Late deliveries?"}),
+        ("first", "second", *WHOLE),
+    ),
     # Everyone: a team member's visit page names its shop.
     case("GET", "/api/shops", at("/api/shops"), EVERYONE),
     # Batch 17b: what's been fixed for a shop since its last visit, for the org's own staff.

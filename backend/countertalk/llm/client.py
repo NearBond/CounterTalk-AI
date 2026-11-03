@@ -39,18 +39,34 @@ GARBLED = "Muse Spark's reply was garbled"
 NOT_OURS = {"OpenAI-Organization": openai.Omit(), "OpenAI-Project": openai.Omit()}
 
 
+def not_configured() -> RetryableError:
+    """A server set up wrong (no MODEL_API_KEY): 503, and a retry works once the key is set."""
+    return RetryableError(
+        "llm_not_configured", "Muse Spark isn't set up on the server (MODEL_API_KEY)"
+    )
+
+
 class MetaLlm:
     provider = "meta"
     model = MODEL
 
-    def __init__(self, api_key: str, *, transport: httpx2.BaseTransport | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        transport: httpx2.BaseTransport | None = None,
+        timeout_ms: int = limits.LLM_TIMEOUT_MS,
+        max_retries: int = limits.LLM_MAX_RETRIES,
+    ) -> None:
+        """A job's waits by default; a request a person waits on (batch 17d's Ask) passes
+        shorter ones."""
         self._client = None
         if api_key:
             self._client = openai.OpenAI(
                 api_key=api_key,
                 base_url=BASE_URL,
-                timeout=limits.LLM_TIMEOUT_MS / 1000,
-                max_retries=limits.LLM_MAX_RETRIES,
+                timeout=timeout_ms / 1000,
+                max_retries=max_retries,
                 http_client=httpx2.Client(transport=transport) if transport else None,
                 # The SDK would send OPENAI_ORG_ID and OPENAI_PROJECT_ID from the environment:
                 # another account's IDs, not Meta's business.
@@ -66,11 +82,7 @@ class MetaLlm:
         claim_lost: threading.Event | None = None,
     ) -> Outcome:
         if self._client is None:
-            # A server set up wrong: a retry works once the key is set.
-            error = RetryableError(
-                "llm_not_configured", "Muse Spark isn't set up on the server (MODEL_API_KEY)"
-            )
-            return Outcome(calls=(), error=error)
+            return Outcome(calls=(), error=not_configured())
         check_schema(schema)  # one that can't be checked is a bug: found before paying
         asked = [{"role": m.role, "content": m.content} for m in messages]
         sent = asked

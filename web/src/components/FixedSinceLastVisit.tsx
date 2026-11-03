@@ -24,7 +24,7 @@ export function FixedSinceLastVisit({ shopId }: { shopId: string }) {
   return (
     <section aria-labelledby="fixed-heading" className="flex flex-col gap-2 rounded-md border border-green-300 bg-green-50 p-3">
       <h2 id="fixed-heading" className="text-lg font-semibold">
-        Fixed since your last visit
+        Fixed since the last visit here
       </h2>
       <ul className="flex flex-col gap-3">
         {items.map((item) => (

@@ -28,7 +28,7 @@ import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from rapidfuzz import fuzz
 from sqlalchemy import select
@@ -224,6 +224,18 @@ def entries(session: Session, org_id: str, *, active_only: bool = True) -> list[
             aliases=tuple(aliases[row.id]),
         )
         for row in items
+    ]
+
+
+def same_brand(item: Any, other: Any) -> list[Any]:
+    """The catalog's family rule, in one place (R1): the same org, kind, company and brand. A
+    brand's item and its products' are one family. `item` and `other` are CatalogItem, an
+    alias of it, or a row."""
+    return [
+        item.org_id == other.org_id,
+        item.kind == other.kind,
+        item.company == other.company,
+        item.brand == other.brand,
     ]
 
 

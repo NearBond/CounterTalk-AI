@@ -338,11 +338,7 @@ def _unambiguous(session: Session, found: CatalogItem, code: str, alias: str | N
 def _family(session: Session, found: CatalogItem) -> list[str]:
     """A product's brand item, or a brand's products: the same company, brand and kind."""
     same = select(CatalogItem.id).where(
-        CatalogItem.org_id == found.org_id,
-        CatalogItem.kind == found.kind,
-        CatalogItem.company == found.company,
-        CatalogItem.brand == found.brand,
-        CatalogItem.id != found.id,
+        *entities.same_brand(CatalogItem, found), CatalogItem.id != found.id
     )
     wanted = (
         CatalogItem.product.is_(None)

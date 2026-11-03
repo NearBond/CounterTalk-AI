@@ -549,6 +549,8 @@ class LlmPurpose(StrEnum):
     SUMMARY = "summary"
     # Batch 15c's merge suggestions, asked in a team summary's job: about it too.
     MERGE = "merge"
+    # Batch 17d's questions: about no visit and no summary.
+    ASK = "ask"
 
 
 # The purposes whose calls are a summary's.
@@ -598,6 +600,26 @@ class LlmCall(Base):
     request_id: Mapped[str | None] = mapped_column(String)
     ok: Mapped[bool]
     error: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class Ask(Base):
+    """One question put to Ask (batch 17d), for its daily limit: never the question (§1.9).
+    Written before its call, so a question whose call failed still counts."""
+
+    __tablename__ = "asks"
+    __table_args__ = (
+        # A user's questions today, at once.
+        Index("ix_asks_user_id_created_at", "user_id", "created_at"),
+        # Only counters: they go with their user.
+        ForeignKeyConstraint(
+            ["org_id", "user_id"], ["users.org_id", "users.id"], ondelete="CASCADE"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
 
 

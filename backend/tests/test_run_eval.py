@@ -15,16 +15,17 @@ from sqlalchemy import func, select
 
 from countertalk import merges, narrative
 from countertalk.db import session_scope
-from countertalk.errors import RetryableError
+from countertalk.errors import PermanentError, RetryableError
 from countertalk.llm import pricing
 from countertalk.llm.base import Outcome
 from countertalk.models import LlmCall, Org, Summary, Visit, VisitStatus
 from countertalk.playbooks import load_org_pack
 from countertalk.routing import decide
-from scripts import run_eval
+from scripts import _ask_eval, run_eval
 from scripts._patterns import short_hash
 from scripts.compare_extraction import Expected, Extracted
 from tests.conftest import ORG_PACK_FIXTURES, PINNED_SETTINGS, TEST_DATABASE
+from tests.test_ask import answer as ask_answer
 from tests.test_extraction import VISITED, answer, insight
 from tests.test_merges import Answer, ByName
 from tests.test_roles import VISIT, FakeLlm, call, tiny
@@ -514,4 +515,115 @@ def test_a_cases_run_and_a_patterns_run_on_one_day_never_share_a_file() -> None:
 def test_patterns_takes_no_cases(capsys: pytest.CaptureFixture[str]) -> None:
     assert run_eval.main(["--patterns", "rp01"]) == 1
 
-    assert capsys.readouterr().err == "--patterns runs K6, not cases: no case names or --cases\n"
+    assert capsys.readouterr().err == (
+        "--patterns and --ask run their own cases: no case names or --cases\n"
+    )
+
+
+# --- Ask's cases (batch 17d) -----------------------------------------------------------------
+
+
+def expected_answers(wrong: str | None = None) -> list[dict[str, Any]]:
+    """Each case's expected filter as Muse Spark's answer; `wrong`'s with another category."""
+    found = []
+    for case in _ask_eval.load_cases():
+        fields = case.expected.model_dump(exclude={"understood"})
+        if not case.expected.understood:
+            found.append(ask_answer(understood=False, reason="Not about the shops."))
+        elif case.name == wrong:
+            found.append(ask_answer(**(fields | {"category": "quality"})))
+        else:
+            found.append(ask_answer(**fields))
+    return found
+
+
+def test_ask_s_dry_run_prices_each_question_and_sends_nothing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert run_eval.main(["--ask"]) == 0
+
+    out = capsys.readouterr().out.splitlines()
+    names = [case.name for case in _ask_eval.load_cases()]
+    assert out[0].startswith(f"Ask's {len(names)} cases on Demo Org (")
+    assert [line.split(":")[0] for line in out[1:-1]] == names
+    assert out[-1].startswith(f"Nothing sent. With --yes: {len(names)} calls, about $")
+    assert calls_made() == 0
+
+
+def test_ask_s_cases_are_scored_field_by_field(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    wrong = "hi-supply-last-week"
+    llm = FakeLlm(*expected_answers(wrong))
+
+    assert run_eval.main(["--ask", "--yes"], llm=llm) == 0
+
+    [results] = (tmp_path / "evals" / "results").glob("*.json")
+    found = json.loads(results.read_text(encoding="utf-8"))
+    total = len(_ask_eval.load_cases())
+    assert results.name == f"{found['date']}-{found['prompt_hash']}-ask.json"
+    assert (found["kind"], found["cases"], found["right"]) == ("ask", total, total - 1)
+    assert found["by_field"]["category"] == {"right": total - 2, "of": total - 1}
+    assert found["by_field"]["area"] == {"right": total - 1, "of": total - 1}
+    [missed] = [r for r in found["results"] if not r["right"]]
+    assert (missed["name"], missed["wrong"]) == (wrong, ["category"])
+    assert found["cost_usd"] == pytest.approx(total * pricing.cost(900, 0, 60))
+    out = capsys.readouterr().out
+    assert f"{wrong}: wrong: category (got 'quality')" in out
+    assert "Paid:" in out
+    with session_scope(read_only=True) as session:
+        assert set(session.scalars(select(LlmCall.purpose))) == {"ask"}
+
+
+def test_an_ask_call_that_fails_for_good_is_its_own_bucket_not_a_refusal(
+    tmp_path: Path,
+) -> None:
+    *understood, _ = expected_answers()
+    refused = Outcome(calls=(call("llm_refused"),), error=PermanentError("llm_refused", "No."))
+    llm = FakeLlm(*understood, refused)  # the off-topic case's call fails
+
+    assert run_eval.main(["--ask", "--yes"], llm=llm) == 0
+
+    [results] = (tmp_path / "evals" / "results").glob("*.json")
+    found = json.loads(results.read_text(encoding="utf-8"))
+    assert found["right"] == len(understood)
+    [failed] = [r for r in found["results"] if not r["right"]]
+    assert (failed["name"], failed["error"], failed["wrong"]) == (
+        "en-off-topic-weather",
+        "llm_refused",
+        ["error"],
+    )
+
+
+def test_an_ask_call_left_to_retry_stops_the_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    llm = FakeLlm(BUSY)
+
+    assert run_eval.main(["--ask", "--yes"], llm=llm) == 1
+
+    assert len(llm.asked) == 1
+    captured = capsys.readouterr()
+    assert captured.err == "en-lays-pricing-old-market: llm_unavailable; no more is sent\n"
+    assert "Paid:" in captured.out
+    assert not (tmp_path / "evals" / "results").exists()
+
+
+def test_an_ask_case_naming_a_key_the_org_hasn_t_is_refused_before_anything_is_sent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    cases = tmp_path / "cases.yaml"
+    cases.write_text(
+        "version: 1\ncases:\n  - {name: odd, language: en, question: 'Pringles?',"
+        " expected: {competitor: pringles}}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(_ask_eval, "CASES", cases)
+    llm = FakeLlm()
+
+    assert run_eval.main(["--ask", "--yes"], llm=llm) == 1
+
+    assert llm.asked == []
+    assert capsys.readouterr().err == (
+        "failed: ask_case: odd: its competitor 'pringles' isn't one of the demo org's\n"
+    )

@@ -5,9 +5,12 @@ paid runs are the planner's.
     uv run python scripts/run_eval.py [rp01 rp02 …] [--yes] [--cases <folder>]
         [--root <folder>] [--playbooks <folder>]
     uv run python scripts/run_eval.py --patterns [--yes] [--root <folder>] [--playbooks <folder>]
+    uv run python scripts/run_eval.py --ask [--yes] [--root <folder>] [--playbooks <folder>]
 
 --patterns runs K6's pattern check instead (batch 15c, scripts/_patterns.py): every team's
-W6 summary, its merge suggestions and narrative, scored against K6.
+W6 summary, its merge suggestions and narrative, scored against K6. --ask runs Ask's cases
+(batch 17d, scripts/_ask_eval.py, evals/ask/v1): each question's filter, on the demo org,
+results in {date}-{prompt_hash}-ask.json.
 
 Only the database countertalk_eval: DATABASE_URL's server, with the name swapped before
 anything connects, created and migrated if need be. A guard refuses any other before a write,
@@ -86,7 +89,7 @@ from countertalk.playbooks import (
 )
 from countertalk.reporting import buckets, share
 from countertalk.transcription import add_transcript
-from scripts import _patterns
+from scripts import _ask_eval, _patterns
 from scripts._paid import (
     Paid,
     Stopped,
@@ -645,6 +648,9 @@ def main(argv: list[str], llm: StructuredLlm | None = None) -> int:
         action="store_true",
         help="the K6 pattern check (batch 15c): merge suggestions and narratives, not cases",
     )
+    parser.add_argument(
+        "--ask", action="store_true", help="Ask's cases (batch 17d): each question's filter"
+    )
     parser.add_argument("--cases", type=Path, default=CASES, help="the eval cases' folder")
     parser.add_argument("--root", type=Path, default=ORG_PACKS_DIR, help="the org packs' folder")
     parser.add_argument(
@@ -653,9 +659,15 @@ def main(argv: list[str], llm: StructuredLlm | None = None) -> int:
     args = parser.parse_args(argv)
     folders = {"packs": args.root, "playbooks": args.playbooks}
     try:
-        if args.patterns:
+        if args.patterns and args.ask:
+            print("--patterns or --ask, not both", file=sys.stderr)
+            return 1
+        if args.patterns or args.ask:
             if args.names or args.cases != CASES:
-                print("--patterns runs K6, not cases: no case names or --cases", file=sys.stderr)
+                print(
+                    "--patterns and --ask run their own cases: no case names or --cases",
+                    file=sys.stderr,
+                )
                 return 1
             if args.yes:
                 llm = llm or model_llm()
@@ -663,7 +675,8 @@ def main(argv: list[str], llm: StructuredLlm | None = None) -> int:
                     return 1
             use_eval_database()
             prepare_database()
-            return _patterns.check(args.yes, llm, folders, write_results)
+            check = _ask_eval.check if args.ask else _patterns.check
+            return check(args.yes, llm, folders, write_results)
         cases = load_cases(args.cases, args.names)
         keys = sorted({(c.file.org_pack.id, c.file.org_pack.version) for c in cases})
         packs = {key: load_org_pack(*key, args.root, args.playbooks) for key in keys}

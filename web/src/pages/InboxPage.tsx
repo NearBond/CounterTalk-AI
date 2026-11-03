@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
+import { AskBox } from "../components/AskBox";
 import { ChoiceSelect } from "../components/ChoiceSelect";
 import { IssuePanel } from "../components/IssuePanel";
 import { RetryAlert } from "../components/RetryAlert";
@@ -119,6 +120,8 @@ export function InboxPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-4 px-4 py-8">
       <h1 className="text-2xl font-semibold">Inbox</h1>
+      {/* Batch 17d: across the whole org for a manager or admin; a team member's own team's. */}
+      <AskBox />
       {options.error !== null && (
         <RetryAlert onRetry={options.reload}>The inbox couldn't be loaded: {options.error.message}</RetryAlert>
       )}

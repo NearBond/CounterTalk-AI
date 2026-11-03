@@ -136,6 +136,15 @@ FIXED_MAX = 10
 # and well inside what a date can add a day to.
 PERIOD_FIRST_YEAR = 2000
 PERIOD_LAST_YEAR = 2099
+# Ask a question (batch 17d): its length, a user's questions an IST day (the public deploy's
+# cost guard), the findings an answer shows, and its last_30_days period.
+ASK_QUESTION_MAX_CHARS = 300
+ASK_DAILY_MAX = 30
+ASK_FINDINGS_MAX = 25
+ASK_LAST_DAYS = 30
+# A question is asked while the manager waits, not in a job: a short wait, no SDK retries.
+ASK_LLM_TIMEOUT_MS = 20_000
+ASK_LLM_MAX_RETRIES = 0
 
 # Summaries' trend labels (batch 15b; BRIEF D16). An issue is `growing` with this many shops in
 # the period or more, and a Poisson chance under GROWING_MAX_P of that many at its baseline: the

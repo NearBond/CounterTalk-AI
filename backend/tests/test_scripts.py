@@ -56,7 +56,7 @@ def test_every_script_has_a_bad_input_here() -> None:
 def test_a_shared_module_has_no_main() -> None:
     shared = sorted(SCRIPTS.glob("_*.py"))
 
-    assert [path.name for path in shared] == ["_k6.py", "_paid.py", "_patterns.py"]
+    assert [path.name for path in shared] == ["_ask_eval.py", "_k6.py", "_paid.py", "_patterns.py"]
     for path in shared:
         assert main_block(ast.parse(path.read_text(encoding="utf-8"))) == []
 

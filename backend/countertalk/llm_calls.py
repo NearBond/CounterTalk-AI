@@ -24,12 +24,18 @@ def record(
     outcome: Outcome,
     *,
     summary_id: str | None = None,
+    ask_id: str | None = None,
 ) -> None:
     """Logs each call, and a failure's details (§2.10), then writes the calls' rows in one short
     transaction of their own. A failed write is logged, never raised: it mustn't lose an answer
-    that was paid for (BRIEF §12). A summary's calls (batch 15b) name the summary, not a visit."""
+    that was paid for (BRIEF §12). A summary's calls (batch 15b) name the summary, not a visit;
+    a question's (batch 17d) name its asks row in the log lines only."""
     calls = outcome.calls
-    about = f"visit={visit_id}" if summary_id is None else f"summary={summary_id}"
+    about = f"visit={visit_id}"
+    if summary_id is not None:
+        about = f"summary={summary_id}"
+    elif ask_id is not None:
+        about = f"ask={ask_id}"
     if outcome.error is not None:
         found = outcome.error.details or {}
         log.warning(

@@ -316,7 +316,7 @@ export const CHECKS = [
     name: "at 390 px, picking a shop shows what got fixed since its last visit, with the line to say",
     async run({ page, web }) {
       await onAPhoneFor(page, web, "Sunrise Kirana, Old Market · consent: yes");
-      const fixed = page.getByRole("region", { name: "Fixed since your last visit" });
+      const fixed = page.getByRole("region", { name: "Fixed since the last visit here" });
       await fixed.waitFor();
       const text = await fixed.textContent();
       expect(text.includes("Distribution") && text.includes("Tell them: Your distributor now delivers every Monday"), `the list said: ${text}`);

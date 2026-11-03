@@ -1,0 +1,42 @@
+# Batch 17d's ask eval: questions and the filter each should become, on the demo org (seed_dev's
+# Demo Org, the PepsiCo India example pack). run_eval.py --ask scores them; a paid run is the
+# planner's. Made-up questions, never a shop's own words. A field left out is null; status is
+# "any" and understood is true unless said.
+version: 1
+cases:
+  - name: en-lays-pricing-old-market
+    language: en
+    question: Which shops in Old Market complained about Lay's pricing this month?
+    expected: {category: pricing, product: lays, area: Old Market, period: this_month}
+  - name: hi-supply-last-week
+    language: hi
+    question: पिछले हफ्ते किन दुकानों में सप्लाई देर से आई?
+    expected: {category: supply, period: last_week}
+  - name: hi-latin-balaji-station-road
+    language: hi
+    question: Station Road mein Balaji ke baare mein dukaanon ne kya bola?
+    expected: {competitor: balaji, area: Station Road}
+  - name: mr-kurkure-payments-this-month
+    language: mr
+    question: या महिन्यात कुरकुरेच्या पेमेंटबद्दल कोणत्या तक्रारी आल्या?
+    expected: {category: payments, product: kurkure, period: this_month}
+  - name: en-uncle-chipps-damage-open
+    language: en
+    question: Damaged Uncle Chipps packets that still aren't sorted out
+    expected: {category: damage, product: uncle_chipps, status: open}
+  - name: en-haldirams-last-30-days
+    language: en
+    question: What have shops said about Haldiram's lately?
+    expected: {competitor: haldirams, period: last_30_days}
+  - name: hi-riverside-payments-resolved
+    language: hi
+    question: रिवरसाइड में भुगतान की कौन सी समस्याएं हल हो गईं?
+    expected: {category: payments, area: Riverside, status: resolved}
+  - name: mr-pepsi-supply-last-month
+    language: mr
+    question: मागच्या महिन्यात पेप्सीच्या पुरवठ्याच्या अडचणी कुठे होत्या?
+    expected: {category: supply, product: pepsi, period: last_month}
+  - name: en-off-topic-weather
+    language: en
+    question: Will it rain in Pune tomorrow?
+    expected: {understood: false}

@@ -3,10 +3,10 @@ with -m live.
 
     uv run pytest -m live -s tests/test_llm_live.py
 
-The schema is the demo org pack's, built by build_extraction_schema, so it has `_nullable`'s
-type lists (["string", "null"], an enum with null). If Meta refuses them, its error body is
-printed and `_nullable` switches to anyOf. One short call: about $0.01 at most. The prompt is
-made up, with no transcript in it.
+The schema is the demo org pack's, built by build_extraction_schema, so it has the type lists
+of llm/schema.py's `nullable_schema` (["string", "null"], an enum with null). If Meta refuses
+them, its error body is printed and `nullable_schema` switches to anyOf. One short call: about
+$0.01 at most. The prompt is made up, with no transcript in it.
 """
 
 import json

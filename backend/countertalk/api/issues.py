@@ -147,7 +147,9 @@ class IssueChange(BaseModel):
     due_at: AwareDatetime | None = None
 
 
-class UntriagedOut(BaseModel):
+class FindingOut(BaseModel):
+    """A confirmed insight with its shop, rep and visit: triage's, and an answer's (batch 17d)."""
+
     insight: InsightOut
     shop_name: str
     area: str
@@ -179,6 +181,17 @@ def issue_out(card: inbox.Card) -> IssueOut:
         reps=card.reps,
         raised_again=card.raised_again,
         version=found.version,
+    )
+
+
+def finding_out(item: inbox.Finding) -> FindingOut:
+    return FindingOut(
+        insight=insight_out(item.insight),
+        shop_name=item.shop_name,
+        area=item.area,
+        rep_name=item.rep_name,
+        visit_id=item.visit_id,
+        visited_at=item.visited_at,
     )
 
 
@@ -236,20 +249,10 @@ def list_options(user: CurrentUser, session: DbSession) -> OptionsOut:
 
 
 @router.get("/triage")
-def list_triage(user: CurrentUser, session: DbSession) -> list[UntriagedOut]:
+def list_triage(user: CurrentUser, session: DbSession) -> list[FindingOut]:
     """Confirmed insights with no team, for a manager or admin to give one."""
     access.only(user, *access.WHOLE_ORG)
-    return [
-        UntriagedOut(
-            insight=insight_out(item.insight),
-            shop_name=item.shop_name,
-            area=item.area,
-            rep_name=item.rep_name,
-            visit_id=item.visit_id,
-            visited_at=item.visited_at,
-        )
-        for item in inbox.untriaged(session, user.org_id)
-    ]
+    return [finding_out(item) for item in inbox.untriaged(session, user.org_id)]
 
 
 @router.get("")

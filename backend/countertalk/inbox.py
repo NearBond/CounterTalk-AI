@@ -11,7 +11,9 @@ issue's. Status and category are the issue's own. The rest (area, distributor, a
 17c's competitor, product and period) are its insights': an issue is kept when one of its
 insights meets every one of them, so "this competitor, this month" means that competitor's
 insights from this month. A competitor or product that isn't the org's catalog item of that
-kind, and a period that ends before it starts, are 400, never an empty list.
+kind, and a period that ends before it starts, are 400, never an empty list. A brand takes in
+its products (batch 17d; the planner, 3 Nov): "Lay's" is Lay's and every Lay's product of
+the same kind and company; a product is itself alone.
 """
 
 from collections.abc import Callable
@@ -19,8 +21,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, get_args
 
-from sqlalchemy import Select, case, distinct, exists, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import Select, case, distinct, exists, func, or_, select
+from sqlalchemy.orm import Session, aliased
 
 from countertalk import entities, issues, limits, review, routing, rows, summaries
 from countertalk.errors import Invalid
@@ -95,8 +97,9 @@ class Detail:
 
 
 @dataclass(frozen=True)
-class Untriaged:
-    """A confirmed insight with no team, as the triage view shows it."""
+class Finding:
+    """A confirmed insight with who, where and when: the triage view's, with no team, and an
+    answer's (batch 17d)."""
 
     insight: review.InsightView
     shop_name: str
@@ -172,9 +175,10 @@ def options(session: Session, pack_for: Callable[[], OrgPack], org_id: str) -> O
 
 
 def _linked(session: Session, org_id: str, kind: str, link: Any) -> list[tuple[str, str]]:
-    """The org's catalog items of this kind that an insight in some issue links to, by name."""
+    """The org's catalog items of this kind that an insight in some issue links to, by name:
+    a brand, too, when only its products are linked."""
     in_an_issue = exists().where(
-        link == CatalogItem.id,
+        link.in_(_family(CatalogItem).correlate(CatalogItem)),
         InsightRoute.insight_id == Insight.id,
         InsightRoute.issue_id.is_not(None),  # an unconfirmed visit's route has none yet
     )
@@ -270,7 +274,7 @@ def detail(session: Session, org_id: str, issue_id: str) -> Detail:
     return Detail(_card(row), shown)
 
 
-def untriaged(session: Session, org_id: str) -> list[Untriaged]:
+def untriaged(session: Session, org_id: str) -> list[Finding]:
     """The org's confirmed insights with no team, most recently seen first."""
     no_route = ~exists().where(InsightRoute.insight_id == Insight.id)
     found = session.execute(
@@ -278,11 +282,42 @@ def untriaged(session: Session, org_id: str) -> list[Untriaged]:
         .where(Insight.org_id == org_id, Insight.visible.is_(True), no_route)
         .order_by(Visit.created_at.desc(), Insight.seq)
     ).all()
+    return _as_findings(session, found)
+
+
+def findings(
+    session: Session, org_id: str, filters: Filters, team_id: str | None, limit: int
+) -> list[Finding]:
+    """Batch 17d's answer: the visible insights in an issue of the filters' statuses and
+    category (a team member's: in their team's issues) that meet every insight filter, newest
+    first, at most `limit`. 400 for a filter check() refuses."""
+    check(session, org_id, filters)
+    in_an_issue = [
+        InsightRoute.insight_id == Insight.id,
+        Issue.id == InsightRoute.issue_id,
+        Issue.status.in_(filters.statuses),
+    ]
+    if filters.category is not None:
+        in_an_issue.append(Issue.category == filters.category)
+    if team_id is not None:
+        in_an_issue.append(InsightRoute.team_id == team_id)
+    found = session.execute(
+        _who(select(Insight))
+        .where(Insight.org_id == org_id, Insight.visible.is_(True))
+        .where(exists().where(*in_an_issue), *_member_conditions(filters))
+        .order_by(Visit.created_at.desc(), Insight.seq)
+        .limit(limit)
+    ).all()
+    return _as_findings(session, found)
+
+
+def _as_findings(session: Session, found: Any) -> list[Finding]:
+    """_who's rows as findings, each with its insight's view (quotes and routes)."""
     views = {
         view.insight.id: view for view in review.insight_views(session, [row[0] for row in found])
     }
     return [
-        Untriaged(views[insight.id], shop_name, area, rep_name, visit_id, visited_at)
+        Finding(views[insight.id], shop_name, area, rep_name, visit_id, visited_at)
         for insight, shop_name, area, rep_name, visit_id, visited_at in found
     ]
 
@@ -367,14 +402,30 @@ def _member_conditions(filters: Filters) -> list[Any]:
     if filters.distributor_id is not None:
         found.append(Shop.distributor_id == filters.distributor_id)
     if filters.competitor_id is not None:
-        found.append(Insight.competitor_id == filters.competitor_id)
+        found.append(_takes_in(Insight.competitor_id, filters.competitor_id))
     if filters.sku_id is not None:
-        found.append(Insight.sku_id == filters.sku_id)
+        found.append(_takes_in(Insight.sku_id, filters.sku_id))
     if filters.first_day is not None:
         found.append(Visit.created_at >= summaries.at_midnight(filters.first_day))
     if filters.last_day is not None:
         found.append(Visit.created_at < summaries.at_midnight(filters.last_day + DAY))
     return found
+
+
+def _family(picked: Any) -> Select:
+    """The catalog items a pick takes in: a brand's own and its products' (the same kind,
+    company and brand), or a product alone."""
+    member = aliased(CatalogItem)
+    return select(member.id).where(
+        *entities.same_brand(member, picked),
+        or_(picked.product.is_(None), member.id == picked.id),
+    )
+
+
+def _takes_in(link: Any, item_id: str) -> Any:
+    """The insight links to the picked item, or to one it takes in."""
+    picked = aliased(CatalogItem)
+    return link.in_(_family(picked).where(picked.id == item_id))
 
 
 def _has_member(*conditions: Any) -> Any:

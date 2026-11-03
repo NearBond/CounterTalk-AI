@@ -24,6 +24,13 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, Validation
 
 from countertalk.config import BACKEND_DIR
 from countertalk.errors import Invalid
+from countertalk.llm.schema import (
+    enum_schema,
+    list_schema,
+    nullable_schema,
+    object_schema,
+    text_schema,
+)
 
 PLAYBOOKS_DIR = BACKEND_DIR / "playbooks"
 ORG_PACKS_DIR = BACKEND_DIR / "org_packs"
@@ -99,6 +106,8 @@ class Playbook(_Strict):
     categories: dict[Key, Category] = Field(min_length=1)
     prompt: Text
     roles_prompt: Text
+    # Batch 17d: turning a question into the inbox's filter.
+    ask_prompt: Text
     evals: Text
 
 
@@ -319,12 +328,14 @@ def load_playbook(playbook_id: str, version: int, root: Path = PLAYBOOKS_DIR) ->
                 raise PackError(path, field, f"{exclusion.category} isn't another category")
     _inside(folder, playbook.prompt, path, "prompt", must_exist=True)
     _inside(folder, playbook.roles_prompt, path, "roles_prompt", must_exist=True)
+    _inside(folder, playbook.ask_prompt, path, "ask_prompt", must_exist=True)
     _inside(folder, playbook.evals, path, "evals", must_exist=False)
     return playbook
 
 
-def playbook_text(pack: "OrgPack", which: Literal["prompt", "roles_prompt"]) -> str:
-    """The pack's playbook's prompt or roles prompt, from the folder it was loaded from."""
+def playbook_text(pack: "OrgPack", which: Literal["prompt", "roles_prompt", "ask_prompt"]) -> str:
+    """The pack's playbook's prompt, roles prompt or ask prompt, from the folder it was
+    loaded from."""
     folder = pack.playbook_folder
     relative = getattr(pack.playbook, which)
     return _read_text(_inside(folder, relative, folder / "playbook.yaml", which, must_exist=True))
@@ -509,86 +520,61 @@ def routing_table(pack: OrgPack) -> list[Route]:
     ]
 
 
-def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
-    """A field that may be null. The one place this is written, so a switch to anyOf (if Muse
-    Spark's strict mode refuses type lists, batch 9) is a one-line change."""
-    nullable = {**schema, "type": [schema["type"], "null"]}
-    if "enum" in schema:
-        nullable["enum"] = [*schema["enum"], None]
-    return nullable
-
-
-def _enum(keys: Iterable[str]) -> dict[str, Any]:
-    return {"type": "string", "enum": list(keys)}
-
-
-def _object(properties: dict[str, Any]) -> dict[str, Any]:
-    # Strict mode: every key required, and nothing else allowed.
-    return {
-        "type": "object",
-        "additionalProperties": False,
-        "required": list(properties),
-        "properties": properties,
-    }
-
-
-def _text(description: str) -> dict[str, Any]:
-    return {"type": "string", "description": description}
-
-
-def _list(items: dict[str, Any]) -> dict[str, Any]:
-    return {"type": "array", "items": items}
-
-
 def build_extraction_schema(playbook: Playbook, pack: OrgPack) -> dict[str, Any]:
     """The JSON schema extraction must follow (batch 10), built per org: the team and scheme
     enums are the org pack's own. Strict mode's rules: no oneOf or allOf, every key required,
     additionalProperties false everywhere, and $defs for evidence."""
     if (playbook.id, playbook.version) != (pack.playbook.id, pack.playbook.version):
         raise ValueError("the playbook must be the one the org pack was checked against")
-    evidence = _object(
+    evidence = object_schema(
         {
             "turn_id": {"type": "integer", "description": "The transcript turn the quote is from."},
-            "quote": _text("Copied exactly from that turn, in its own script, 40 words or fewer."),
+            "quote": text_schema(
+                "Copied exactly from that turn, in its own script, 40 words or fewer."
+            ),
         }
     )
-    insight = _object(
+    insight = object_schema(
         {
-            "kind": _enum(playbook.kinds),
-            "category": _enum(playbook.categories),
-            "severity": _enum(playbook.severities),
-            "summary_en": _text("One sentence in English."),
-            "evidence": _list({"$ref": "#/$defs/evidence"}),
-            "sku_mentions": _list(_text("A product or brand of the org's, as said.")),
-            "competitor_mentions": _list(_text("A competitor's product or brand, as said.")),
-            "competitor_reason": _nullable(_enum(playbook.competitor_reasons)),
-            "scheme_key": _nullable(_enum(scheme.key for scheme in pack.schemes)),
-            "suggested_team": _nullable(_enum(pack.file.teams)),
-            "team_reason": _nullable(_text("Why that team, in 20 words or fewer.")),
+            "kind": enum_schema(playbook.kinds),
+            "category": enum_schema(playbook.categories),
+            "severity": enum_schema(playbook.severities),
+            "summary_en": text_schema("One sentence in English."),
+            "evidence": list_schema({"$ref": "#/$defs/evidence"}),
+            "sku_mentions": list_schema(text_schema("A product or brand of the org's, as said.")),
+            "competitor_mentions": list_schema(
+                text_schema("A competitor's product or brand, as said.")
+            ),
+            "competitor_reason": nullable_schema(enum_schema(playbook.competitor_reasons)),
+            "scheme_key": nullable_schema(enum_schema(scheme.key for scheme in pack.schemes)),
+            "suggested_team": nullable_schema(enum_schema(pack.file.teams)),
+            "team_reason": nullable_schema(text_schema("Why that team, in 20 words or fewer.")),
         }
     )
-    task = _object(
+    task = object_schema(
         {
-            "type": _enum(playbook.task_types),
-            "description_en": _text("What's to be done, in English."),
-            "due": _nullable(_text("YYYY-MM-DD, if a date was said.")),
-            "owner": _enum(playbook.task_owners),
+            "type": enum_schema(playbook.task_types),
+            "description_en": text_schema("What's to be done, in English."),
+            "due": nullable_schema(text_schema("YYYY-MM-DD, if a date was said.")),
+            "owner": enum_schema(playbook.task_owners),
         }
     )
-    order_item = _object(
+    order_item = object_schema(
         {
-            "name": _text("The product as said, in its own script."),
-            "quantity": _nullable({"type": "number", "description": "How many, if it was said."}),
-            "unit": _nullable(_text("As said (dabba, peti, packet), if one was.")),
+            "name": text_schema("The product as said, in its own script."),
+            "quantity": nullable_schema(
+                {"type": "number", "description": "How many, if it was said."}
+            ),
+            "unit": nullable_schema(text_schema("As said (dabba, peti, packet), if one was.")),
         }
     )
-    schema = _object(
+    schema = object_schema(
         {
-            "summary_en": _text("The visit in two or three sentences, in English."),
-            "next_visit_date": _nullable(_text("YYYY-MM-DD, if a date was said.")),
-            "insights": _list(insight),
-            "tasks": _list(task),
-            "order_items": _list(order_item),
+            "summary_en": text_schema("The visit in two or three sentences, in English."),
+            "next_visit_date": nullable_schema(text_schema("YYYY-MM-DD, if a date was said.")),
+            "insights": list_schema(insight),
+            "tasks": list_schema(task),
+            "order_items": list_schema(order_item),
         }
     )
     return {**schema, "$defs": {"evidence": evidence}}

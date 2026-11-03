@@ -4,7 +4,7 @@ The demo org runs on the PepsiCo India example pack (batch 8): its teams, distri
 catalog are imported, and the shops are spread across the distributors and their beats. Each
 shop that hasn't answered gets a paper consent yes, marked by the rep (batch 17). Then, once,
 a problem at Sunrise Kirana that its team has fixed since that visit, so the shop pick shows
-"Fixed since your last visit" at once (batch 17b), made through K6's own visit and resolve.
+"Fixed since the last visit here" at once (batch 17b), made through K6's own visit and resolve.
 Its finding is the marker, so a rerun never adds a visit, even after its issue reopens. It
 never touches a real issue: when the team already has one it would join (the same category
 and distributor), it's skipped. Not guarded against two runs at once, which could make it

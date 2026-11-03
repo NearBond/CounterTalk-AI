@@ -3,6 +3,7 @@
  * so a caller has one thing to catch and always gets a status, a code and a readable message.
  */
 import type {
+  AskAnswer,
   CatalogItem,
   CatalogItemChange,
   CatalogKind,
@@ -49,7 +50,7 @@ import type {
   SummaryPage,
   SummaryScope,
   Transcript,
-  Untriaged,
+  Finding,
   Visit,
 } from "../types/api";
 
@@ -295,7 +296,7 @@ export function changeIssue(issueId: string, change: IssueChange, signal?: Abort
   return apiRequest(`/issues/${encodeURIComponent(issueId)}`, { method: "PATCH", body: change, signal });
 }
 
-export function listTriage(signal?: AbortSignal): Promise<Untriaged[]> {
+export function listTriage(signal?: AbortSignal): Promise<Finding[]> {
   return apiRequest("/issues/triage", { signal });
 }
 
@@ -380,6 +381,13 @@ export function retrySummary(summaryId: string, signal?: AbortSignal): Promise<S
 /** The visit's audio, for an <audio> element: the browser fetches it, seeking with Range. */
 export function audioUrl(visitId: string): string {
   return `${BASE_URL}/visits/${encodeURIComponent(visitId)}/audio`;
+}
+
+// --- ask a question (batch 17d) -------------------------------------------------------------
+
+/** A question across visits: never retried here, as each one counts against the day's. */
+export function askQuestion(question: string, signal?: AbortSignal): Promise<AskAnswer> {
+  return apiRequest("/ask", { method: "POST", body: { question }, signal });
 }
 
 // --- the shop pick (batch 17b) --------------------------------------------------------------

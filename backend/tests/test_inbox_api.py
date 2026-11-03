@@ -230,6 +230,40 @@ def test_a_competitor_or_product_keeps_the_issues_with_an_insight_linked_to_it(
     assert inbox(client, "finance", competitor=haldirams, product=lays) == []
 
 
+def test_a_brand_takes_in_its_products_and_a_product_is_itself_alone(
+    client: TestClient, demo: Org_
+) -> None:
+    brand = confirmed(client, shop(demo, "Sunrise Kirana"), UNLINKED)  # d1
+    masala = confirmed(client, shop(demo, "Corner Daily Needs"), UNLINKED)  # d3
+    salted = confirmed(client, shop(demo, "Lotus General Store"), UNLINKED)  # d2
+    change_visit(brand, sku_id=item(demo, "lays"))
+    change_visit(masala, sku_id=item(demo, "lays_magic_masala"))
+    change_visit(salted, sku_id=item(demo, "lays_classic_salted"))
+
+    assert sorted(distributors(client, product=item(demo, "lays"))) == [
+        "Northgate Agencies (example)",
+        "Riverbend Traders (example)",
+        "Station Road Distributors (example)",
+    ]
+    assert distributors(client, product=item(demo, "lays_magic_masala")) == [
+        "Station Road Distributors (example)"
+    ]
+
+
+def test_a_brand_is_offered_when_only_its_products_are_linked(
+    client: TestClient, demo: Org_
+) -> None:
+    masala = confirmed(client, shop(demo, "Corner Daily Needs"), UNLINKED)
+    change_visit(masala, sku_id=item(demo, "lays_magic_masala"))
+
+    found = client.get("/api/issues/options").json()
+
+    assert [product["name"] for product in found["products"]] == [
+        "Lay's",
+        "Lay's India's Magic Masala",
+    ]
+
+
 def test_a_period_keeps_the_issues_with_an_insight_from_a_visit_in_it(
     client: TestClient, demo: Org_
 ) -> None:
@@ -316,12 +350,16 @@ def test_the_options_offer_competitors_and_products_in_issues_and_the_periods(
     # An unconfirmed visit's insight is routed, but in no issue yet.
     unconfirmed = transcribed(shop(demo, "Sunrise Kirana"))
     extraction.extract(unconfirmed, FakeLlm(ALL_PLACED, answer(UNLINKED)))
-    change_visit(unconfirmed, competitor_id=item(demo, "haldirams"))
+    change_visit(unconfirmed, competitor_id=item(demo, "bingo"))
 
     found = client.get("/api/issues/options").json()
 
-    # Only what some issue's insight links to: never the whole catalog.
-    assert found["competitors"] == [{"id": navratan, "name": "Haldiram's Navratan Mix"}]
+    # Only what some issue's insight links to (a brand, too, through its product): never the
+    # whole catalog.
+    assert found["competitors"] == [
+        {"id": item(demo, "haldirams"), "name": "Haldiram's"},
+        {"id": navratan, "name": "Haldiram's Navratan Mix"},
+    ]
     assert found["products"] == [{"id": lays, "name": "Lay's"}]
     assert found["periods"] == [
         {

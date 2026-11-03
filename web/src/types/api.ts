@@ -417,6 +417,29 @@ export interface Named {
   name: string;
 }
 
+/** POST /api/ask (batch 17d): AskIn. Its question, 1 to ASK_QUESTION_MAX_CHARS characters. */
+export interface AskIn {
+  question: string;
+}
+
+/** The longest question: countertalk/limits.py, ASK_QUESTION_MAX_CHARS. */
+export const ASK_QUESTION_MAX_CHARS = 300;
+
+/** ChipOut: one thing the question was understood to say, read-only ("Area", "Old Market"). */
+export interface AskChip {
+  name: string;
+  value: string;
+}
+
+/** AskOut: the answer. Not understood: why, with no chips and no findings (nothing ran).
+ * Findings are newest first. 429 `ask_limit` past the day's questions; 503 without Muse Spark. */
+export interface AskAnswer {
+  understood: boolean;
+  reason: string | null;
+  chips: AskChip[];
+  findings: Finding[];
+}
+
 /** The years a period filter's days are in: countertalk/limits.py, PERIOD_FIRST_YEAR and
  * PERIOD_LAST_YEAR (batch 17c). */
 export const PERIOD_FIRST_YEAR = 2000;
@@ -534,8 +557,9 @@ export interface IssueChange {
   due_at?: string | null;
 }
 
-/** GET /api/issues/triage: UntriagedOut, a confirmed insight with no team. */
-export interface Untriaged {
+/** FindingOut: a confirmed insight with its shop, rep and visit. GET /api/issues/triage's have
+ * no team; an answer's (batch 17d) are in issues. */
+export interface Finding {
   insight: Insight;
   shop_name: string;
   area: string;

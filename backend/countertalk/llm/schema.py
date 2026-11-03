@@ -7,6 +7,7 @@ schema can't pass a check it was never given.
 """
 
 import math
+from collections.abc import Iterable
 from typing import Any
 
 # Keywords that say nothing about the value.
@@ -119,3 +120,37 @@ def _problem(value: object, schema: dict[str, Any], defs: dict[str, Any], path: 
             if found_problem:
                 return found_problem
     return None
+
+
+# --- building a strict schema (moved from playbooks, batch 17d: ask builds one too) --------
+
+
+def nullable_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """A field that may be null. The one place this is written, so a switch to anyOf (if Muse
+    Spark's strict mode refuses type lists, batch 9) is a one-line change."""
+    nullable = {**schema, "type": [schema["type"], "null"]}
+    if "enum" in schema:
+        nullable["enum"] = [*schema["enum"], None]
+    return nullable
+
+
+def enum_schema(keys: Iterable[str]) -> dict[str, Any]:
+    return {"type": "string", "enum": list(keys)}
+
+
+def object_schema(properties: dict[str, Any]) -> dict[str, Any]:
+    # Strict mode: every key required, and nothing else allowed.
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": list(properties),
+        "properties": properties,
+    }
+
+
+def text_schema(description: str) -> dict[str, Any]:
+    return {"type": "string", "description": description}
+
+
+def list_schema(items: dict[str, Any]) -> dict[str, Any]:
+    return {"type": "array", "items": items}
