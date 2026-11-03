@@ -146,16 +146,16 @@ def test_ctrl_c_queues_the_job_again_rather_than_leaving_it_running(org: Org_) -
     assert load(visit_id).status == VisitStatus.TRANSCRIBING
 
 
-def test_a_maharashtra_org_s_visit_is_heard_in_its_languages(
+def test_a_visit_is_heard_in_its_org_pack_s_languages(
     org: Org_, capsys: pytest.CaptureFixture[str]
 ) -> None:
     with session_scope() as session:
-        catalog.import_org_pack(session, org.org_id, load_org_pack("pepsico-maharashtra-demo", 1))
+        catalog.import_org_pack(session, org.org_id, load_org_pack("pepsico-india-demo", 1))
     visit_id = uploaded_visit(org, 5)
     fake = FakeStt()
 
     assert main([visit_id], stt=fake) == 0
-    assert "languageBias: mr, hi, en" in capsys.readouterr().out.splitlines()
+    assert "languageBias: hi, en, mr" in capsys.readouterr().out.splitlines()
     assert main([visit_id, "--yes"], stt=fake) == 0
 
-    assert fake.languages == [("mr", "hi", "en")]
+    assert fake.languages == [("hi", "en", "mr")]

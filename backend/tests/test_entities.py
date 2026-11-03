@@ -364,11 +364,6 @@ def test_an_ambiguous_name_is_tried_without_its_ending_too() -> None:
     assert (found.target, found.how) == ("salted", "exact")
 
 
-MAHARASHTRA = catalog_from(
-    load_org_pack("pepsico-maharashtra-demo", 1, ORG_PACKS_DIR, PLAYBOOKS_DIR)
-)
-
-
 @pytest.mark.parametrize(
     ("text", "item", "how"),
     [
@@ -383,16 +378,27 @@ MAHARASHTRA = catalog_from(
         ("अॅक्वाफिना", "aquafina", "exact"),
     ],
 )
-def test_the_maharashtra_catalog_links_marathi_spellings(text: str, item: str, how: str) -> None:
-    found = entities.match(text, MAHARASHTRA.names, MARATHI_ENDINGS)
+def test_the_demo_catalog_links_marathi_spellings(text: str, item: str, how: str) -> None:
+    found = entities.match(text, PEPSICO.names, MARATHI_ENDINGS)
 
     assert (found.target, found.how) == (item, how)
 
 
-def test_the_maharashtra_pack_imports_into_an_org_of_its_own() -> None:
-    org = make_org("Maharashtra Test Org")
-    pack = load_org_pack("pepsico-maharashtra-demo", 1)
-    with session_scope() as session:
-        imported = catalog.import_org_pack(session, org.org_id, pack)
+def test_no_name_in_the_demo_catalog_is_two_items() -> None:
+    # Batch T3 added Marathi spellings beside the Hindi ones: none may read as another item's.
+    shared = {key: targets for key, targets in PEPSICO.names.by_key.items() if len(targets) > 1}
 
-    assert imported.items == len(pack.skus) + len(pack.competitors)
+    assert shared == {}
+
+
+@pytest.mark.parametrize("named", ["दिवाळी स्कीम", "कुरकुरेची दिवाळी स्कीम"])
+def test_the_demo_pack_knows_diwali_as_marathi_writes_it(named: str) -> None:
+    pack = pepsico()
+    tally: Counter[str] = Counter()
+
+    names = entities.scheme_names(pack.schemes)
+
+    found = entities.link_scheme(names, named, tally)
+
+    assert (found, dict(tally)) == ("kurkure_diwali_payout", {"scheme_by_alias": 1})
+    assert entities.match(named, names).how == "exact"  # an alias, not a near guess

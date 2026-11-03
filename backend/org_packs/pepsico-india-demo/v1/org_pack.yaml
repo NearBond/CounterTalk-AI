@@ -1,7 +1,9 @@
 # Example data for the test org. The brand and product names are public product information,
 # as sold in India and checked against retailer and company pages on 1 Nov 2026. PepsiCo India is
 # not a customer or partner of CounterTalk, and none of this comes from it. There are no logos.
-# The teams, contacts, routing, distributors and schemes are made up.
+# The teams, contacts, routing, distributors and schemes are made up. Batch T3 added Marathi:
+# the company sells across India, so its visits may be in Marathi too, and the catalog and
+# schemes have Marathi spellings beside the Hindi ones.
 id: pepsico-india-demo
 version: 1
 playbook: {id: fmcg-kirana-visit, version: 1}
@@ -65,6 +67,9 @@ overrides:
   - category: payments
     min_severity: high
     team: area_manager
+
+# What speech-to-text listens for, and whose number words the quote checker reads.
+languages: [hi, en, mr]
 
 catalog:
   skus: skus.csv
