@@ -2,7 +2,7 @@
 admin names a team by its key, `team` (access.team). GET /api/issues/options gives the teams
 (the managers' picker, Move's and triage's), and the filters' choices."""
 
-from datetime import datetime
+from datetime import date, datetime
 from functools import partial
 from typing import Annotated, Literal
 from uuid import UUID
@@ -30,19 +30,34 @@ class TeamOut(BaseModel):
     name: str
 
 
-class DistributorOut(BaseModel):
+class NamedOut(BaseModel):
+    """A picker's choice by ID and name: a distributor, a competitor or a product (batch 17c)."""
+
     id: str
     name: str
 
 
+class PeriodOut(BaseModel):
+    """A ready-made period (batch 17c): `from` and `to` as GET /api/issues takes them."""
+
+    key: str
+    label: str
+    first_day: date
+    last_day: date
+
+
 class OptionsOut(BaseModel):
     """What the inbox's pickers offer: the teams (a manager's picker, Move and triage), and the
-    filters' categories, areas and distributors."""
+    filters' categories, areas, distributors, competitors and products (only those some
+    issue's insight links to), and the period picker's ready-made periods."""
 
     teams: list[TeamOut]
     categories: list[ChoiceOut]
     areas: list[str]
-    distributors: list[DistributorOut]
+    distributors: list[NamedOut]
+    competitors: list[NamedOut]
+    products: list[NamedOut]
+    periods: list[PeriodOut]
 
 
 class IssueOut(BaseModel):
@@ -213,7 +228,10 @@ def list_options(user: CurrentUser, session: DbSession) -> OptionsOut:
         teams=[TeamOut(id=t.id, key=t.key, name=t.name) for t in found.teams],
         categories=[ChoiceOut(key=c.key, label=c.label) for c in found.categories],
         areas=found.areas,
-        distributors=[DistributorOut(id=i, name=n) for i, n in found.distributors],
+        distributors=[NamedOut(id=i, name=n) for i, n in found.distributors],
+        competitors=[NamedOut(id=i, name=n) for i, n in found.competitors],
+        products=[NamedOut(id=i, name=n) for i, n in found.products],
+        periods=[PeriodOut.model_validate(p, from_attributes=True) for p in found.periods],
     )
 
 
@@ -242,16 +260,25 @@ def list_issues(
     category: str | None = None,
     area: str | None = None,
     distributor: UUID | None = None,
+    competitor: UUID | None = None,
+    product: UUID | None = None,
+    first_day: Annotated[date | None, Query(alias="from")] = None,
+    last_day: Annotated[date | None, Query(alias="to")] = None,
     team: TeamKey = None,
 ) -> list[IssueOut]:
     """The team's issues: open and in progress unless `status` says otherwise; highest severity
-    first, then most shops, then the most recently seen."""
+    first, then most shops, then the most recently seen. `from` and `to` are IST days, both
+    in the period. 400 unknown_competitor, unknown_product, period_backwards."""
     found = access.team(session, user, team)
     filters = inbox.Filters(
         statuses=tuple(status) if status else inbox.NO_FILTERS.statuses,
         category=category,
         area=area,
         distributor_id=str(distributor) if distributor else None,
+        competitor_id=str(competitor) if competitor else None,
+        sku_id=str(product) if product else None,
+        first_day=first_day,
+        last_day=last_day,
     )
     pack = partial(extraction.pack_for, user.org_id, session=session)
     return [issue_out(card) for card in inbox.cards(session, pack, user.org_id, found.id, filters)]

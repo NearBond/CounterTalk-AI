@@ -5,19 +5,29 @@ Every count is of an issue's routes (issues.with_routes: an issue with none is n
 counted), in what it says it counts: shops, insights and reps, never mentions (R10). Raised
 again is its own flag: a shop with insights from two or more visits in the issue. Until batch
 15b's score, the order is severity (highest first), then shops, then the most recently seen.
+
+**The filters** pick issues and never change their numbers: a card's counts are its whole
+issue's. Status and category are the issue's own. The rest (area, distributor, and batch
+17c's competitor, product and period) are its insights': an issue is kept when one of its
+insights meets every one of them, so "this competitor, this month" means that competitor's
+insights from this month. A competitor or product that isn't the org's catalog item of that
+kind, and a period that ends before it starts, are 400, never an empty list.
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any
+from datetime import date, datetime, timedelta
+from typing import Any, get_args
 
 from sqlalchemy import Select, case, distinct, exists, func, select
 from sqlalchemy.orm import Session
 
-from countertalk import issues, review, routing
+from countertalk import entities, issues, limits, review, routing, rows, summaries
+from countertalk.errors import Invalid
 from countertalk.models import (
     ACTIVE_ISSUE,
+    CatalogItem,
+    CatalogKind,
     Distributor,
     Insight,
     InsightRoute,
@@ -26,6 +36,7 @@ from countertalk.models import (
     Team,
     User,
     Visit,
+    ist_date,
     parse_id,
     utc_now,
 )
@@ -38,9 +49,17 @@ class Filters:
     category: str | None = None
     area: str | None = None
     distributor_id: str | None = None
+    # Batch 17c: a competitor's catalog item, one of the org's own products, and a period of
+    # IST days, both ends in it (either may be left open).
+    competitor_id: str | None = None
+    sku_id: str | None = None
+    first_day: date | None = None
+    last_day: date | None = None
 
 
-# Open and in progress, of any category, area and distributor.
+DAY = timedelta(days=1)
+
+# Open and in progress, of any category, area, distributor, competitor, product and time.
 NO_FILTERS = Filters()
 
 
@@ -96,14 +115,42 @@ def team_of(session: Session, org_id: str, key: str) -> Team:
 
 
 @dataclass(frozen=True)
+class PeriodChoice:
+    """The period picker's ready-made periods, as the IST days the filter takes."""
+
+    key: str
+    label: str
+    first_day: date
+    last_day: date
+
+
+@dataclass(frozen=True)
 class Options:
     """What the inbox's pickers offer: the teams (a manager's picker, Move and triage), and the
-    filters' categories, areas and distributors (ID and name)."""
+    filters' categories, areas, distributors, competitors and products (ID and name), and
+    periods. Only the competitors and products some issue's insight links to: the
+    dropdowns aren't the whole catalog."""
 
     teams: list[Team]
     categories: list[review.Choice]
     areas: list[str]
     distributors: list[tuple[str, str]]
+    competitors: list[tuple[str, str]]
+    products: list[tuple[str, str]]
+    periods: list[PeriodChoice]
+
+
+def periods(today: date) -> list[PeriodChoice]:
+    """This and last week (Monday to Sunday), and this and last month, as summaries count
+    them (R1)."""
+    found = []
+    for kind in get_args(summaries.PeriodKind):
+        this = summaries.period_of(kind, today)
+        for when, period in (("this", this), ("last", summaries.previous(this))):
+            last_day = ist_date(period.end) - DAY
+            label = f"{when.capitalize()} {kind}"
+            found.append(PeriodChoice(f"{when}_{kind}", label, ist_date(period.start), last_day))
+    return found
 
 
 def options(session: Session, pack_for: Callable[[], OrgPack], org_id: str) -> Options:
@@ -118,7 +165,51 @@ def options(session: Session, pack_for: Callable[[], OrgPack], org_id: str) -> O
         categories=review.category_choices(pack_for()),
         areas=list(session.scalars(areas)),
         distributors=[(found_id, name) for found_id, name in session.execute(distributors)],
+        competitors=_linked(session, org_id, CatalogKind.COMPETITOR, Insight.competitor_id),
+        products=_linked(session, org_id, CatalogKind.OWN, Insight.sku_id),
+        periods=periods(ist_date(utc_now())),
     )
+
+
+def _linked(session: Session, org_id: str, kind: str, link: Any) -> list[tuple[str, str]]:
+    """The org's catalog items of this kind that an insight in some issue links to, by name."""
+    in_an_issue = exists().where(
+        link == CatalogItem.id,
+        InsightRoute.insight_id == Insight.id,
+        InsightRoute.issue_id.is_not(None),  # an unconfirmed visit's route has none yet
+    )
+    found = session.execute(
+        select(CatalogItem.id, CatalogItem.brand, CatalogItem.product).where(
+            CatalogItem.org_id == org_id, CatalogItem.kind == kind, in_an_issue
+        )
+    )
+    named = [(item_id, entities.item_name(brand, product)) for item_id, brand, product in found]
+    return sorted(named, key=lambda each: (each[1].casefold(), each[0]))
+
+
+def check(session: Session, org_id: str, filters: Filters) -> None:
+    """400 for a competitor or product that isn't the org's catalog item of that kind (another
+    org's, or a product given as a competitor), and for a period that ends before it starts or
+    has a day outside the years it takes."""
+    wanted = (
+        (filters.competitor_id, CatalogKind.COMPETITOR, "competitor", "one of the competitors"),
+        (filters.sku_id, CatalogKind.OWN, "product", "one of the org's own products"),
+    )
+    for item_id, kind, name, what in wanted:
+        if item_id is None:
+            continue
+        refused = Invalid(f"unknown_{name}", f"That isn't {what} in the catalog")
+        if rows.find_one(session, CatalogItem, org_id, item_id, refused).kind != kind:
+            raise refused
+    first, last = filters.first_day, filters.last_day
+    for day in (first, last):
+        if day is not None and not limits.PERIOD_FIRST_YEAR <= day.year <= limits.PERIOD_LAST_YEAR:
+            raise Invalid(
+                "period_out_of_range",
+                f"A period's days are from {limits.PERIOD_FIRST_YEAR} to {limits.PERIOD_LAST_YEAR}",
+            )
+    if first is not None and last is not None and first > last:
+        raise Invalid("period_backwards", "The period ends before it starts")
 
 
 def cards(
@@ -129,7 +220,8 @@ def cards(
     filters: Filters = NO_FILTERS,
 ) -> list[Card]:
     """The team's issues with routes, filtered, highest severity first, then most shops, then
-    the most recently seen."""
+    the most recently seen. 400 for a filter check() refuses."""
+    check(session, org_id, filters)
     counts = _counts(Issue.org_id == org_id, Issue.team_id == team_id).subquery()
     query = (
         _cards_select(counts)
@@ -138,10 +230,9 @@ def cards(
     )
     if filters.category is not None:
         query = query.where(Issue.category == filters.category)
-    if filters.area is not None:
-        query = query.where(_has_shop(Shop.area == filters.area))
-    if filters.distributor_id is not None:
-        query = query.where(_has_shop(Shop.distributor_id == filters.distributor_id))
+    member = _member_conditions(filters)
+    if member:
+        query = query.where(_has_member(*member))
     pack = pack_for()
     ranks = {key: issues.severity_rank(pack, key) for key in pack.playbook.severities}
     rank = case(ranks, value=Issue.severity, else_=len(ranks))
@@ -268,14 +359,32 @@ def _cards_select(counts: Any) -> Select:
     )
 
 
-def _has_shop(condition: Any) -> Any:
-    """Some insight of the issue is from a shop that meets the condition."""
+def _member_conditions(filters: Filters) -> list[Any]:
+    """The filters on an issue's insights: on the insight, its visit or its shop."""
+    found = []
+    if filters.area is not None:
+        found.append(Shop.area == filters.area)
+    if filters.distributor_id is not None:
+        found.append(Shop.distributor_id == filters.distributor_id)
+    if filters.competitor_id is not None:
+        found.append(Insight.competitor_id == filters.competitor_id)
+    if filters.sku_id is not None:
+        found.append(Insight.sku_id == filters.sku_id)
+    if filters.first_day is not None:
+        found.append(Visit.created_at >= summaries.at_midnight(filters.first_day))
+    if filters.last_day is not None:
+        found.append(Visit.created_at < summaries.at_midnight(filters.last_day + DAY))
+    return found
+
+
+def _has_member(*conditions: Any) -> Any:
+    """One insight of the issue meets every condition (on it, its visit or its shop)."""
     return exists().where(
         InsightRoute.issue_id == Issue.id,
         Insight.id == InsightRoute.insight_id,
         Visit.id == Insight.visit_id,
         Shop.id == Visit.shop_id,
-        condition,
+        *conditions,
     )
 
 

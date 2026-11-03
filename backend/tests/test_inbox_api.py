@@ -3,7 +3,7 @@ triage lists, and a team member's accept, Move, Also send and triage assignment.
 org, on the PepsiCo example pack: payments go to finance, and to the area manager when high;
 "other" has no team, so it waits in triage."""
 
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -12,7 +12,20 @@ from sqlalchemy import select, update
 
 from countertalk import extraction
 from countertalk.db import session_scope
-from countertalk.models import Distributor, InsightRoute, Shop, utc_now
+from countertalk.inbox import periods
+from countertalk.limits import PERIOD_FIRST_YEAR, PERIOD_LAST_YEAR
+from countertalk.models import (
+    CatalogItem,
+    Distributor,
+    Insight,
+    InsightRoute,
+    Org,
+    Shop,
+    Visit,
+    ist_date,
+    utc_now,
+)
+from countertalk.summaries import at_midnight
 from tests.conftest import signed_in_as
 from tests.test_extraction import answer, insight, transcribed
 from tests.test_review_api import PAYMENT, error_of, signed_in_manager, the_review
@@ -167,6 +180,169 @@ def test_the_options_are_the_org_s_teams_categories_areas_and_distributors(
         "Station Road Distributors (example)",
     ]
     assert found["distributors"][0]["id"] == distributor(demo, "d1")
+
+
+# --- competitor, product and period (batch 17c) ----------------------------------------------
+
+UNLINKED = insight(category="payments", severity="low", suggested_team="finance", sku_mentions=[])
+OCT_5 = date(2026, 10, 5)
+
+
+def item(demo: Org_, key: str) -> str:
+    """A catalog item of the demo org's, by its key."""
+    with session_scope(read_only=True) as session:
+        query = select(CatalogItem.id).where(CatalogItem.org_id == demo.org_id)
+        return session.scalars(query.where(CatalogItem.key == key)).one()
+
+
+def change_visit(visit_id: str, when: datetime | None = None, **links: str) -> None:
+    """When the visit happened, and its insights' catalog links."""
+    with session_scope() as session:
+        if links:
+            session.execute(update(Insight).where(Insight.visit_id == visit_id).values(**links))
+        if when is not None:
+            session.execute(update(Visit).where(Visit.id == visit_id).values(created_at=when))
+
+
+def distributors(client: TestClient, **filters: str) -> list[str]:
+    """Finance's cards, by their distributor."""
+    return [card["title_en"].split(" · ")[1] for card in inbox(client, "finance", **filters)]
+
+
+def test_a_competitor_or_product_keeps_the_issues_with_an_insight_linked_to_it(
+    client: TestClient, demo: Org_
+) -> None:
+    corner = confirmed(client, shop(demo, "Corner Daily Needs"), UNLINKED)  # d3
+    confirmed(client, shop(demo, "Moonlight Provisions"), UNLINKED)  # d3 too, unlinked
+    sunrise = confirmed(client, shop(demo, "Sunrise Kirana"), UNLINKED)  # d1
+    haldirams, lays = item(demo, "haldirams"), item(demo, "lays")
+    change_visit(corner, competitor_id=haldirams)
+    change_visit(sunrise, sku_id=lays)
+    every = {card["id"]: card for card in inbox(client, "finance")}
+
+    [rival] = inbox(client, "finance", competitor=haldirams)
+    [own] = inbox(client, "finance", product=lays)
+
+    # The filter picks issues: its card's numbers are the whole issue's.
+    assert rival == every[rival["id"]]
+    assert (rival["shops"], rival["insights"]) == (2, 2)
+    assert own["title_en"] == "Credit and payments · Northgate Agencies (example)"
+    assert inbox(client, "finance", competitor=haldirams, product=lays) == []
+
+
+def test_a_period_keeps_the_issues_with_an_insight_from_a_visit_in_it(
+    client: TestClient, demo: Org_
+) -> None:
+    october = confirmed(client, shop(demo, "Sunrise Kirana"), UNLINKED)  # d1
+    confirmed(client, shop(demo, "Corner Daily Needs"), UNLINKED)  # d3, today
+    change_visit(october, at_midnight(OCT_5))  # 5 Oct's first moment in IST
+
+    assert distributors(client, **{"from": "2026-10-05", "to": "2026-10-05"}) == [
+        "Northgate Agencies (example)"
+    ]
+    assert distributors(client, to="2026-10-04") == []  # 4 Oct ends as 5 Oct starts
+    assert distributors(client, **{"from": "2026-10-06"}) == ["Station Road Distributors (example)"]
+
+
+def test_the_filters_are_met_by_one_insight_together(client: TestClient, demo: Org_) -> None:
+    # One issue (d3): a Haldiram's insight from 5 Oct, and one from today linked to none.
+    corner = confirmed(client, shop(demo, "Corner Daily Needs"), UNLINKED)
+    confirmed(client, shop(demo, "Moonlight Provisions"), UNLINKED)
+    haldirams = item(demo, "haldirams")
+    change_visit(corner, at_midnight(OCT_5), competitor_id=haldirams)
+    today = ist_date(utc_now()).isoformat()
+
+    assert inbox(client, "finance", competitor=haldirams, **{"from": today, "to": today}) == []
+    october = {"from": "2026-10-05", "to": "2026-10-05"}
+    assert len(inbox(client, "finance", competitor=haldirams, **october)) == 1
+
+
+def test_a_catalog_item_that_isn_t_the_org_s_of_that_kind_is_400(
+    client: TestClient, demo: Org_
+) -> None:
+    with session_scope() as session:
+        other = Org(name="Other Org")
+        session.add(other)
+        session.flush()
+        theirs = CatalogItem(
+            org_id=other.id, key="rival", kind="competitor", company="Rival", brand="Rival"
+        )
+        session.add(theirs)
+        session.flush()
+        theirs_id = theirs.id
+    haldirams, lays = item(demo, "haldirams"), item(demo, "lays")
+    nothing = "00000000-0000-4000-8000-000000000000"
+
+    for asked, code in [
+        ({"competitor": lays}, "unknown_competitor"),  # a product given as a competitor
+        ({"product": haldirams}, "unknown_product"),
+        ({"competitor": theirs_id}, "unknown_competitor"),
+        ({"product": nothing}, "unknown_product"),
+    ]:
+        response = client.get("/api/issues", params={"team": "finance", **asked})
+        assert error_of(response) == (400, code), asked
+    response = client.get("/api/issues", params={"team": "finance", "competitor": lays})
+    assert response.json()["error"]["message"] == "That isn't one of the competitors in the catalog"
+
+
+def test_a_period_that_ends_before_it_starts_is_400(client: TestClient, demo: Org_) -> None:
+    backwards = {"team": "finance", "from": "2026-11-02", "to": "2026-11-01"}
+
+    assert error_of(client.get("/api/issues", params=backwards)) == (400, "period_backwards")
+    assert inbox(client, "finance", **{"from": "2026-11-01", "to": "2026-11-01"}) == []
+
+
+OUT_OF_RANGE = [{"from": "0001-01-01"}, {"to": "9999-12-31"}, {"to": "1999-12-31"}]
+
+
+@pytest.mark.parametrize("asked", OUT_OF_RANGE)
+def test_a_period_day_outside_the_years_it_takes_is_400(
+    client: TestClient, demo: Org_, asked: dict[str, str]
+) -> None:
+    response = client.get("/api/issues", params={"team": "finance", **asked})
+
+    assert error_of(response) == (400, "period_out_of_range")
+    assert response.json()["error"]["message"] == (
+        f"A period's days are from {PERIOD_FIRST_YEAR} to {PERIOD_LAST_YEAR}"
+    )
+
+
+def test_the_options_offer_competitors_and_products_in_issues_and_the_periods(
+    client: TestClient, demo: Org_
+) -> None:
+    corner = confirmed(client, shop(demo, "Corner Daily Needs"), UNLINKED)
+    navratan, lays = item(demo, "haldirams_navratan"), item(demo, "lays")
+    change_visit(corner, competitor_id=navratan, sku_id=lays)
+    # An unconfirmed visit's insight is routed, but in no issue yet.
+    unconfirmed = transcribed(shop(demo, "Sunrise Kirana"))
+    extraction.extract(unconfirmed, FakeLlm(ALL_PLACED, answer(UNLINKED)))
+    change_visit(unconfirmed, competitor_id=item(demo, "haldirams"))
+
+    found = client.get("/api/issues/options").json()
+
+    # Only what some issue's insight links to: never the whole catalog.
+    assert found["competitors"] == [{"id": navratan, "name": "Haldiram's Navratan Mix"}]
+    assert found["products"] == [{"id": lays, "name": "Lay's"}]
+    assert found["periods"] == [
+        {
+            "key": p.key,
+            "label": p.label,
+            "first_day": p.first_day.isoformat(),
+            "last_day": p.last_day.isoformat(),
+        }
+        for p in periods(ist_date(utc_now()))
+    ]
+
+
+def test_the_ready_made_periods_are_the_summaries_weeks_and_months() -> None:
+    found = [(p.key, p.label, p.first_day, p.last_day) for p in periods(date(2026, 11, 3))]
+
+    assert found == [
+        ("this_week", "This week", date(2026, 11, 2), date(2026, 11, 8)),
+        ("last_week", "Last week", date(2026, 10, 26), date(2026, 11, 1)),
+        ("this_month", "This month", date(2026, 11, 1), date(2026, 11, 30)),
+        ("last_month", "Last month", date(2026, 10, 1), date(2026, 10, 31)),
+    ]
 
 
 # --- one issue, and changing it --------------------------------------------------------------

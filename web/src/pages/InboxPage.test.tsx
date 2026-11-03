@@ -19,6 +19,12 @@ const OPTIONS: InboxOptions = {
   ],
   areas: ["Old Market", "Station Road"],
   distributors: [{ id: "d-1", name: "Northgate Agencies (example)" }],
+  competitors: [{ id: "c-1", name: "Haldiram's Navratan Mix" }],
+  products: [{ id: "p-1", name: "Lay's" }],
+  periods: [
+    { key: "this_week", label: "This week", first_day: "2026-11-02", last_day: "2026-11-08" },
+    { key: "this_month", label: "This month", first_day: "2026-11-01", last_day: "2026-11-30" },
+  ],
 };
 
 const ISSUE: Issue = {
@@ -137,6 +143,88 @@ describe("InboxPage", () => {
 
     expect(await screen.findByText("No issues here.")).toBeInTheDocument();
     expect(router.state.location.search).toBe("?team=sales_ops&area=Old+Market");
+  });
+
+  it("filters by a competitor, a product and a ready-made period, kept in the address", async () => {
+    const asked = "team=finance&competitor=c-1&product=p-1";
+    const { router } = open("/inbox", {
+      "GET /api/issues?team=finance": () => json(200, [ISSUE]),
+      "GET /api/issues?team=finance&competitor=c-1": () => json(200, [ISSUE]),
+      [`GET /api/issues?${asked}`]: () => json(200, [ISSUE]),
+      [`GET /api/issues?${asked}&from=2026-11-01&to=2026-11-30`]: () => json(200, []),
+    });
+    await screen.findByRole("button", { name: /Credit and payments/ });
+
+    await userEvent.selectOptions(screen.getByLabelText("Competitor"), "c-1");
+    await userEvent.selectOptions(screen.getByLabelText("Product"), "p-1");
+    await userEvent.selectOptions(screen.getByLabelText("Period"), "this_month");
+
+    expect(await screen.findByText("No issues here.")).toBeInTheDocument();
+    expect(router.state.location.search).toBe("?competitor=c-1&product=p-1&from=2026-11-01&to=2026-11-30");
+    expect(screen.queryByLabelText("From")).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText("Period"), "");
+    expect(router.state.location.search).toBe("?competitor=c-1&product=p-1");
+  });
+
+  it("shows days that aren't a ready-made period as custom dates, each end bounded by the other", async () => {
+    const { router } = open("/inbox?from=2026-10-05&to=2026-10-09", {
+      "GET /api/issues?team=finance&from=2026-10-05&to=2026-10-09": () => json(200, [ISSUE]),
+      "GET /api/issues?team=finance&from=2026-10-06&to=2026-10-09": () => json(200, []),
+    });
+    await screen.findByRole("button", { name: /Credit and payments/ });
+
+    expect(screen.getByLabelText("Period")).toHaveValue("custom");
+    const from = screen.getByLabelText("From");
+    expect([from.getAttribute("max"), screen.getByLabelText("To").getAttribute("min")]).toEqual([
+      "2026-10-09",
+      "2026-10-05",
+    ]);
+    fireEvent.change(from, { target: { value: "2026-10-06" } });
+
+    expect(await screen.findByText("No issues here.")).toBeInTheDocument();
+    expect(router.state.location.search).toBe("?from=2026-10-06&to=2026-10-09");
+  });
+
+  it("keeps custom dates picked from a ready-made period, starting from its days", async () => {
+    const { router } = open("/inbox?from=2026-11-02&to=2026-11-08", {
+      "GET /api/issues?team=finance&from=2026-11-02&to=2026-11-08": () => json(200, [ISSUE]),
+    });
+    await screen.findByRole("button", { name: /Credit and payments/ });
+    expect(screen.getByLabelText("Period")).toHaveValue("this_week");
+
+    await userEvent.selectOptions(screen.getByLabelText("Period"), "custom");
+
+    expect(screen.getByLabelText("Period")).toHaveValue("custom");
+    expect(router.state.location.search).toBe("?from=2026-11-02&to=2026-11-08&period=custom");
+    expect([screen.getByLabelText("From"), screen.getByLabelText("To")].map((f) => (f as HTMLInputElement).value)).toEqual([
+      "2026-11-02",
+      "2026-11-08",
+    ]);
+  });
+
+  it.each([
+    ["an impossible day", "?from=2026-02-30"],
+    ["a day outside the server's years", "?to=1999-12-31"],
+    ["a period that ends before it starts", "?from=2026-11-05&to=2026-11-01"],
+  ])("asks without %s in the address", async (_, search) => {
+    const { api } = open(`/inbox${search}`, { "GET /api/issues?team=finance": () => json(200, [ISSUE]) });
+
+    expect(await screen.findByRole("button", { name: /Credit and payments/ })).toBeInTheDocument();
+    expect(api.gets()).toBe(2); // the options, then the list without those days
+    expect(screen.getByLabelText("Period")).toHaveValue("");
+  });
+
+  it("moves both ends when one is moved past the other", async () => {
+    const { router } = open("/inbox?period=custom&from=2026-10-05&to=2026-10-09", {
+      "GET /api/issues?team=finance&from=2026-10-05&to=2026-10-09": () => json(200, [ISSUE]),
+      "GET /api/issues?team=finance&from=2026-10-12&to=2026-10-12": () => json(200, []),
+    });
+    await screen.findByRole("button", { name: /Credit and payments/ });
+
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-10-12" } });
+
+    expect(await screen.findByText("No issues here.")).toBeInTheDocument();
+    expect(router.state.location.search).toBe("?period=custom&from=2026-10-12&to=2026-10-12");
   });
 
   it("expands an issue to its insights, with the quote's ▶ and the AI's suggestion", async () => {

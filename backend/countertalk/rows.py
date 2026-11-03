@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from countertalk.errors import NotFound
+from countertalk.errors import DomainError
 from countertalk.models import parse_id
 
 
@@ -16,11 +16,12 @@ def find_one[Row](
     model: type[Row],
     org_id: str,
     row_id: str,
-    missing: NotFound,
+    missing: DomainError,
     *,
     for_update: bool = False,
 ) -> Row:
-    """The row of this org with this ID, or `missing` raised: a malformed ID is missing too."""
+    """The row of this org with this ID, or `missing` raised: a malformed ID is missing too.
+    `missing` is a NotFound, or an Invalid where the ID came as a filter (batch 17c)."""
     found = parse_id(row_id)
     row = None
     if found is not None:

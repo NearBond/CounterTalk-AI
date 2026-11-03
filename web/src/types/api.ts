@@ -411,19 +411,37 @@ export interface Team {
   name: string;
 }
 
-/** DistributorOut. */
-export interface Distributor {
+/** NamedOut: a picker's choice by ID and name: a distributor, a competitor or a product. */
+export interface Named {
   id: string;
   name: string;
 }
 
+/** The years a period filter's days are in: countertalk/limits.py, PERIOD_FIRST_YEAR and
+ * PERIOD_LAST_YEAR (batch 17c). */
+export const PERIOD_FIRST_YEAR = 2000;
+export const PERIOD_LAST_YEAR = 2099;
+
+/** PeriodOut (batch 17c): one of the period picker's ready-made periods, as the IST days
+ * GET /api/issues takes as `from` and `to`, both in it. */
+export interface InboxPeriod {
+  key: string;
+  label: string;
+  first_day: string;
+  last_day: string;
+}
+
 /** GET /api/issues/options: OptionsOut, what the inbox's pickers offer: the teams (the dev
- * dropdown, Move and triage), and the filters' categories, areas and distributors. */
+ * dropdown, Move and triage), and the filters' categories, areas, distributors, competitors
+ * and products (only those some issue's insight links to), and the ready-made periods. */
 export interface InboxOptions {
   teams: Team[];
   categories: Choice[];
   areas: string[];
-  distributors: Distributor[];
+  distributors: Named[];
+  competitors: Named[];
+  products: Named[];
+  periods: InboxPeriod[];
 }
 
 /**

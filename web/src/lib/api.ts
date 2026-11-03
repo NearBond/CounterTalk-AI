@@ -265,6 +265,11 @@ export interface IssueFilters {
   category?: string;
   area?: string;
   distributor?: string;
+  /** Batch 17c: catalog item IDs, and IST days (YYYY-MM-DD), both in the period. */
+  competitor?: string;
+  product?: string;
+  from?: string;
+  to?: string;
 }
 
 export function getInboxOptions(signal?: AbortSignal): Promise<InboxOptions> {

@@ -41,14 +41,15 @@ from countertalk.api.insights import (
     TeamFor,
 )
 from countertalk.api.issues import (
-    DistributorOut,
     IssueChange,
     IssueDetailOut,
     IssueOut,
     MemberOut,
     MergeIn,
+    NamedOut,
     OptionsOut,
     OtherIssueOut,
+    PeriodOut,
     SuggestionOut,
     TeamOut,
     UntriagedOut,
@@ -109,7 +110,8 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "Choice": ChoiceOut,
     "Review": ReviewOut,
     "Team": TeamOut,
-    "Distributor": DistributorOut,
+    "Named": NamedOut,
+    "InboxPeriod": PeriodOut,
     "InboxOptions": OptionsOut,
     "Issue": IssueOut,
     "Member": MemberOut,
@@ -191,6 +193,8 @@ def test_the_web_app_mirrors_the_servers_upload_limits() -> None:
         ("NOTE_MAX_CHARS", limits.NOTE_MAX_CHARS),
         ("SUMMARY_MAX_CHARS", limits.SUMMARY_MAX_CHARS),
         ("RESOLUTION_NOTE_MAX_CHARS", limits.RESOLUTION_NOTE_MAX_CHARS),
+        ("PERIOD_FIRST_YEAR", limits.PERIOD_FIRST_YEAR),
+        ("PERIOD_LAST_YEAR", limits.PERIOD_LAST_YEAR),
     ],
 )
 def test_the_web_app_mirrors_the_server_s_limit(name: str, value: int) -> None:

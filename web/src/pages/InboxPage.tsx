@@ -9,10 +9,16 @@ import { usePolling } from "../lib/hooks";
 import { STATUS_LABELS } from "../lib/issues";
 import { INBOX_POLL_MS } from "../lib/limits";
 import { useMe, wholeOrg } from "../lib/session";
-import type { Choice, Issue, IssueDetail } from "../types/api";
+import { type Choice, type InboxPeriod, type Issue, type IssueDetail, PERIOD_FIRST_YEAR, PERIOD_LAST_YEAR } from "../types/api";
 
 const ANY: Choice = { key: "", label: "Any" };
-const FILTERS = ["status", "category", "area", "distributor"] as const;
+const FILTERS = ["status", "category", "area", "distributor", "competitor", "product"] as const;
+// The period picker's own days (batch 17c): any From and To, each bounded by the other. It's
+// in the address as period=custom, so a link or Back shows what was picked.
+const CUSTOM = "custom";
+const IST_DAY = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+const FIRST_DAY = `${PERIOD_FIRST_YEAR}-01-01`;
+const LAST_DAY = `${PERIOD_LAST_YEAR}-12-31`;
 
 /** `/inbox`: a team's issues (batch 15), asked for again every INBOX_POLL_MS while the tab is
  * visible. A team member's are their own team's; a manager or admin picks the team (batch 16). */
@@ -34,12 +40,23 @@ export function InboxPage() {
     category: data?.categories.map((c) => c.key) ?? [],
     area: data?.areas ?? [],
     distributor: data?.distributors.map((d) => d.id) ?? [],
+    competitor: data?.competitors.map((c) => c.id) ?? [],
+    product: data?.products.map((p) => p.id) ?? [],
   };
   const filters: IssueFilters = {};
   for (const name of FILTERS) {
     const value = params.get(name);
     if (value && offered[name].includes(value)) Object.assign(filters, { [name]: value });
   }
+  // The address's days count only as real days in the server's years, in order: a period that
+  // ends before it starts is none.
+  const from = realDay(params.get("from"));
+  const to = realDay(params.get("to"));
+  if (from === undefined || to === undefined || from <= to) {
+    if (from !== undefined) filters.from = from;
+    if (to !== undefined) filters.to = to;
+  }
+  const period = params.get("period") === CUSTOM ? CUSTOM : periodKey(data?.periods ?? [], filters);
   const issues = usePolling((signal) => listIssues(picks ? team : null, filters, signal), {
     key: JSON.stringify([team, filters]),
     shouldPoll: () => true,
@@ -75,14 +92,29 @@ export function InboxPage() {
     setNotice(null);
     setOpen(open === issueId ? null : issueId);
   };
-  const choose = (name: string, value: string) => {
+  const choose = (changes: Record<string, string>) => {
     setNotice(null);
     setOpen(null);
     const next = new URLSearchParams(params);
-    if (value) next.set(name, value);
-    else next.delete(name);
+    for (const [name, value] of Object.entries(changes)) {
+      if (value) next.set(name, value);
+      else next.delete(name);
+    }
     setParams(next, { replace: true });
   };
+  const pickPeriod = (key: string) => {
+    if (key === CUSTOM) {
+      choose({ period: CUSTOM }); // its days are picked next, starting from the current ones
+      return;
+    }
+    const found = data?.periods.find((p) => p.key === key);
+    choose({ period: "", from: found?.first_day ?? "", to: found?.last_day ?? "" });
+  };
+  // Moving one end past the other moves both: the period never ends before it starts.
+  const pickFrom = (day: string) =>
+    choose(day && filters.to !== undefined && day > filters.to ? { from: day, to: day } : { from: day });
+  const pickTo = (day: string) =>
+    choose(day && filters.from !== undefined && day < filters.from ? { from: day, to: day } : { to: day });
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-4 px-4 py-8">
@@ -97,7 +129,7 @@ export function InboxPage() {
               label="Team"
               choices={data.teams.map((t) => ({ key: t.key, label: t.name }))}
               value={team}
-              onChange={(value) => choose("team", value)}
+              onChange={(value) => choose({ team: value })}
             />
           )}
           <ChoiceSelect
@@ -107,26 +139,54 @@ export function InboxPage() {
               { key: "resolved", label: STATUS_LABELS.resolved },
             ]}
             value={filters.status ?? ""}
-            onChange={(value) => choose("status", value)}
+            onChange={(value) => choose({ status: value })}
           />
           <ChoiceSelect
             label="Category"
             choices={[ANY, ...data.categories]}
             value={filters.category ?? ""}
-            onChange={(value) => choose("category", value)}
+            onChange={(value) => choose({ category: value })}
           />
           <ChoiceSelect
             label="Area"
             choices={[ANY, ...data.areas.map((area) => ({ key: area, label: area }))]}
             value={filters.area ?? ""}
-            onChange={(value) => choose("area", value)}
+            onChange={(value) => choose({ area: value })}
           />
           <ChoiceSelect
             label="Distributor"
             choices={[ANY, ...data.distributors.map((d) => ({ key: d.id, label: d.name }))]}
             value={filters.distributor ?? ""}
-            onChange={(value) => choose("distributor", value)}
+            onChange={(value) => choose({ distributor: value })}
           />
+          <ChoiceSelect
+            label="Competitor"
+            choices={[ANY, ...data.competitors.map((c) => ({ key: c.id, label: c.name }))]}
+            value={filters.competitor ?? ""}
+            onChange={(value) => choose({ competitor: value })}
+          />
+          <ChoiceSelect
+            label="Product"
+            choices={[ANY, ...data.products.map((p) => ({ key: p.id, label: p.name }))]}
+            value={filters.product ?? ""}
+            onChange={(value) => choose({ product: value })}
+          />
+          <ChoiceSelect
+            label="Period"
+            choices={[
+              ANY,
+              ...data.periods.map((p) => ({ key: p.key, label: p.label })),
+              { key: CUSTOM, label: "Custom dates" },
+            ]}
+            value={period}
+            onChange={pickPeriod}
+          />
+          {period === CUSTOM && (
+            <>
+              <DayField label="From" value={filters.from} min={FIRST_DAY} max={filters.to ?? LAST_DAY} onChange={pickFrom} />
+              <DayField label="To" value={filters.to} min={filters.from ?? FIRST_DAY} max={LAST_DAY} onChange={pickTo} />
+            </>
+          )}
         </section>
       )}
       {/* Always there, so screen readers announce what's put in it. */}
@@ -159,6 +219,44 @@ export function InboxPage() {
         </ul>
       )}
     </main>
+  );
+}
+
+/** The ready-made period the address's days are, Custom dates for any others, or "" for none. */
+function periodKey(periods: InboxPeriod[], { from, to }: IssueFilters): string {
+  if (from === undefined && to === undefined) return "";
+  return periods.find((p) => p.first_day === from && p.last_day === to)?.key ?? CUSTOM;
+}
+
+/** The value if it's a real day ("2026-02-30" isn't) in the server's years, YYYY-MM-DD. */
+function realDay(value: string | null): string | undefined {
+  if (value === null || !IST_DAY.test(value) || value < FIRST_DAY || value > LAST_DAY) return undefined;
+  const when = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(when.getTime()) && when.toISOString().slice(0, 10) === value ? value : undefined;
+}
+
+interface DayFieldProps {
+  label: string;
+  value: string | undefined;
+  min: string;
+  max: string;
+  onChange: (day: string) => void;
+}
+
+/** One end of a custom period: an IST day, as the date picker gives it (YYYY-MM-DD). */
+function DayField({ label, value, min, max, onChange }: DayFieldProps) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1 text-sm">
+      {label}
+      <input
+        type="date"
+        value={value ?? ""}
+        min={min}
+        max={max}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full min-w-0 rounded-md border border-gray-300 p-2"
+      />
+    </label>
   );
 }
 

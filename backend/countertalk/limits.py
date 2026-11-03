@@ -132,6 +132,10 @@ REOPEN_WINDOW_DAYS = 30
 RESOLUTION_NOTE_MAX_CHARS = 2_000
 # Fixed since the last visit (batch 17b): the newest this many, on the shop pick.
 FIXED_MAX = 10
+# The inbox's period filter (batch 17c): its days are in these years, far wider than any visit
+# and well inside what a date can add a day to.
+PERIOD_FIRST_YEAR = 2000
+PERIOD_LAST_YEAR = 2099
 
 # Summaries' trend labels (batch 15b; BRIEF D16). An issue is `growing` with this many shops in
 # the period or more, and a Poisson chance under GROWING_MAX_P of that many at its baseline: the

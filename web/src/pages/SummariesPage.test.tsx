@@ -14,6 +14,9 @@ const OPTIONS: InboxOptions = {
   categories: [],
   areas: [],
   distributors: [],
+  competitors: [],
+  products: [],
+  periods: [],
 };
 
 const WEEK = { start: "2026-10-25T18:30:00Z", end: "2026-11-01T18:30:00Z" };
