@@ -2,10 +2,10 @@
 and its scheme key to the org pack's schemes.
 
 The key a name is matched on is verify's normalise() (R1: one normaliser) with its spaces
-removed ("Lay's" and "lays" are both "lays"), and two folds for the commonest ways speech-to-text
-and the model spell a Hindi word differently: the long vowel signs ी and ू as the short ones,
-and a nasal consonant with a virama before a consonant as an anusvara (कैम्पा is कैंपा). The
-folds are linking's alone; quote matching is unchanged.
+removed ("Lay's" and "lays" are both "lays"), and folds for the commonest ways speech-to-text and
+the model spell a word differently: the long vowel signs ी and ू as the short ones, a nasal
+consonant with a virama before a consonant as an anusvara (कैम्पा is कैंपा), and Marathi's अॅ as
+ॲ (batch T3). The folds are linking's alone; quote matching is unchanged.
 
 A catalog item is matched on its aliases; a brand also on its brand name; a product also on
 "brand product", and on each of its brand's names followed by each of its own in the same
@@ -51,8 +51,14 @@ _DEVANAGARI = re.compile(f"[{chr(0x0900)}-{chr(0x097F)}]")
 How = Literal["exact", "fuzzy", "unknown", "ambiguous"]
 
 
+# Marathi's candra A, written as one letter (ॲ) or as अ with a candra E (अॅ): NFC leaves
+# both, and keyboards and speech-to-text write either (batch T3).
+_CANDRA_A, _A_CANDRA_E = "\u0972", "\u0905\u0945"
+
+
 def link_key(text: str) -> str:
     key = normalise(text).text.replace(" ", "").translate(_LONG_TO_SHORT)
+    key = key.replace(_A_CANDRA_E, _CANDRA_A)
     return _NASAL_CLUSTER.sub(_ANUSVARA, key)
 
 

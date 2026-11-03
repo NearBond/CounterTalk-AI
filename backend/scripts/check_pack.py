@@ -48,6 +48,8 @@ def main(argv: list[str]) -> int:
     playbook = pack.playbook
     print(f"playbook: {playbook.id} v{playbook.version} ({len(playbook.categories)} categories)")
     print(f"teams: {', '.join(pack.file.teams)}")
+    named = "" if pack.file.languages else " (the default)"
+    print(f"languages: {', '.join(pack.languages)}{named}")
     print(
         f"catalog: {len(pack.skus)} own and {len(pack.competitors)} competitor rows,"
         f" {len(pack.schemes)} schemes, {len(pack.distributors)} distributors"

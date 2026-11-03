@@ -1,14 +1,20 @@
 """Seeds the demo org, its rep and a few shops: `uv run python scripts/seed_dev.py`.
 
+    uv run python scripts/seed_dev.py [--org demo|maharashtra]
+
 The demo org runs on the PepsiCo India example pack (batch 8): its teams, distributors and
 catalog are imported, and the shops are spread across the distributors and their beats.
+`--org maharashtra` seeds a second org on the Maharashtra example pack instead (batch T3), for
+visits in Marathi: two shops and no rep, whose reps are added with add_user.py.
 
 Safe to run again, even twice at once: rows are matched on their natural keys, and existing
 ones are left exactly as they are. A shop's distributor, and its beat, are each filled in only
 while it has none. Every name is made up, and the rep's address is example.com.
 """
 
+import argparse
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -38,22 +44,49 @@ DEMO_SHOPS = [
 
 
 @dataclass(frozen=True)
+class DemoOrg:
+    name: str
+    pack: tuple[str, int]
+    # Its rep, made with it (None: its reps come from add_user.py, with a password).
+    rep: dict[str, str] | None
+    shops: list[tuple[str, str, str, str]]
+
+
+DEMO = DemoOrg(DEMO_ORG_NAME, DEMO_PACK, DEMO_REP, DEMO_SHOPS)
+# Batch T3's org for the Marathi role-plays: fictional shops in the pack's Pune and Nashik.
+MAHARASHTRA = DemoOrg(
+    "Demo Org Maharashtra",
+    ("pepsico-maharashtra-demo", 1),
+    None,
+    [
+        ("Morning Star Kirana", "Pune", "d1", "Pune Monday"),
+        ("Grapevine General Store", "Nashik", "d3", "Nashik Wednesday"),
+    ],
+)
+ORGS = {"demo": DEMO, "maharashtra": MAHARASHTRA}
+
+
+@dataclass(frozen=True)
 class SeedResult:
+    org_id: str
     created: int
     existing: int
 
 
-def seed(session: Session, pack: OrgPack) -> SeedResult:
-    """The demo org, its rep and shops, on `pack` (load it before the transaction)."""
-    inserted = [_insert_missing(session, Org, {"name": DEMO_ORG_NAME}, ["name"])]
-    org_id = session.scalars(select(Org.id).where(Org.name == DEMO_ORG_NAME)).one()
-    rep = {"org_id": org_id, "role": Role.REP.value, **DEMO_REP}
-    inserted.append(_insert_missing(session, User, rep, ["email"]))
-    rep_org_id = session.scalars(select(User.org_id).where(User.email == DEMO_REP["email"])).one()
-    if rep_org_id != org_id:
-        # Emails are unique across orgs, so the demo org would silently have no rep.
-        raise Conflict("demo_rep_in_another_org", f"{DEMO_REP['email']} is in another org")
-    for name, area, _, _ in DEMO_SHOPS:
+def seed(session: Session, pack: OrgPack, demo: DemoOrg = DEMO) -> SeedResult:
+    """A demo org, its rep if it has one, and its shops, on `pack` (load it before the
+    transaction)."""
+    inserted = [_insert_missing(session, Org, {"name": demo.name}, ["name"])]
+    org_id = session.scalars(select(Org.id).where(Org.name == demo.name)).one()
+    if demo.rep is not None:
+        rep = {"org_id": org_id, "role": Role.REP.value, **demo.rep}
+        inserted.append(_insert_missing(session, User, rep, ["email"]))
+        email = demo.rep["email"]
+        rep_org_id = session.scalars(select(User.org_id).where(User.email == email)).one()
+        if rep_org_id != org_id:
+            # Emails are unique across orgs, so the demo org would silently have no rep.
+            raise Conflict("demo_rep_in_another_org", f"{email} is in another org")
+    for name, area, _, _ in demo.shops:
         shop = {"org_id": org_id, "name": name, "area": area}
         inserted.append(_insert_missing(session, Shop, shop, ["org_id", "name", "area"]))
     import_org_pack(session, org_id, pack)
@@ -62,7 +95,7 @@ def seed(session: Session, pack: OrgPack) -> SeedResult:
             select(Distributor.key, Distributor.id).where(Distributor.org_id == org_id)
         ).all()
     )
-    for name, area, distributor, beat in DEMO_SHOPS:
+    for name, area, distributor, beat in demo.shops:
         this_shop = (Shop.org_id == org_id, Shop.name == name, Shop.area == area)
         session.execute(
             update(Shop)
@@ -70,7 +103,7 @@ def seed(session: Session, pack: OrgPack) -> SeedResult:
             .values(distributor_id=distributors[distributor])
         )
         session.execute(update(Shop).where(*this_shop, Shop.beat.is_(None)).values(beat=beat))
-    return SeedResult(created=sum(inserted), existing=len(inserted) - sum(inserted))
+    return SeedResult(org_id, created=sum(inserted), existing=len(inserted) - sum(inserted))
 
 
 def _insert_missing(
@@ -88,21 +121,28 @@ def _insert_missing(
     return len(session.execute(statement).all())
 
 
-def main() -> int:
+def main(argv: Sequence[str] = ()) -> int:
+    parser = argparse.ArgumentParser(prog="seed_dev.py")
+    parser.add_argument("--org", choices=list(ORGS), default="demo")
+    demo = ORGS[parser.parse_args(list(argv)).org]
     try:
-        pack = load_org_pack(*DEMO_PACK)  # before the transaction: no lock waits on file reads
+        pack = load_org_pack(*demo.pack)  # before the transaction: no lock waits on file reads
         with session_scope() as session:
-            result = seed(session, pack)
+            result = seed(session, pack, demo)
     except SETUP_ERRORS as error:
         print(f"can't seed: {setup_trouble(error)}", file=sys.stderr)
         return 1
     except DomainError as error:
         print(f"can't seed: {describe(error)}", file=sys.stderr)
         return 1
-    print(f"seeded: created {result.created}, already there {result.existing}")
+    # The org's ID, for add_user.py.
+    print(
+        f"seeded {demo.name} ({result.org_id}): created {result.created},"
+        f" already there {result.existing}"
+    )
     return 0
 
 
 if __name__ == "__main__":
     configure_logging()
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

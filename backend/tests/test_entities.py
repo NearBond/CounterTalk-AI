@@ -362,3 +362,37 @@ def test_an_ambiguous_name_is_tried_without_its_ending_too() -> None:
     assert entities.match("Crunchy Saltedचा", names).how == "ambiguous"
     found = entities.match("Crunchy Saltedचा", names, MARATHI_ENDINGS)
     assert (found.target, found.how) == ("salted", "exact")
+
+
+MAHARASHTRA = catalog_from(
+    load_org_pack("pepsico-maharashtra-demo", 1, ORG_PACKS_DIR, PLAYBOOKS_DIR)
+)
+
+
+@pytest.mark.parametrize(
+    ("text", "item", "how"),
+    [
+        ("लेझ", "lays", "exact"),
+        ("लेझचा", "lays", "exact"),
+        ("डोरिटोझचं", "doritos", "fuzzy"),  # near enough with its ending: never cut
+        ("कॅम्पामध्ये", "campa", "exact"),
+        ("सेव्हन अप", "seven_up", "exact"),
+        ("क्रीम अँड ओनियन", "lays_cream_onion", "exact"),
+        ("ॲपी फिझ", "appy_fizz", "exact"),
+        ("अॅपी फिझ", "appy_fizz", "exact"),  # ॲ as two letters
+        ("अॅक्वाफिना", "aquafina", "exact"),
+    ],
+)
+def test_the_maharashtra_catalog_links_marathi_spellings(text: str, item: str, how: str) -> None:
+    found = entities.match(text, MAHARASHTRA.names, MARATHI_ENDINGS)
+
+    assert (found.target, found.how) == (item, how)
+
+
+def test_the_maharashtra_pack_imports_into_an_org_of_its_own() -> None:
+    org = make_org("Maharashtra Test Org")
+    pack = load_org_pack("pepsico-maharashtra-demo", 1)
+    with session_scope() as session:
+        imported = catalog.import_org_pack(session, org.org_id, pack)
+
+    assert imported.items == len(pack.skus) + len(pack.competitors)

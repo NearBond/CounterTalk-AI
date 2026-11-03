@@ -5,10 +5,11 @@ from collections.abc import Callable
 import pytest
 from sqlalchemy import select
 
-from countertalk import jobs, storage
+from countertalk import catalog, jobs, storage
 from countertalk.db import session_scope
 from countertalk.errors import RetryableError
 from countertalk.models import Job, JobKind, JobState, VisitStatus
+from countertalk.playbooks import load_org_pack
 from scripts.transcribe_visit import main
 from tests.test_transcription import (
     FakeStt,
@@ -143,3 +144,18 @@ def test_ctrl_c_queues_the_job_again_rather_than_leaving_it_running(org: Org_) -
     job = job_of(visit_id)
     assert (job.state, job.attempts) == (JobState.QUEUED, 1)
     assert load(visit_id).status == VisitStatus.TRANSCRIBING
+
+
+def test_a_maharashtra_org_s_visit_is_heard_in_its_languages(
+    org: Org_, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with session_scope() as session:
+        catalog.import_org_pack(session, org.org_id, load_org_pack("pepsico-maharashtra-demo", 1))
+    visit_id = uploaded_visit(org, 5)
+    fake = FakeStt()
+
+    assert main([visit_id], stt=fake) == 0
+    assert "languageBias: mr, hi, en" in capsys.readouterr().out.splitlines()
+    assert main([visit_id, "--yes"], stt=fake) == 0
+
+    assert fake.languages == [("mr", "hi", "en")]

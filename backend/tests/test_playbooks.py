@@ -439,3 +439,54 @@ def test_a_pack_s_languages_are_checked(
         load_org_pack("tiny-demo", 1, packs, books)
 
     assert str(error.value) == f"invalid_pack: {PACK}/org_pack.yaml: {field}: {problem}"
+
+
+def test_the_maharashtra_pack_is_the_india_pack_with_marathi_spellings_and_its_own_area() -> None:
+    india = load_org_pack("pepsico-india-demo", 1)
+    maharashtra = load_org_pack("pepsico-maharashtra-demo", 1)
+
+    assert maharashtra.languages == ("mr", "hi", "en")
+    assert maharashtra.file.display_name == "PepsiCo India, Maharashtra (example)"
+    same = ("playbook", "sells", "teams", "routing", "overrides")
+    assert [getattr(maharashtra.file, f) for f in same] == [getattr(india.file, f) for f in same]
+    assert maharashtra.schemes == india.schemes
+    assert [(d.key, d.area) for d in maharashtra.distributors] == [
+        ("d1", "Pune"),
+        ("d2", "Pune"),
+        ("d3", "Nashik"),
+    ]
+    for theirs, ours in (
+        (india.skus, maharashtra.skus),
+        (india.competitors, maharashtra.competitors),
+    ):
+        assert [(r.key, r.company, r.brand, r.product) for r in ours] == [
+            (r.key, r.company, r.brand, r.product) for r in theirs
+        ]
+        assert all(set(a.aliases) <= set(b.aliases) for a, b in zip(theirs, ours, strict=True))
+    added = {
+        r.key: sorted(set(r.aliases) - set(old.aliases))
+        for old, r in zip(
+            (*india.skus, *india.competitors),
+            (*maharashtra.skus, *maharashtra.competitors),
+            strict=True,
+        )
+        if set(r.aliases) != set(old.aliases)
+    }
+    assert added == {
+        "lays": ["लेझ"],
+        "lays_cream_onion": ["क्रीम अँड ओनियन"],
+        "lays_hot_n_sweet": ["हॉट अँड स्वीट"],
+        "doritos": ["डोरिटोझ"],
+        "doritos_nacho_cheese": ["नाचो चीझ"],
+        "cheetos": ["चीटोझ"],
+        "cheetos_cheez_puffs": ["चीझ पफ्स"],
+        "seven_up": ["सेव्हन अप"],
+        "mountain_dew": ["माउंटन ड्यू"],
+        "nimbooz": ["निंबूझ"],
+        "aquafina": ["ॲक्वाफिना"],
+        "campa": ["कॅम्पा"],
+        "campa_cola": ["कॅम्पा कोला"],
+        "appy_fizz": ["ॲपी फिझ"],
+    }
+    # Marathi for "my", so never Maaza's alias in this pack.
+    assert all("माझा" not in r.aliases for r in (*maharashtra.skus, *maharashtra.competitors))

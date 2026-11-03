@@ -4,7 +4,7 @@ The request has three parts: this guide with the codebook, then the company's pa
 
 ## The transcript
 
-Each line is one turn: `[T<turn number>][<speaker's role>][<minutes:seconds>] <what was said>`. The role is `rep`, `shopkeeper` or `other`. Speech-to-text wrote the words: Hindi mostly in Devanagari, English words sometimes in Latin and sometimes in Devanagari, with spelling slips and some words doubled.
+Each line is one turn: `[T<turn number>][<speaker's role>][<minutes:seconds>] <what was said>`. The role is `rep`, `shopkeeper` or `other`. Speech-to-text wrote the words: Hindi and Marathi mostly in Devanagari, English words sometimes in Latin and sometimes in Devanagari, with spelling slips and some words doubled.
 
 ## Insights
 

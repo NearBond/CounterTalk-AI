@@ -8,7 +8,15 @@ from countertalk.errors import Conflict
 from countertalk.limits import LOCK_TIMEOUT_MS
 from countertalk.models import Distributor, Org, Role, Shop, User
 from countertalk.playbooks import load_org_pack
-from scripts.seed_dev import DEMO_ORG_NAME, DEMO_PACK, DEMO_REP, DEMO_SHOPS, main, seed
+from scripts.seed_dev import (
+    DEMO_ORG_NAME,
+    DEMO_PACK,
+    DEMO_REP,
+    DEMO_SHOPS,
+    MAHARASHTRA,
+    main,
+    seed,
+)
 
 PACK = load_org_pack(*DEMO_PACK)
 # A racing seed waits at most one lock timeout for the other; allow two before giving up.
@@ -126,8 +134,10 @@ def test_main_prints_what_it_created(capsys: pytest.CaptureFixture[str]) -> None
 
     total = sum(counts())
     first, second = capsys.readouterr().out.strip().splitlines()
-    assert first == f"seeded: created {total}, already there 0"
-    assert second == f"seeded: created 0, already there {total}"
+    with session_scope(read_only=True) as session:
+        org_id = session.scalars(select(Org.id)).one()
+    assert first == f"seeded {DEMO_ORG_NAME} ({org_id}): created {total}, already there 0"
+    assert second == f"seeded {DEMO_ORG_NAME} ({org_id}): created 0, already there {total}"
 
 
 def test_a_shop_with_a_beat_but_no_distributor_gets_one_and_keeps_its_beat() -> None:
@@ -147,3 +157,42 @@ def test_a_shop_with_a_beat_but_no_distributor_gets_one_and_keeps_its_beat() -> 
             .where(Shop.name == "Sunrise Kirana")
         ).one()
     assert tuple(found) == ("d1", "Saturday route")
+
+
+# --- the Maharashtra dev org (batch T3) -------------------------------------------------------
+
+
+def test_the_maharashtra_org_has_its_pack_two_shops_and_no_rep() -> None:
+    pack = load_org_pack(*MAHARASHTRA.pack)
+    with session_scope() as session:
+        first = seed(session, pack, MAHARASHTRA)
+    with session_scope() as session:
+        again = seed(session, pack, MAHARASHTRA)
+
+    with session_scope(read_only=True) as session:
+        org = session.scalars(select(Org)).one()
+        shops = session.execute(
+            select(Shop.name, Shop.area, Distributor.key, Shop.beat)
+            .join(Distributor, Shop.distributor_id == Distributor.id)
+            .order_by(Shop.name)
+        ).all()
+    assert (org.name, org.org_pack_id, org.org_pack_version) == (
+        "Demo Org Maharashtra",
+        "pepsico-maharashtra-demo",
+        1,
+    )
+    assert [tuple(row) for row in shops] == [
+        ("Grapevine General Store", "Nashik", "d3", "Nashik Wednesday"),
+        ("Morning Star Kirana", "Pune", "d1", "Pune Monday"),
+    ]
+    assert counts() == (1, 0, 2)  # its reps come from add_user.py
+    assert ((first.created, first.existing), (again.created, again.existing)) == ((3, 0), (0, 3))
+
+
+def test_main_seeds_the_org_it_is_asked_for(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["--org", "maharashtra"]) == 0
+
+    with session_scope(read_only=True) as session:
+        [(name, org_id)] = session.execute(select(Org.name, Org.id)).all()
+    assert name == "Demo Org Maharashtra"
+    assert capsys.readouterr().out == f"seeded {name} ({org_id}): created 3, already there 0\n"
