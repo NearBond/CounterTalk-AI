@@ -26,6 +26,7 @@ export const MANAGER: Me = {
   role: "manager",
   team: null,
   org_name: "PepsiCo India",
+  ai_key_set: true,
 };
 
 export const FINANCE_MEMBER: Me = {
@@ -35,6 +36,7 @@ export const FINANCE_MEMBER: Me = {
   role: "team_member",
   team: { id: "t-finance", key: "finance", name: "Finance" },
   org_name: "PepsiCo India",
+  ai_key_set: true,
 };
 
 export const ADMIN: Me = {
@@ -44,6 +46,7 @@ export const ADMIN: Me = {
   role: "admin",
   team: null,
   org_name: "PepsiCo India",
+  ai_key_set: true,
 };
 
 export const REP: Me = {
@@ -53,6 +56,7 @@ export const REP: Me = {
   role: "rep",
   team: null,
   org_name: "PepsiCo India",
+  ai_key_set: true,
 };
 
 const ME = "GET /api/auth/me";

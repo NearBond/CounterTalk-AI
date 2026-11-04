@@ -24,6 +24,8 @@ export interface Me {
   /** A team member's team; null for every other role. */
   team: Team | null;
   org_name: string;
+  /** Whether the server has MODEL_API_KEY (batch F8): without it, a warning bar. Never the key. */
+  ai_key_set: boolean;
 }
 
 /** SignInIn: POST /api/auth/signin. */

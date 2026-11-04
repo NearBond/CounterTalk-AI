@@ -33,6 +33,8 @@ from tests.test_visits import Org_, make_org
 
 PASSWORD = "correct horse battery staple"
 WAIT_TIMEOUT_S = 10
+# A stand-in for MODEL_API_KEY, word-like so no secret scanner takes it for one.
+CANARY_KEY = "canary-canary-canary"
 
 
 @pytest.fixture
@@ -85,6 +87,7 @@ def test_the_right_password_signs_in_with_a_secure_cookie(
         "role": "rep",
         "team": None,
         "org_name": "Visit Test Org",
+        "ai_key_set": False,  # the tests pin MODEL_API_KEY empty
     }
     cookie = response.headers["set-cookie"]
     assert cookie.startswith(f"{auth.COOKIE}=")
@@ -92,6 +95,21 @@ def test_the_right_password_signs_in_with_a_secure_cookie(
         assert f"; {flag}" in cookie
     assert f"; Max-Age={limits.SESSION_DAYS * 24 * 60 * 60}" in cookie
     assert client.get("/api/auth/me").json()["id"] == org.rep_id
+
+
+def test_who_is_signed_in_says_whether_the_model_key_is_set_never_the_key(
+    client: TestClient, rep: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Batch F8: the app's warning bar. Read on every call, so a restart with a key clears it.
+    assert signing_in(client, rep, PASSWORD).json()["ai_key_set"] is False
+    monkeypatch.setenv("MODEL_API_KEY", CANARY_KEY)
+    get_settings.cache_clear()
+
+    response = client.get("/api/auth/me")
+
+    assert response.json()["ai_key_set"] is True
+    assert CANARY_KEY not in response.text
+    assert CANARY_KEY not in signing_in(client, rep, PASSWORD).text
 
 
 def test_only_the_token_s_hash_is_stored(client: TestClient, rep: str) -> None:

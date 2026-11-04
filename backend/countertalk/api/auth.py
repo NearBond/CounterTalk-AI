@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from countertalk import auth, limits, users
 from countertalk.api.deps import CurrentUser
 from countertalk.api.issues import TeamOut
+from countertalk.config import get_settings
 from countertalk.db import DbSession, session_scope
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -30,10 +31,14 @@ class MeOut(BaseModel):
     # A team member's team; None for every other role.
     team: TeamOut | None
     org_name: str
+    # Whether MODEL_API_KEY is set (batch F8): without it, the app shows a warning bar. Only
+    # whether: no part of the key is ever sent.
+    ai_key_set: bool
 
 
 def _me_out(found: users.Me) -> MeOut:
-    return MeOut.model_validate(asdict(found))
+    key_set = bool(get_settings().MODEL_API_KEY.get_secret_value())
+    return MeOut.model_validate({**asdict(found), "ai_key_set": key_set})
 
 
 def _me(org_id: str, user_id: str) -> MeOut:

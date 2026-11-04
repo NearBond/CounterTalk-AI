@@ -72,6 +72,19 @@
   --color-amber-300: #f1c36f;
   --color-amber-800: #7a4b06;
   --color-amber-900: #5e3a05;
+
+  /* The missing-key bar slides down (batch F8); motion-reduce:animate-none keeps it still. */
+  --animate-slide-down: slide-down 320ms ease-out;
+  @keyframes slide-down {
+    from {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
 }
 
 @layer base {

@@ -7,6 +7,7 @@
  */
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
+import { AiKeyBar } from "../components/AiKeyBar";
 import { AppHeader } from "../components/AppHeader";
 import { RetryAlert } from "../components/RetryAlert";
 import { NotFoundPage } from "../pages/NotFoundPage";
@@ -125,6 +126,8 @@ export function SignedIn() {
   }
   return (
     <MeContext.Provider value={loaded.me}>
+      {/* Every signed-in page, the recorder's too: it leads nowhere (batch F8). */}
+      {!loaded.me.ai_key_set && <AiKeyBar />}
       {/* The recorder owns its page: nothing may lead away mid-recording (RecordPage). */}
       {location.pathname !== "/record" && <AppHeader me={loaded.me} />}
       <Outlet />
