@@ -73,5 +73,10 @@ export function istDay(iso: string): string {
 
 /** "1 shop", "3 shops", "0.5 shops": a count and its noun, the one way the app words one (R1). */
 export function countOf(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
+  return `${count} ${agrees(count, one, many)}`;
+}
+
+/** The word that agrees with a count: "is" for 1, "are" for 7 (R1: the one place it's chosen). */
+export function agrees(count: number, one: string, many: string): string {
+  return count === 1 ? one : many;
 }

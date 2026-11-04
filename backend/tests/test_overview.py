@@ -16,7 +16,6 @@ from countertalk.models import (
     AliasReview,
     AliasReviewStatus,
     CatalogKind,
-    Insight,
     InsightRoute,
     Issue,
     Role,
@@ -28,6 +27,7 @@ from countertalk.summaries import week_start
 from tests.conftest import a_user, sign_in
 from tests.test_extraction import insight, transcribed
 from tests.test_inbox_api import OTHER, change_visit, confirmed, shop, team_id
+from tests.test_inbox_routing import only_insight
 from tests.test_review_api import error_of, signed_in_manager
 from tests.test_summaries import resolve
 from tests.test_visits import Org_
@@ -48,15 +48,12 @@ def overview(client: TestClient) -> dict[str, Any]:
     return response.json()
 
 
-def insight_of(visit_id: str) -> str:
-    with session_scope(read_only=True) as session:
-        return session.scalars(select(Insight.id).where(Insight.visit_id == visit_id)).one()
-
-
 def issue_of(visit_id: str) -> str:
     """The issue the visit's one insight went to (its one team's)."""
     with session_scope(read_only=True) as session:
-        query = select(InsightRoute.issue_id).where(InsightRoute.insight_id == insight_of(visit_id))
+        query = select(InsightRoute.issue_id).where(
+            InsightRoute.insight_id == only_insight(visit_id)
+        )
         return session.scalars(query).one()
 
 
@@ -177,7 +174,7 @@ def test_a_merged_or_emptied_issue_isn_t_counted(client: TestClient, demo: Org_)
         into, gone = (kept, versions[kept]), (merged, versions[merged])
         issues.merge(session, pack, demo.org_id, demo.rep_id, into, gone)
     moved = client.post(
-        f"/api/insights/{insight_of(lotus)}/move",
+        f"/api/insights/{only_insight(lotus)}/move",
         json={"slot": 1, "version": 1, "team_id": team_id(client, "distribution")},
     )
 

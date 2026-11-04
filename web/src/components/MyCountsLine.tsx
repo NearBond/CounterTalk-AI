@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getMyCounts } from "../lib/api";
-import { countOf } from "../lib/format";
+import { agrees, countOf } from "../lib/format";
 import type { MyCounts } from "../types/api";
 
 /** The rep's own line at the top of Updates (batches 17b, 17e): "This month you raised 12
@@ -20,7 +20,7 @@ export function MyCountsLine() {
   return (
     <p className="text-gray-700">
       This month you raised {countOf(counts.raised, "problem", "problems")}. {counts.fixed}{" "}
-      {counts.fixed === 1 ? "is" : "are"} fixed.
+      {agrees(counts.fixed, "is", "are")} fixed.
     </p>
   );
 }
