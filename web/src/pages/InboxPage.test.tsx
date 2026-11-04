@@ -125,7 +125,7 @@ describe("InboxPage", () => {
     const card = await screen.findByRole("button", { name: /Credit and payments · Station Road/ });
 
     expect(screen.getByRole("heading", { level: 1, name: "Inbox" })).toBeInTheDocument();
-    expect(card).toHaveTextContent("high · Open · 2 shops · 3 insights · 1 rep");
+    expect(card).toHaveTextContent("high · Open · 2 shops · 3 findings · 1 rep");
     expect(within(card).getByText("Raised again")).toBeInTheDocument();
     expect(within(card).getByText("Overdue")).toBeInTheDocument();
     expect(card).toHaveAttribute("aria-expanded", "false");
@@ -415,6 +415,67 @@ describe("InboxPage", () => {
     await vi.waitFor(() => expect(screen.queryByRole("list", { name: "Merge suggestions" })).not.toBeInTheDocument());
   });
 
+  it("opens the issue a link names: expanded, scrolled to, focused and marked, until another is picked", async () => {
+    // Batch F7: the homes' issue rows link here (issueLink); before, the inbox opened at the top.
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    const other: Issue = { ...ISSUE, id: "issue-2", title_en: "Supply and delivery · Old Market" };
+    const { router } = open("/inbox?team=finance&issue=issue-1", {
+      "GET /api/issues?team=finance": () => json(200, [other, ISSUE]),
+      "GET /api/issues/issue-1": () => json(200, DETAIL),
+    });
+
+    const card = await screen.findByRole("button", { name: /Credit and payments · Station Road/ });
+    expect(card).toHaveAttribute("aria-expanded", "true");
+    expect(await screen.findByRole("list", { name: "Its insights" })).toBeInTheDocument();
+    await vi.waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
+    expect(scrolled.mock.contexts[0]).toHaveAttribute("id", "issue-issue-1");
+    expect(card).toHaveFocus();
+    expect(card.closest("li")).toHaveClass("ring-2");
+    expect(screen.getByRole("button", { name: /Supply and delivery/ }).closest("li")).not.toHaveClass("ring-2");
+
+    await userEvent.click(card); // closed: the link's issue is done with
+
+    expect(card).toHaveAttribute("aria-expanded", "false");
+    expect(card.closest("li")).not.toHaveClass("ring-2");
+    expect(router.state.location.search).toBe("?team=finance");
+  });
+
+  it("a linked issue that isn't in the list says it has left it", async () => {
+    open("/inbox?team=finance&issue=gone", { "GET /api/issues?team=finance": () => json(200, [ISSUE]) });
+
+    expect(
+      await screen.findByText("That issue has left this list: its status changed, or its findings went to another team."),
+    ).toBeInTheDocument();
+  });
+
+  it("filters to open or in-progress issues alone, as the team home's cards link (batch F7)", async () => {
+    open("/inbox?status=in_progress", {
+      "GET /api/issues?team=finance&status=in_progress": () => json(200, [{ ...ISSUE, status: "in_progress" }]),
+    });
+
+    expect(await screen.findByRole("button", { name: /Credit and payments/ })).toHaveTextContent("In progress");
+    expect(screen.getByLabelText("Status")).toHaveValue("in_progress");
+  });
+
+  it("lets only its owner change the due date, and Assign to me is done once it's theirs (batch F7)", async () => {
+    const theirs: IssueDetail = { ...DETAIL, issue: { ...ISSUE, owner_id: "u-someone", owner_name: "Someone" } };
+    const mine: IssueDetail = { ...DETAIL, issue: { ...ISSUE, owner_id: "u-manager", owner_name: "Demo Manager" } };
+    open("/inbox", {
+      "GET /api/issues?team=finance": () => json(200, [ISSUE]),
+      "GET /api/issues/issue-1": [() => json(200, theirs), () => json(200, mine)],
+      "PATCH /api/issues/issue-1": () => json(200, mine),
+    });
+    await expand();
+
+    expect(screen.getByLabelText("Due date (its owner's to change)")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Change due date" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Assign to me" }));
+
+    expect(await screen.findByRole("button", { name: "Assigned to you" })).toBeDisabled();
+    expect(screen.getByLabelText("Due date (its owner's to change)")).toBeEnabled();
+  });
+
   it("an open card that leaves the list on a refresh says so", async () => {
     open("/inbox", {
       "GET /api/issues?team=finance": [() => json(200, [ISSUE]), () => json(200, [])],
@@ -427,7 +488,7 @@ describe("InboxPage", () => {
 
     expect(
       await screen.findByText(
-        "That issue has left this list: someone resolved it, or its findings went to another team.",
+        "That issue has left this list: its status changed, or its findings went to another team.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("No issues here.")).toBeInTheDocument();

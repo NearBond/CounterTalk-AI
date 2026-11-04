@@ -25,7 +25,8 @@ class CountsOut(BaseModel):
 
 
 class ShopFixedOut(BaseModel):
-    """One shop on Updates: what got fixed since its last visit here, newest first."""
+    """One shop on Updates: what got fixed since its last visit here, and (batch F7) the rep's own
+    problems this month fixed before it, newest first."""
 
     shop_id: str
     name: str
@@ -41,9 +42,10 @@ class ShopsFixedPage(BaseModel):
 
 @router.get("/fixed")
 def fixed_everywhere(user: CurrentUser, session: DbSession) -> ShopsFixedPage:
-    """Every shop of the org with something fixed since its last visit, in one call."""
+    """Every shop of the org with something fixed since its last visit, and every fix the
+    rep's counts count (batch F7), in one call."""
     access.only(user, *SHOP_STAFF)
-    found = fixed.every_shop(session, user.org_id)
+    found = fixed.for_rep(session, user.org_id, user.id)
     return ShopsFixedPage(
         items=[ShopFixedOut.model_validate(shop, from_attributes=True) for shop in found]
     )
@@ -54,7 +56,7 @@ class HomeOut(BaseModel):
 
     # The rep's own visits waiting for review.
     to_review: int
-    # Shops with something fixed since their last visit: Updates' sections.
+    # Shops with a fix since their last visit: Updates' "Fixed since the last visit here".
     to_pass_on: int
 
 

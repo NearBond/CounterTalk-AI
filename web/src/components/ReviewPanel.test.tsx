@@ -149,7 +149,7 @@ describe("ReviewPanel", () => {
     expect(within(found).getByText("Problem · Credit and payments · Low")).toBeInTheDocument();
     expect(within(found).getByText("Payment abhi tak nahi aaya")).toHaveAttribute("lang", "hi");
     expect(within(found).getByText("Product: Kurkure")).toBeInTheDocument();
-    expect(within(found).getByText("Sent to Money desk")).toBeInTheDocument();
+    expect(within(found).getByText("Goes to Money desk")).toBeInTheDocument();
   });
 
   it("focuses the finding a summary's citation points at, once it's shown", async () => {
@@ -210,7 +210,7 @@ describe("ReviewPanel", () => {
     await userEvent.selectOptions(within(found).getByLabelText("Category"), "supply");
     await userEvent.click(within(found).getByRole("button", { name: "Save" }));
 
-    expect(await within(found).findByText("Sent to Field team")).toBeInTheDocument();
+    expect(await within(found).findByText("Goes to Field team")).toBeInTheDocument();
     expect(api.sent()).toEqual([{ route: "PATCH /api/insights/i1", body: { category: "supply" } }]);
   });
 
@@ -230,7 +230,7 @@ describe("ReviewPanel", () => {
     await userEvent.selectOptions(within(found).getByLabelText("Main team"), "team-area");
     await userEvent.click(within(found).getByRole("button", { name: "Save" }));
 
-    expect(await within(found).findByText("Sent to Area manager")).toBeInTheDocument();
+    expect(await within(found).findByText("Goes to Area manager")).toBeInTheDocument();
     expect(api.sent()).toEqual([
       { route: "PATCH /api/insights/i1", body: { category: "supply" } },
       { route: "PUT /api/insights/i1/teams", body: { team_ids: ["team-area"], routing_version: 2 } },
@@ -254,7 +254,7 @@ describe("ReviewPanel", () => {
     await userEvent.selectOptions(within(found).getByLabelText("Second team"), "team-area");
     await userEvent.click(within(found).getByRole("button", { name: "Save" }));
 
-    expect(await within(found).findByText("Sent to Field team, Area manager")).toBeInTheDocument();
+    expect(await within(found).findByText("Goes to Field team, Area manager")).toBeInTheDocument();
     expect(api.sent()).toEqual([
       { route: "PUT /api/insights/i1/teams", body: { team_ids: ["team-field", "team-area"], routing_version: 1 } },
     ]);
@@ -528,7 +528,7 @@ describe("ReviewPanel", () => {
       "Money desk · ResolvedAnswer: Credit note sent.",
       "Field team",
     ]);
-    expect(screen.queryByText(/^Sent to/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Goes to/)).not.toBeInTheDocument();
   });
 
   it("offers Try again when the review can't be loaded", async () => {

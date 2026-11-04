@@ -14,6 +14,7 @@ import {
 import { formatDateTime } from "../lib/format";
 import { usePlayer, usePolling, useSave } from "../lib/hooks";
 import { dateInputOf, dueAtOf, SETTABLE, STATUS_LABELS } from "../lib/issues";
+import { useMe } from "../lib/session";
 import {
   type Choice,
   type IssueChange,
@@ -125,6 +126,9 @@ function IssueControls({
   const save = useSave();
   const closed = issue.status === "resolved" || issue.status === "merged";
   const noOwner = issue.owner_id === null;
+  // Only its owner changes its due date (the server says not_owner to anyone else), and
+  // assigning it to its owner changes nothing (batch F7).
+  const mine = issue.owner_id === useMe().id;
   const send = (change: Omit<IssueChange, "version">) =>
     save.run(
       (signal) => changeIssue(issue.id, { version: issue.version, ...change }, signal),
@@ -152,11 +156,11 @@ function IssueControls({
         <>
           <button
             type="button"
-            disabled={save.saving}
+            disabled={save.saving || mine}
             onClick={() => send({ assign_to_me: true })}
             className="self-start rounded-md border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50"
           >
-            Assign to me
+            {mine ? "Assigned to you" : "Assign to me"}
           </button>
           <form
             onSubmit={(event) => {
@@ -209,14 +213,14 @@ function IssueControls({
               <input
                 type="date"
                 value={due}
-                disabled={save.saving || noOwner}
+                disabled={save.saving || !mine}
                 onChange={(event) => setDue(event.target.value)}
                 className="rounded-md border border-gray-300 p-2"
               />
             </label>
             <button
               type="submit"
-              disabled={save.saving || noOwner || due === "" || due === dateInputOf(issue.due_at)}
+              disabled={save.saving || !mine || due === "" || due === dateInputOf(issue.due_at)}
               className="rounded-md border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50"
             >
               Change due date

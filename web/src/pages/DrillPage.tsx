@@ -6,7 +6,7 @@ import { audioUrl, getDrill } from "../lib/api";
 import { countOf, formatDateTime, formatPeriod } from "../lib/format";
 import { usePlayer, usePolling } from "../lib/hooks";
 import { isRetryable } from "../lib/retry";
-import { STATUS_LABELS } from "../lib/issues";
+import { issueLink, STATUS_LABELS } from "../lib/issues";
 import type { PeriodKind } from "../types/api";
 
 /** `/summaries/drill?team=<id>&issue=<id>&period=week|month` (batch 15c): a team summary's
@@ -34,7 +34,7 @@ export function DrillPage() {
         <Link to={`/summaries?${new URLSearchParams({ team: teamKey, period }).toString()}`} className="text-blue-700 underline">
           Summaries
         </Link>
-        <Link to="/inbox" className="text-blue-700 underline">
+        <Link to={issueId === null ? "/inbox" : issueLink(issueId, { team: teamKey })} className="text-blue-700 underline">
           Inbox
         </Link>
       </div>

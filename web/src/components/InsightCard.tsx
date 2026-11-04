@@ -33,10 +33,23 @@ interface Props {
   onDirty: (insightId: string, dirty: boolean) => void;
   /** The review is out of date (its teams changed meanwhile): read it again. */
   onStale: () => void;
+  /** The viewer's own visit; false for a manager, admin or team member reading it. */
+  mine?: boolean;
 }
 
 /** One insight: what it is, the shopkeeper's words with ▶, its teams, and its edits. */
-export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved, onDeleted, onDirty, onStale }: Props) {
+export function InsightCard({
+  insight,
+  codebook,
+  editable,
+  lang,
+  onPlay,
+  onSaved,
+  onDeleted,
+  onDirty,
+  onStale,
+  mine = true,
+}: Props) {
   const [draft, setDraft] = useState<Draft | null>(null);
   // The Edit form's teams (batch F1), and what they were when it opened.
   const [picked, setPicked] = useState<string[]>([]);
@@ -115,7 +128,7 @@ export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved
       <p className="text-xs font-medium tracking-wide text-gray-600 uppercase">
         {labelOf(codebook.kinds, insight.kind)} · {labelOf(codebook.categories, insight.category)} ·{" "}
         {labelOf(codebook.severities, insight.severity)}
-        {insight.added_by_rep && " · added by you"}
+        {insight.added_by_rep && (mine ? " · added by you" : " · added by the rep")}
       </p>
       {!insight.verified && <p className="text-sm font-medium">Couldn't find this in the recording</p>}
 
@@ -202,7 +215,7 @@ export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved
       {insight.verified && (editable || insight.routes.length === 0) && (
         <p className="text-sm text-gray-600">
           {teams !== ""
-            ? `Sent to ${teams}`
+            ? `Goes to ${teams}`
             : insight.left_by_rep
               ? "Left for the manager: it goes to triage"
               : "No team yet: it goes to triage"}

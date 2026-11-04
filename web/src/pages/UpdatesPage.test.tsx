@@ -11,6 +11,7 @@ const FIXED: FixedItem = {
   problem: "The last two Kurkure deliveries came a week late.",
   note: "Your distributor now delivers every Monday.",
   resolved_at: "2026-11-02T06:30:00Z",
+  since_last_visit: true,
 };
 const SUNRISE: ShopFixed = { shop_id: "s1", name: "Sunrise Kirana", area: "Old Market", items: [FIXED] };
 const LOTUS: ShopFixed = {
@@ -47,6 +48,27 @@ describe("UpdatesPage", () => {
     expect(item).toHaveTextContent("Distribution · 2 Nov 2026");
     expect(item).toHaveTextContent(FIXED.problem);
     expect(item).toHaveTextContent(`Tell them: ${FIXED.note}`);
+  });
+
+  it("lists every fix the count counts: those from before the last visit under a plain Fixed", async () => {
+    // Batch F7: "3 are fixed" over a list of 2. The rep's own older fix is listed too.
+    const older = { ...FIXED, problem: "The cooler was broken.", note: "It's mended.", since_last_visit: false };
+    const both: ShopFixed = { ...SUNRISE, items: [FIXED, older] };
+    open({
+      "GET /api/me/counts": () => json(200, { raised: 3, fixed: 2 }),
+      "GET /api/me/fixed": () => json(200, { items: [both, { ...LOTUS, items: [older] }], next_cursor: null }),
+    });
+
+    const shops = await screen.findAllByRole("region");
+    const [sunrise, lotus] = shops as [HTMLElement, HTMLElement];
+    expect(within(sunrise).getByText("Fixed since the last visit here")).toBeInTheDocument();
+    expect(within(sunrise).getByText("Fixed")).toBeInTheDocument();
+    const lists = within(sunrise).getAllByRole("list");
+    expect(lists.map((list) => within(list).getAllByRole("listitem").length)).toEqual([1, 1]);
+    expect(lists[1]).toHaveTextContent("The cooler was broken.");
+    // A shop with only older fixes has no "since the last visit" label.
+    expect(within(lotus).queryByText("Fixed since the last visit here")).not.toBeInTheDocument();
+    expect(within(lotus).getByText("Fixed")).toBeInTheDocument();
   });
 
   it("says when there's nothing new, and hides the counts when none were raised", async () => {

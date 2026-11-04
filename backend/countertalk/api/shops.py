@@ -44,6 +44,9 @@ class FixedOut(BaseModel):
     # The team's resolution note: the line the rep says.
     note: str
     resolved_at: datetime
+    # After the shop's last visit; Updates (batch F7) also lists the rep's own fixed problems
+    # from before it (false). Always true for one shop's list.
+    since_last_visit: bool
 
 
 class FixedPage(BaseModel):

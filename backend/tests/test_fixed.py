@@ -31,7 +31,7 @@ from tests.test_visits import Org_, new_visit
 
 DAY = timedelta(days=1)
 NOW = utc_now()
-KEYS = {"team", "category", "problem", "note", "resolved_at"}
+KEYS = {"team", "category", "problem", "note", "resolved_at", "since_last_visit"}
 
 
 @pytest.fixture
@@ -91,6 +91,7 @@ def test_a_problem_fixed_since_the_last_visit_is_listed_with_its_note(
         "category": "payments",
         "problem": "The payment is late.",
         "note": "Paid.",
+        "since_last_visit": True,
     }
     assert datetime.fromisoformat(item["resolved_at"]) == NOW - 2 * DAY
     assert "Kurkure ke do dabbe" not in client.get(f"/api/shops/{org.shop_id}/fixed").text
@@ -225,6 +226,57 @@ def test_a_shop_s_own_later_visit_hides_its_earlier_fix(client: TestClient, org:
     raised(second, 1, category="demand", severity="low")  # its last visit, after its fix
 
     assert [shop["shop_id"] for shop in everywhere(client)] == [org.shop_id]
+
+
+def test_updates_lists_the_rep_s_own_fix_from_before_the_last_visit_as_plain_fixed(
+    client: TestClient, org: Org_
+) -> None:
+    # Batch F7: the count said 3 fixed over a list of 2. Every fix it counts is listed now.
+    early = this_month_before_today()
+    visit = problem_at(org, early, category="payments", severity="low", summary_en="Paid late.")
+    resolve(org, issues_of(visit)["money"], early + timedelta(hours=1))
+    later = early + timedelta(hours=2)  # the shop's last visit, after the fix
+    visit_at(org, later, later, insight(kind="product_request", category="demand"))
+
+    [shop] = everywhere(client)
+
+    [item] = shop["items"]
+    said = (item["problem"], item["note"], item["since_last_visit"])
+    assert said == ("Paid late.", "Paid.", False)
+    assert counts(client)["fixed"] == 1
+    assert listed(client, org.shop_id) == []  # nothing since the last visit
+
+
+def test_a_fix_the_rep_raised_since_the_last_visit_is_listed_once(
+    client: TestClient, org: Org_
+) -> None:
+    early = this_month_before_today()
+    visit = problem_at(org, early, category="payments", severity="low")
+    resolve(org, issues_of(visit)["money"], NOW)
+
+    [shop] = everywhere(client)
+
+    assert [item["since_last_visit"] for item in shop["items"]] == [True]
+
+
+def test_another_rep_s_fix_from_before_the_last_visit_isnt_listed(
+    client: TestClient, org: Org_
+) -> None:
+    early = this_month_before_today()
+    other_rep = Org_(org.org_id, a_user(org.org_id, Role.REP, "Other Rep"), org.shop_id)
+    visit = problem_at(other_rep, early, category="payments", severity="low")
+    resolve(org, issues_of(visit)["money"], early + timedelta(hours=1))
+    later = early + timedelta(hours=2)
+    visit_at(org, later, later, insight(kind="product_request", category="demand"))
+
+    assert everywhere(client) == []
+
+
+def this_month_before_today() -> datetime:
+    """An hour into this IST month, before today: on the 1st there's no such time."""
+    if ist_date(utc_now()).day == 1:
+        pytest.skip("on a month's first day, nothing this month is before today")
+    return month_start() + timedelta(hours=1)
 
 
 # --- the rep's home (batch F2) ---------------------------------------------------------------

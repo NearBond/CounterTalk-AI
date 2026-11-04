@@ -313,7 +313,12 @@ describe("ManagerHomePage", () => {
     const section = await screen.findByRole("region", { name: "Top open issues" });
     await within(section).findByText("Kurkure Diwali payout late");
     const links = within(section).getAllByRole("link");
-    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/summaries", "/summaries", "/summaries"]);
+    // Batch F7: each opens its issue, the first team still working it, in that team's inbox.
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/inbox?team=finance&issue=payout-Finance",
+      "/inbox?team=distribution&issue=deliveries-Distribution",
+      "/inbox?team=sales+operations&issue=price-Sales+operations",
+    ]);
     expect(links[0]).toHaveAccessibleName(
       "Kurkure Diwali payout late Finance: Open Sales operations: In progress 5 shops waiting on a fix",
     );
@@ -339,7 +344,7 @@ describe("ManagerHomePage", () => {
     expect(await within(section).findByText("Last week's summary")).toBeInTheDocument();
     expect(section).toHaveTextContent("26 Oct – 1 Nov 2026");
     expect(section).toHaveTextContent("Ready to read");
-    expect(within(section).getByRole("link", { name: "Read it →" })).toHaveAttribute("href", "/summaries");
+    expect(within(section).getByRole("link", { name: "Read it →" })).toHaveAttribute("href", "/summaries?scope=org");
   });
 
   it.each([
@@ -350,7 +355,7 @@ describe("ManagerHomePage", () => {
 
     const section = await screen.findByRole("region", { name: "Latest summary" });
     expect(await within(section).findByText(said)).toBeInTheDocument();
-    expect(within(section).getByRole("link", { name: "Read it →" })).toHaveAttribute("href", "/summaries");
+    expect(within(section).getByRole("link", { name: "Read it →" })).toHaveAttribute("href", "/summaries?scope=org");
   });
 
   it.each([

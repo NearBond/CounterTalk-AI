@@ -8,6 +8,17 @@ export const STATUS_LABELS: Record<IssueStatus, string> = {
   merged: "Merged",
 };
 
+/** Where an issue opens (batch F7): the inbox, with that issue expanded, scrolled to and
+ * highlighted. `team` is the team's key, for a manager or admin, who picks the team; a resolved
+ * one is under Status: Resolved. */
+export function issueLink(issueId: string, { team, resolved }: { team?: string; resolved?: boolean } = {}): string {
+  const params = new URLSearchParams();
+  if (team !== undefined) params.set("team", team);
+  if (resolved === true) params.set("status", "resolved");
+  params.set("issue", issueId);
+  return `/inbox?${params.toString()}`;
+}
+
 /** The statuses a team member picks: merging is batch 15c's. */
 export const SETTABLE: Exclude<IssueStatus, "merged">[] = ["open", "in_progress", "resolved"];
 

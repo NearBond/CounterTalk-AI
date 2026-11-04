@@ -18,6 +18,11 @@ no comparison with other reps, no location (the plan's rule against tracking rep
 - Raised: visible insights of kind `problem` from the rep's own confirmed visits made
   this IST calendar month.
 - Fixed: those routed to a team whose every routed issue is resolved now.
+
+**Updates' list** (batch F7; the user, 5 Nov: the count said 3 fixed over a list of 2) lists
+every fix the count counts too: each shop with a fix since its last visit, as above, and each
+shop of the rep's own fixed problems this month. An issue fixed since the shop's last visit is
+marked so; the rest were fixed before it. Each issue once per shop, newest first.
 """
 
 from collections import defaultdict
@@ -26,7 +31,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import and_, exists, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from countertalk import rows
 from countertalk.errors import NotFound
@@ -57,6 +62,9 @@ class Fixed:
     problem: str
     note: str
     resolved_at: datetime
+    # Resolved after the shop's last visit (Updates' "Fixed since the last visit here"), or
+    # before it: one of the rep's own fixed problems this month, under plain "Fixed".
+    since_last_visit: bool = True
 
 
 @dataclass(frozen=True)
@@ -76,19 +84,64 @@ def since_last_visit(session: Session, org_id: str, shop_id: str) -> list[Fixed]
     return _fixed(session, org_id, shop.id).get(shop.id, [])
 
 
-def every_shop(session: Session, org_id: str) -> list[ShopFixed]:
-    """Each of the org's shops with something fixed since its last visit, its newest fix first."""
-    found = _fixed(session, org_id, None)
+def for_rep(session: Session, org_id: str, rep_id: str) -> list[ShopFixed]:
+    """Updates' list: each of the org's shops with something fixed since its last visit, and the
+    shops of the rep's own fixed problems this month (my_counts' fixed) with theirs from before
+    the shop's last visit. Each issue once per shop, newest first; the shop with the newest fix
+    first."""
+    found: dict[str, dict[str, Fixed]] = defaultdict(dict)
+    for shop, items in _fixed_issues(session, org_id, None).items():
+        found[shop].update(items)
+    for shop, issue_id, item in _mine_fixed(session, org_id, rep_id):
+        found[shop].setdefault(issue_id, item)
     if not found:
         return []
     shops = session.scalars(select(Shop).where(Shop.org_id == org_id, Shop.id.in_(found)))
-    listed = [ShopFixed(shop.id, shop.name, shop.area, found[shop.id]) for shop in shops]
+    listed = [
+        ShopFixed(
+            shop.id,
+            shop.name,
+            shop.area,
+            sorted(found[shop.id].values(), key=lambda item: item.resolved_at, reverse=True),
+        )
+        for shop in shops
+    ]
     return sorted(listed, key=lambda each: (each.items[0].resolved_at, each.shop_id), reverse=True)
+
+
+def _mine_fixed(session: Session, org_id: str, rep_id: str) -> list[tuple[str, str, Fixed]]:
+    """The rep's own fixed problems this month, as my_counts counts them: (shop, issue, item)
+    for each of their issues, the rep's latest insight in it. Marked as fixed before the shop's
+    last visit: for_rep keeps the since-the-last-visit item when there's one."""
+    found = session.execute(
+        select(Visit.shop_id, Issue.id, Team.name, Issue.category)
+        .add_columns(Issue.resolution_note, Issue.resolved_at, Insight.summary_en)
+        .select_from(Insight)
+        .join(Visit, Visit.id == Insight.visit_id)
+        .join(InsightRoute, InsightRoute.insight_id == Insight.id)
+        .join(Issue, Issue.id == InsightRoute.issue_id)
+        .join(Team, (Team.org_id == Issue.org_id) & (Team.id == Issue.team_id))
+        .where(*_mine_this_month(org_id, rep_id), ~_open_route())
+        .order_by(Visit.shop_id, Issue.id, Visit.created_at.desc(), Insight.seq.desc())
+    ).all()
+    kept: dict[tuple[str, str], Fixed] = {}
+    for shop, issue_id, team, category, note, resolved_at, summary in found:
+        if (shop, issue_id) not in kept and note is not None and resolved_at is not None:
+            kept[shop, issue_id] = Fixed(team, category, summary, note, resolved_at, False)
+    return [(shop, issue_id, item) for (shop, issue_id), item in kept.items()]
 
 
 def _fixed(session: Session, org_id: str, shop_id: str | None) -> dict[str, list[Fixed]]:
     """The module's rules, for one shop or (None) every shop of the org, in one query: each
     shop with a fix, its list newest first, at most FIXED_MAX."""
+    found = _fixed_issues(session, org_id, shop_id)
+    return {shop: list(items.values()) for shop, items in found.items()}
+
+
+def _fixed_issues(
+    session: Session, org_id: str, shop_id: str | None
+) -> dict[str, dict[str, Fixed]]:
+    """_fixed's lists, each fix by its issue's ID (dicts keep their order: newest first)."""
     today = at_midnight(ist_date(utc_now()))
     # Each shop's last visit before today: the "since".
     last = select(Visit.shop_id, func.max(Visit.created_at).label("since")).where(
@@ -121,10 +174,13 @@ def _fixed(session: Session, org_id: str, shop_id: str | None) -> dict[str, list
     for shop, issue_id, team, category, note, resolved_at, summary in found:
         if (shop, issue_id) not in kept and note is not None and resolved_at is not None:
             kept[shop, issue_id] = Fixed(team, category, summary, note, resolved_at)
-    by_shop: dict[str, list[Fixed]] = defaultdict(list)
-    for (shop, _), item in sorted(kept.items(), key=lambda each: each[1].resolved_at, reverse=True):
-        by_shop[shop].append(item)  # newest first
-    return {shop: items[:FIXED_MAX] for shop, items in by_shop.items()}
+    by_shop: dict[str, dict[str, Fixed]] = defaultdict(dict)
+    for (shop, issue_id), item in sorted(
+        kept.items(), key=lambda each: each[1].resolved_at, reverse=True
+    ):
+        if len(by_shop[shop]) < FIXED_MAX:
+            by_shop[shop][issue_id] = item  # newest first
+    return dict(by_shop)
 
 
 @dataclass(frozen=True)
@@ -167,27 +223,36 @@ def _problems(org_id: str, whose: Any) -> list[Any]:
     ]
 
 
+def _mine_this_month(org_id: str, rep_id: str) -> list[Any]:
+    """The rep's own problems this IST month: the counts' raised, and Updates' list (R1)."""
+    month = period_of("month", ist_date(utc_now()))
+    return [
+        *_problems_of(org_id, rep_id),
+        Visit.created_at >= month.start,
+        Visit.created_at < month.end,
+    ]
+
+
+def _open_route() -> Any:
+    """The insight has a route whose issue isn't resolved now: it isn't fixed (R1). Its own
+    aliases, so it correlates with the insight alone where the query joins routes and issues."""
+    route, issue = aliased(InsightRoute), aliased(Issue)
+    return exists().where(
+        route.insight_id == Insight.id,
+        ~exists().where(and_(issue.id == route.issue_id, issue.status == IssueStatus.RESOLVED)),
+    )
+
+
 def my_counts(session: Session, org_id: str, rep_id: str) -> Counts:
     """The rep's own problems this IST month, and how many are fixed now."""
-    month = period_of("month", ist_date(utc_now()))
     mine = (
         select(Insight.id)
         .join(Visit, Visit.id == Insight.visit_id)
-        .where(
-            *_problems_of(org_id, rep_id),
-            Visit.created_at >= month.start,
-            Visit.created_at < month.end,
-        )
+        .where(*_mine_this_month(org_id, rep_id))
     )
     routed = exists().where(InsightRoute.insight_id == Insight.id)
-    open_route = exists().where(
-        InsightRoute.insight_id == Insight.id,
-        ~exists().where(
-            and_(Issue.id == InsightRoute.issue_id, Issue.status == IssueStatus.RESOLVED)
-        ),
-    )
     raised = session.scalar(select(func.count()).select_from(mine.subquery())) or 0
-    done = mine.where(routed, ~open_route)
+    done = mine.where(routed, ~_open_route())
     fixed = session.scalar(select(func.count()).select_from(done.subquery())) or 0
     return Counts(raised, fixed)
 

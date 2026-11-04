@@ -30,7 +30,7 @@ const SHOPS = [
 ];
 
 function fix(team: string, note: string, resolvedAt: string): FixedItem {
-  return { team, category: "supply", problem: "Late deliveries.", note, resolved_at: resolvedAt };
+  return { team, category: "supply", problem: "Late deliveries.", note, resolved_at: resolvedAt, since_last_visit: true };
 }
 
 const FIXED: ShopFixed[] = [
@@ -339,6 +339,6 @@ describe("RepHomePage", () => {
     );
     expect(within(fixes).queryByRole("link")).not.toBeInTheDocument();
     const pendingNone = screen.getByRole("region", { name: "Pending resolutions" });
-    expect(pendingNone).toHaveTextContent("Nothing pending: every problem you raised has been fixed.");
+    expect(pendingNone).toHaveTextContent("Nothing pending: no team is working on a problem you raised right now.");
   });
 });

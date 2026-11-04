@@ -21,7 +21,7 @@ import {
 import { getOverview, getSummaryPage, listTriage } from "../lib/api";
 import { countOf, formatDay, formatPeriod } from "../lib/format";
 import { usePolling } from "../lib/hooks";
-import { STATUS_LABELS } from "../lib/issues";
+import { issueLink, STATUS_LABELS } from "../lib/issues";
 import { keepsCatalog, useMe } from "../lib/session";
 import type { CauseNumbers, Finding, IssueStatus } from "../types/api";
 
@@ -242,7 +242,7 @@ export function ManagerHomePage() {
                 <span className={`${PILL} ${SUMMARY_STATUS[summary.status].tone}`}>
                   {SUMMARY_STATUS[summary.status].label}
                 </span>
-                <Link to="/summaries" className={SECONDARY}>
+                <Link to="/summaries?scope=org" className={SECONDARY}>
                   Read it →
                 </Link>
               </div>
@@ -280,11 +280,17 @@ function TriageRow({ finding }: { finding: Finding }) {
 }
 
 /** One of last week's causes: its title, each team working it with its status, and how many
- * shops still wait on a fix. */
+ * shops still wait on a fix. It opens the issue (batch F7): the first team's still working it,
+ * in that team's inbox. */
 function CauseRow({ cause }: { cause: CauseNumbers }) {
+  const work = cause.teams.find((team) => team.status === "open" || team.status === "in_progress") ?? cause.teams[0];
+  const to =
+    work === undefined
+      ? "/summaries?scope=org"
+      : issueLink(work.issue_id, { team: work.team_key, resolved: work.status === "resolved" });
   return (
     <li>
-      <Link to="/summaries" className={ROW}>
+      <Link to={to} className={ROW}>
         <span className="flex min-w-0 flex-1 flex-col gap-1.5">
           <span className="font-semibold wrap-break-word text-ink">{cause.title_en}</span>{" "}
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">

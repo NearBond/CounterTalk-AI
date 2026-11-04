@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getReview } from "../lib/api";
+import { countOf } from "../lib/format";
 import { useLeaveWarning, usePolling, useSave } from "../lib/hooks";
 import { confirmReview } from "../lib/review";
 import type { Insight, Note, Review, Turn, Visit } from "../types/api";
@@ -171,6 +172,7 @@ export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed
               onStale={loaded.reload}
               onDeleted={drop}
               onDirty={markDirty}
+              mine={!readOnly}
             />
           ))}
         </ul>
@@ -205,11 +207,16 @@ export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed
             Confirming sends the findings to their teams. It can't be changed afterwards.
           </p>
         </section>
+      ) : review.visit.status !== "confirmed" ? (
+        // Someone else's visit, still in review (batch F7): not confirmed yet, whatever the viewer.
+        <p className="rounded-md bg-gray-50 p-3 text-gray-700">
+          Waiting for the rep to confirm this visit: its findings reach their teams once they do.
+        </p>
       ) : (
         <p className="rounded-md bg-green-50 p-3 text-green-900">
-          Confirmed: {review.insights.filter((i) => i.visible).length} of {review.insights.length} findings, the
-          ones found in the recording, went on to their teams, or to triage where no team fits. It can't be changed
-          now.
+          Confirmed: {review.insights.filter((i) => i.visible).length} of{" "}
+          {countOf(review.insights.length, "finding", "findings")}, the ones found in the recording, went on to their
+          teams, or to triage where no team fits. It can't be changed now.
         </p>
       )}
       {review.insights.some((insight) => !insight.verified) && editable && (

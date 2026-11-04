@@ -37,7 +37,7 @@ export function InboxPage() {
       ? null
       : ((data.teams.find((t) => t.key === wanted) ?? data.teams[0])?.key ?? null);
   const offered: Record<(typeof FILTERS)[number], string[]> = {
-    status: ["resolved"],
+    status: ["open", "in_progress", "resolved"],
     category: data?.categories.map((c) => c.key) ?? [],
     area: data?.areas ?? [],
     distributor: data?.distributors.map((d) => d.id) ?? [],
@@ -65,7 +65,12 @@ export function InboxPage() {
     // The address's filters count only once their choices are known (`offered`).
     skip: team === null || data === undefined,
   });
-  const [open, setOpen] = useState<string | null>(null);
+  // The issue a link opened (batch F7: issueLink): expanded, scrolled to once and highlighted,
+  // until anything else is picked.
+  const target = params.get("issue");
+  const [open, setOpen] = useState<string | null>(target);
+  const [marked, setMarked] = useState<string | null>(target);
+  const reached = useRef(false);
   // An issue that leaves the list says where it went: resolved here, merged here (batch 15c), or
   // (the open card gone after a refresh) resolved by someone else or moved away. The card it's
   // about is hidden at once, before the list catches up.
@@ -74,11 +79,23 @@ export function InboxPage() {
   const left = open !== null && shown !== undefined && !shown.some((issue) => issue.id === open);
   const said =
     notice?.text ??
-    (left ? "That issue has left this list: someone resolved it, or its findings went to another team." : "");
+    (left ? "That issue has left this list: its status changed, or its findings went to another team." : "");
   const status = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     if (notice !== null) status.current?.focus(); // where the card was, read out
   }, [notice]);
+  useEffect(() => {
+    if (marked === null || reached.current || !shown?.some((issue) => issue.id === marked)) return;
+    reached.current = true;
+    const card = document.getElementById(`issue-${marked}`);
+    card?.scrollIntoView?.({ block: "start" });
+    card?.querySelector("button")?.focus({ preventScroll: true });
+  }, [marked, shown]);
+  // Anything else picked: the link's issue is done with, and leaves the address.
+  const unmark = (next: URLSearchParams) => {
+    setMarked(null);
+    next.delete("issue");
+  };
   const onResolved = (issue: Issue) => {
     setNotice({ text: `Resolved: ${issue.title_en}. It's under Status: Resolved now.`, hide: issue.id });
     setOpen(null);
@@ -92,11 +109,17 @@ export function InboxPage() {
   const toggle = (issueId: string) => {
     setNotice(null);
     setOpen(open === issueId ? null : issueId);
+    if (marked !== null) {
+      const next = new URLSearchParams(params);
+      unmark(next);
+      setParams(next, { replace: true });
+    }
   };
   const choose = (changes: Record<string, string>) => {
     setNotice(null);
     setOpen(null);
     const next = new URLSearchParams(params);
+    unmark(next);
     for (const [name, value] of Object.entries(changes)) {
       if (value) next.set(name, value);
       else next.delete(name);
@@ -139,6 +162,8 @@ export function InboxPage() {
             label="Status"
             choices={[
               { key: "", label: "Open and in progress" },
+              { key: "open", label: STATUS_LABELS.open },
+              { key: "in_progress", label: STATUS_LABELS.in_progress },
               { key: "resolved", label: STATUS_LABELS.resolved },
             ]}
             value={filters.status ?? ""}
@@ -208,7 +233,13 @@ export function InboxPage() {
       {shown !== undefined && data !== undefined && (
         <ul aria-label="Issues" className="flex flex-col gap-3">
           {shown.map((issue) => (
-            <li key={issue.id} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+            <li
+              key={issue.id}
+              id={`issue-${issue.id}`}
+              className={`flex scroll-mt-4 flex-col gap-2 rounded-lg border p-3 ${
+                marked === issue.id ? "border-ink ring-2 ring-marigold" : "border-gray-200"
+              }`}
+            >
               <IssueSummary
                 issue={issue}
                 expanded={open === issue.id}
@@ -266,7 +297,7 @@ function DayField({ label, value, min, max, onChange }: DayFieldProps) {
 function IssueSummary({ issue, expanded, onToggle }: { issue: Issue; expanded: boolean; onToggle: () => void }) {
   const counts = [
     countOf(issue.shops, "shop", "shops"),
-    countOf(issue.insights, "insight", "insights"),
+    countOf(issue.insights, "finding", "findings"),
     countOf(issue.reps, "rep", "reps"),
   ].join(" · ");
   return (

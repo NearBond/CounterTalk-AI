@@ -160,11 +160,15 @@ describe("TeamHomePage", () => {
     open();
     const cards = await numbers();
 
+    // Batch F7: each card opens the inbox at the status it counts.
     expect(await cards.findByRole("link", { name: "5 open issues waiting for your team" })).toHaveAttribute(
       "href",
-      "/inbox",
+      "/inbox?status=open",
     );
-    expect(cards.getByRole("link", { name: "2 issues your team is working on" })).toHaveAttribute("href", "/inbox");
+    expect(cards.getByRole("link", { name: "2 issues your team is working on" })).toHaveAttribute(
+      "href",
+      "/inbox?status=in_progress",
+    );
     const overdue = cards.getByRole("link", { name: "3 issues past their due date" });
     expect(overdue).toHaveAttribute("href", "/inbox");
     expect(overdue).toHaveClass("bg-vermilion-soft");
@@ -192,8 +196,11 @@ describe("TeamHomePage", () => {
     });
     const cards = await numbers();
 
-    expect(await cards.findByRole("link", { name: "No open issues" })).toHaveAttribute("href", "/inbox");
-    expect(cards.getByRole("link", { name: "No issues being worked on" })).toHaveAttribute("href", "/inbox");
+    expect(await cards.findByRole("link", { name: "No open issues" })).toHaveAttribute("href", "/inbox?status=open");
+    expect(cards.getByRole("link", { name: "No issues being worked on" })).toHaveAttribute(
+      "href",
+      "/inbox?status=in_progress",
+    );
     const overdue = cards.getByRole("link", { name: "Nothing overdue" });
     expect(overdue).toHaveAttribute("href", "/inbox");
     expect(overdue).not.toHaveClass("bg-vermilion-soft");
@@ -221,9 +228,9 @@ describe("TeamHomePage", () => {
     expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       [
         "Credit notes come late High severity In progress Overdue Raised again 4 shops · 6 findings · Owner: Priya Sharma",
-        "/inbox",
+        "/inbox?issue=i-1",
       ],
-      ["Scheme money not paid Medium severity Open 1 shop · 1 finding · No owner yet", "/inbox"],
+      ["Scheme money not paid Medium severity Open 1 shop · 1 finding · No owner yet", "/inbox?issue=i-2"],
     ]);
     expect(
       within(section).getByRole("link", {
@@ -258,9 +265,9 @@ describe("TeamHomePage", () => {
     ]);
     const section = screen.getByRole("region", { name: "Recently resolved" });
     expect(within(section).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
-      "/inbox?status=resolved",
-      "/inbox?status=resolved",
-      "/inbox?status=resolved",
+      "/inbox?status=resolved&issue=i-4",
+      "/inbox?status=resolved&issue=i-5",
+      "/inbox?status=resolved&issue=i-3",
     ]);
     expect(screen.queryByRole("button", { name: /^View all/ })).not.toBeInTheDocument();
   });
@@ -352,7 +359,7 @@ describe("TeamHomePage", () => {
 
     expect(await within(section).findByRole("link", { name: /^Credit notes come late / })).toHaveAttribute(
       "href",
-      "/inbox",
+      "/inbox?issue=i-1",
     );
     expect(within(section).queryByRole("alert")).not.toBeInTheDocument();
   });

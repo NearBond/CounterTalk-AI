@@ -105,6 +105,9 @@ export interface FixedItem {
   /** The team's resolution note: the line the rep says. */
   note: string;
   resolved_at: string;
+  /** After the shop's last visit. Updates (batch F7) also lists the rep's own fixed problems from
+   * before it (false); always true for one shop's list. */
+  since_last_visit: boolean;
 }
 
 /** GET /api/me/fixed (batch 17e): ShopFixedOut, one shop on Updates, its fixes newest first. */

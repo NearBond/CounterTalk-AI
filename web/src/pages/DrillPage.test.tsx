@@ -178,5 +178,10 @@ describe("DrillPage", () => {
       "href",
       "/summaries?team=finance&period=week",
     );
+    // Batch F7: and on to the issue itself, in its team's inbox, not the first team's.
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Inbox" })).toHaveAttribute(
+      "href",
+      "/inbox?team=finance&issue=issue-1",
+    );
   });
 });

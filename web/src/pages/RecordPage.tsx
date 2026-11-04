@@ -165,11 +165,11 @@ export function RecordPage() {
       {/* Locked while busy (§9.13): leaving would stop the recording. */}
       {locked ? (
         <span aria-disabled="true" className="text-gray-400">
-          Visits
+          Home
         </span>
       ) : (
         <Link to="/" className="text-blue-700 underline">
-          Visits
+          Home
         </Link>
       )}
       <h1 className="text-2xl font-semibold">Record a visit</h1>

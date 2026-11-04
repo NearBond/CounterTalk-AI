@@ -20,7 +20,7 @@ import {
 import { getOverview, getSummaryPage, listIssues } from "../lib/api";
 import { countOf, formatDay, formatPeriod } from "../lib/format";
 import { usePolling } from "../lib/hooks";
-import { STATUS_LABELS } from "../lib/issues";
+import { issueLink, STATUS_LABELS } from "../lib/issues";
 import { useMe } from "../lib/session";
 import type { Issue, SummaryPage } from "../types/api";
 
@@ -97,12 +97,12 @@ export function TeamHomePage() {
       <div className="flex flex-col gap-3">
         <ul aria-label="Your numbers" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <li>
-            <Link to="/inbox" className={STAT}>
+            <Link to="/inbox?status=open" className={STAT}>
               <Figure {...open} />
             </Link>
           </li>
           <li>
-            <Link to="/inbox" className={STAT}>
+            <Link to="/inbox?status=in_progress" className={STAT}>
               <Figure {...working} />
             </Link>
           </li>
@@ -243,7 +243,7 @@ function ActionRow({ issue }: { issue: Issue }) {
   const severity = SEVERITY[issue.severity] ?? { label: `${issue.severity} severity`, tone: "bg-paper-2 text-ink-2" };
   return (
     <li>
-      <Link to="/inbox" className={ROW}>
+      <Link to={issueLink(issue.id)} className={ROW}>
         <span className="font-semibold wrap-break-word text-ink">{issue.title_en}</span>{" "}
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className={`${PILL} ${severity.tone}`}>{severity.label}</span>{" "}
@@ -274,7 +274,7 @@ function ActionRow({ issue }: { issue: Issue }) {
 function ResolvedRow({ issue }: { issue: Issue }) {
   return (
     <li>
-      <Link to="/inbox?status=resolved" className={ROW}>
+      <Link to={issueLink(issue.id, { resolved: true })} className={ROW}>
         <span className="font-semibold wrap-break-word text-ink">{issue.title_en}</span>
         {issue.resolved_at !== null && (
           <>

@@ -234,7 +234,7 @@ export function RepHomePage() {
                 )}
               </div>
               {pendingRows.length === 0 ? (
-                <p className={EMPTY}>Nothing pending: every problem you raised has been fixed.</p>
+                <p className={EMPTY}>Nothing pending: no team is working on a problem you raised right now.</p>
               ) : (
                 <>
                   <ul id="pending-list" className="flex flex-col gap-2">
