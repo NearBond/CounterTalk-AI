@@ -1,7 +1,7 @@
 """The rep chooses each finding's team in review (batch F1): today's routing is the suggestion;
 the rep changes the main team, adds or takes off a second, or leaves it for the manager. The
-override's team stays. The demo org, on the PepsiCo example pack: payments go to finance, and to
-the area manager too when high."""
+override's team stays. The demo org, on the PepsiCo India example pack: payments go to finance,
+and to the area manager too when high."""
 
 from typing import Any
 

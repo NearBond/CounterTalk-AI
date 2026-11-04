@@ -1,6 +1,6 @@
-"""GET /api/me/overview: the home's counts for whoever works issues. The demo org on the PepsiCo
-example pack (test_inbox_api): payments go to finance and supply to distribution, an issue per
-distributor; "other" has no team, so it waits in triage."""
+"""GET /api/me/overview: the home's counts for whoever works issues. The demo org on the
+PepsiCo India example pack (test_inbox_api): payments go to finance and supply to
+distribution, an issue per distributor; "other" has no team, so it waits in triage."""
 
 from datetime import datetime, timedelta
 from functools import partial

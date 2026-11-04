@@ -1,5 +1,5 @@
 """Ask a question across visits (batch 17d): Muse Spark (a fake here) turns the question into the
-inbox's filter, and code checks it and runs it. The demo org, on the PepsiCo example pack:
+inbox's filter, and code checks it and runs it. The demo org, on the PepsiCo India example pack:
 payments go to finance, and to the area manager when high."""
 
 import json

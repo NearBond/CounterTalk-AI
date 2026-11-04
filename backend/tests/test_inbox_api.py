@@ -1,6 +1,6 @@
 """The inbox's API (batch 15): /api/issues (the team's cards, one issue, a change), the teams and
 triage lists, and a team member's accept, Move, Also send and triage assignment. The demo rep's
-org, on the PepsiCo example pack: payments go to finance, and to the area manager when high;
+org, on the PepsiCo India example pack: payments go to finance, and to the area manager when high;
 "other" has no team, so it waits in triage."""
 
 from datetime import date, datetime, timedelta

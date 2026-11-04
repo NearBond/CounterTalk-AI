@@ -6,36 +6,52 @@ lays_cream_onion,PepsiCo India,Lay's,American Style Cream & Onion,cream and onio
 lays_tomato_tango,PepsiCo India,Lay's,Spanish Tomato Tango,tomato tango|टोमेटो टैंगो
 lays_chile_limon,PepsiCo India,Lay's,Chile Limon,chile limon|chilli limon|चिली लिमोन
 lays_hot_n_sweet,PepsiCo India,Lay's,West Indies Hot 'n' Sweet Chilli,hot n sweet|hot and sweet chilli|हॉट एंड स्वीट|हॉट अँड स्वीट
-lays_sizzling_hot,PepsiCo India,Lay's,Sizzling Hot,lays sizzling hot|सिज़लिंग हॉट
+lays_sizzling_hot,PepsiCo India,Lay's,Sizzling Hot,lays sizzling hot|सिज़लिंग हॉट|sizzlin' hot
 kurkure,PepsiCo India,Kurkure,,kurkure|kurkurey|kur kure|कुरकुरे
 kurkure_masala_munch,PepsiCo India,Kurkure,Masala Munch,masala munch|kurkure munch|मसाला मंच|कुरकुरे मंच
 kurkure_chilli_chatka,PepsiCo India,Kurkure,Chilli Chatka,chilli chatka|चिली चटका
 kurkure_green_chutney,PepsiCo India,Kurkure,Green Chutney Style,green chutney|ग्रीन चटनी
 kurkure_solid_masti,PepsiCo India,Kurkure,Solid Masti Masala Twisteez,solid masti|twisteez|सॉलिड मस्ती
-kurkure_puffcorn,PepsiCo India,Kurkure,Puffcorn Yummy Cheese,puffcorn|puff corn|पफकॉर्न
+kurkure_puffcorn,PepsiCo India,Kurkure,Puffcorn Yummy Cheese,puffcorn|puff corn|पफकॉर्न|playz yummy cheese puffcorn
+kurkure_naughty_tomato,PepsiCo India,Kurkure,Naughty Tomato,naughty tomato|नॉटी टोमेटो|नॉटी टोमॅटो
+kurkure_schezwan_chutney,PepsiCo India,Kurkure,Schezwan Chutney,schezwan chutney|kurkure schezwan|शेज़वान चटनी|शेजवान चटनी|शेझवान चटनी
 uncle_chipps,PepsiCo India,Uncle Chipps,,uncle chipps|uncle chips|अंकल चिप्स
 uncle_chipps_plain_salted,PepsiCo India,Uncle Chipps,Plain Salted,plain salted|uncle chipps salted|प्लेन सॉल्टेड
 uncle_chipps_spicy_treat,PepsiCo India,Uncle Chipps,Spicy Treat,spicy treat|स्पाइसी ट्रीट
 doritos,PepsiCo India,Doritos,,doritos|dorito|डोरिटोस|डोरिटो|डोरिटोज़|डोरिटोझ
 doritos_nacho_cheese,PepsiCo India,Doritos,Nacho Cheese,nacho cheese|cheese nachos|नाचो चीज़|नाचो चीझ
 doritos_sweet_chilli,PepsiCo India,Doritos,Sweet Chilli,doritos sweet chilli|डोरिटोस स्वीट चिली
-doritos_dinamita,PepsiCo India,Doritos,Dinamita Sizzling Hot,dinamita|डिनामिटा
+doritos_dinamita,PepsiCo India,Doritos,Dinamita Sizzling Hot,dinamita|डिनामिटा|dinamita sizzlin' hot
+doritos_cool_ranch,PepsiCo India,Doritos,Cool Ranch,cool ranch|कूल रैंच|कूल रॅंच
+doritos_jalapeno,PepsiCo India,Doritos,Jalapeño Salsa Mexicana,jalapeño salsa mexicana|jalapeno salsa mexicana|jalapeno|जलापेनो
+doritos_dinamita_fiery_lime,PepsiCo India,Doritos,Dinamita Fiery Lime & Chilli,fiery lime|dinamita fiery lime|फायरी लाइम|डिनामिटा फायरी लाइम
 cheetos,PepsiCo India,Cheetos,,cheetos|cheeto|चीटोस|चीटो|चीटोज़|चीटोझ
 cheetos_masala_balls,PepsiCo India,Cheetos,Masala Balls,masala balls|मसाला बॉल्स
 cheetos_cheez_puffs,PepsiCo India,Cheetos,Cheez Puffs,cheez puffs|cheese puffs|चीज़ पफ्स|चीझ पफ्स
 quaker,PepsiCo India,Quaker,,quaker|quaker oats|क्वेकर|क्वेकर ओट्स
+quaker_rolled_oats,PepsiCo India,Quaker,Rolled Oats,rolled oats|quaker rolled oats|रोल्ड ओट्स
+quaker_oats_multigrain,PepsiCo India,Quaker,Oats Multigrain,oats multigrain|multigrain oats|quaker multigrain|मल्टीग्रेन ओट्स|ओट्स मल्टीग्रेन
+quaker_masala_magic,PepsiCo India,Quaker,Instant Oats Masala Magic,masala magic|quaker masala magic|मसाला मैजिक|मसाला मॅजिक
 pepsi,PepsiCo India,Pepsi,,pepsi|पेप्सी
+pepsi_black,PepsiCo India,Pepsi,Pepsi Black,pepsi black|पेप्सी ब्लैक|पेप्सी ब्लॅक
 seven_up,PepsiCo India,7UP,,7up|7 up|seven up|सेवन अप|सेव्हन अप
 mountain_dew,PepsiCo India,Mountain Dew,,mountain dew|dew|माउंटेन ड्यू|ड्यू|माउंटन ड्यू
 mirinda,PepsiCo India,Mirinda,,mirinda|मिरिंडा
+mirinda_orange,PepsiCo India,Mirinda,Orange,mirinda orange|मिरिंडा ऑरेंज
 sting,PepsiCo India,Sting,,sting|sting energy|स्टिंग
 sting_classic_kick,PepsiCo India,Sting,Classic Kick,classic kick|क्लासिक किक
 tropicana,PepsiCo India,Tropicana,,tropicana|ट्रॉपिकाना
 tropicana_orange,PepsiCo India,Tropicana,100% Orange Juice,tropicana orange|ट्रॉपिकाना ऑरेंज
+tropicana_apple,PepsiCo India,Tropicana,100% Apple Juice,tropicana apple|ट्रॉपिकाना एप्पल|ट्रॉपिकाना ॲपल
+tropicana_mixed_fruit,PepsiCo India,Tropicana,100% Mixed Fruit Juice,tropicana mixed fruit|ट्रॉपिकाना मिक्स्ड फ्रूट
+tropicana_delight_mixed_fruit,PepsiCo India,Tropicana,Delight Mixed Fruit,tropicana delight|delight mixed fruit|ट्रॉपिकाना डिलाइट
 slice,PepsiCo India,Slice,,slice|स्लाइस
 slice_mango,PepsiCo India,Slice,Mango Drink,slice mango|स्लाइस मैंगो
 nimbooz,PepsiCo India,Nimbooz,,nimbooz|7up nimbooz|निम्बूज़|निंबूझ
 nimbooz_lemon,PepsiCo India,Nimbooz,with Lemon Juice,nimbooz lemon|निम्बूज़ लेमन
-nimbooz_masala_soda,PepsiCo India,Nimbooz,Masala Soda,nimbooz masala soda|मसाला सोडा
+nimbooz_masala_soda,PepsiCo India,Nimbooz,Masala Soda,nimbooz masala soda|मसाला सोडा|7up nimbooz masala soda
 aquafina,PepsiCo India,Aquafina,,aquafina|एक्वाफिना|ॲक्वाफिना
 gatorade,PepsiCo India,Gatorade,,gatorade|गेटोरेड
+gatorade_blue_bolt,PepsiCo India,Gatorade,Blue Bolt,blue bolt|gatorade blue bolt|ब्लू बोल्ट
+gatorade_orange,PepsiCo India,Gatorade,Orange,gatorade orange|गेटोरेड ऑरेंज
+gatorade_lemon,PepsiCo India,Gatorade,Lemon,gatorade lemon|गेटोरेड लेमन

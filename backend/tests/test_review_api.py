@@ -1,5 +1,5 @@
 """The review's API (batch 14): GET /api/visits/{id}/review, PATCH and DELETE /api/insights/{id},
-and POST /api/visits/{id}/insights, /notes and /confirm. The demo rep's org, on the PepsiCo
+and POST /api/visits/{id}/insights, /notes and /confirm. The demo rep's org, on the PepsiCo India
 example pack (payments: finance, and the area manager when high)."""
 
 from typing import Any

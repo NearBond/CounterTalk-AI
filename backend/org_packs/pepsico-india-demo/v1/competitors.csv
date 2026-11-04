@@ -3,21 +3,31 @@ haldirams,Haldiram's,Haldiram's,,haldiram|haldirams|हल्दीराम|ह
 haldirams_aloo_bhujia,Haldiram's,Haldiram's,Aloo Bhujia,aloo bhujia|आलू भुजिया
 haldirams_navratan,Haldiram's,Haldiram's,Navratan Mix,navratan|navrattan|navratan mixture|नवरतन मिक्स|नवरत्न
 haldirams_moong_dal,Haldiram's,Haldiram's,Moong Dal,moong dal|मूंग दाल
-haldirams_bhujia,Haldiram's,Haldiram's,Bhujia,haldiram bhujia|हल्दीराम भुजिया
+haldirams_bhujia,Haldiram's,Haldiram's,Bhujia,haldiram bhujia|हल्दीराम भुजिया|bhujia sev
 balaji,Balaji Wafers,Balaji,,balaji|balaji wafers|बालाजी|बालाजी वेफर्स
-balaji_simply_salted,Balaji Wafers,Balaji,Crunchem - Simply Salted,simply salted|crunchem|सिंपली सॉल्टेड
-balaji_masala_masti,Balaji Wafers,Balaji,Crunchem - Masala Masti,masala masti|मसाला मस्ती
-balaji_chaat_chaska,Balaji Wafers,Balaji,Crunchem - Chaat Chaska,chaat chaska|चाट चस्का
+balaji_simply_salted,Balaji Wafers,Balaji,Crunchem - Simply Salted,simply salted|crunchem|सिंपली सॉल्टेड|crunchex simply salted
+balaji_masala_masti,Balaji Wafers,Balaji,Crunchem - Masala Masti,masala masti|मसाला मस्ती|crunchex masala masti
+balaji_chaat_chaska,Balaji Wafers,Balaji,Crunchem - Chaat Chaska,chaat chaska|चाट चस्का|crunchex chaat chaska
+balaji_tomato_twist,Balaji Wafers,Balaji,Crunchem - Tomato Twist,tomato twist|crunchem tomato twist|crunchex tomato twist|टोमेटो ट्विस्ट|टोमॅटो ट्विस्ट
 bingo,ITC,Bingo!,,bingo|बिंगो
 bingo_mad_angles,ITC,Bingo!,Mad Angles,mad angles|मैड एंगल्स
 bingo_tedhe_medhe,ITC,Bingo!,Tedhe Medhe,tedhe medhe|टेढ़े मेढ़े
 bingo_original_style,ITC,Bingo!,Original Style Salt Sprinkled,original style|bingo salted|ओरिजिनल स्टाइल
+bingo_mad_angles_tomato,ITC,Bingo!,Mad Angles Tomato Madness,tomato madness|mad angles tomato madness|टोमेटो मैडनेस|टोमॅटो मॅडनेस
 thums_up,Coca-Cola India,Thums Up,,thums up|thumsup|thumbs up|थम्स अप|थम्सअप
 sprite,Coca-Cola India,Sprite,,sprite|स्प्राइट
 coca_cola,Coca-Cola India,Coca-Cola,,coca cola|coke|कोका कोला|कोक
+coca_cola_zero_sugar,Coca-Cola India,Coca-Cola,Coca-Cola Zero Sugar,coca cola zero sugar|coke zero|कोक ज़ीरो|कोका कोला ज़ीरो|कोक झिरो
+coca_cola_diet,Coca-Cola India,Coca-Cola,Diet Coke,diet coke|डाइट कोक
 limca,Coca-Cola India,Limca,,limca|लिम्का
 fanta,Coca-Cola India,Fanta,,fanta|फैंटा|फंटा
 maaza,Coca-Cola India,Maaza,,maaza|maza|माज़ा|माजा
+minute_maid,Coca-Cola India,Minute Maid,,minute maid|मिनट मेड|मिनिट मेड
+minute_maid_pulpy_orange,Coca-Cola India,Minute Maid,Pulpy Orange,pulpy orange|minute maid pulpy orange|पल्पी ऑरेंज
+kinley,Coca-Cola India,Kinley,,kinley|kinley water|किनले
+kinley_soda,Coca-Cola India,Kinley,Kinley Soda,kinley soda|किनले सोडा
+charged,Coca-Cola India,Charged by Thums Up,,charged|thums up charged|चार्ज्ड|थम्स अप चार्ज्ड
+charged_berry_bolt,Coca-Cola India,Charged by Thums Up,Berry Bolt,berry bolt|charged berry bolt|बेरी बोल्ट
 campa,Reliance Consumer Products,Campa,,campa|कैम्पा|कॅम्पा
 campa_cola,Reliance Consumer Products,Campa,Campa Cola,campa cola|कैम्पा कोला|कॅम्पा कोला
 campa_lemon,Reliance Consumer Products,Campa,Campa Lemon,campa lemon|कैम्पा लेमन
@@ -27,3 +37,9 @@ appy_fizz,Parle Agro,Appy Fizz,,appy fizz|ऐपी फ़िज़|एप्प
 yellow_diamond,Prataap Snacks,Yellow Diamond,,yellow diamond|येलो डायमंड
 bikaji,Bikaji,Bikaji,,bikaji|बिकाजी
 bikaji_bikaneri_bhujia,Bikaji,Bikaji,Bikaneri Bhujia,bikaneri bhujia|बीकानेरी भुजिया
+red_bull,Red Bull India,Red Bull,,red bull|redbull|रेड बुल
+red_bull_sugar_free,Red Bull India,Red Bull,Sugar Free,red bull sugar free|रेड बुल शुगर फ्री
+monster,Monster Energy,Monster,,monster|monster energy|मॉन्स्टर|मॉन्स्टर एनर्जी
+monster_ultra,Monster Energy,Monster,Ultra,monster ultra|मॉन्स्टर अल्ट्रा
+monster_mango_loco,Monster Energy,Monster,Mango Loco,mango loco|monster mango loco|मैंगो लोको|मॅंगो लोको
+bisleri,Bisleri International,Bisleri,,bisleri|बिसलेरी
