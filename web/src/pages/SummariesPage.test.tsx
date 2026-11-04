@@ -38,7 +38,7 @@ const MEASURES: Measures = {
   last_seen_at: "2026-10-30T05:30:00Z",
 };
 
-const TITLE = "Credit and payments · Station Road Distributors (example)";
+const TITLE = "Credit and payments · Station Road Distributors";
 
 const TEAM: TeamNumbers = {
   team_id: "t-finance",

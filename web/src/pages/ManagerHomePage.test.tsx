@@ -192,7 +192,7 @@ describe("ManagerHomePage", () => {
   it("greets the manager, and offers Ask a question, never Record a visit", async () => {
     open();
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Demo Manager · Demo Org" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Demo Manager · PepsiCo India" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     const ask = screen.getAllByRole("link", { name: "Ask a question" });
     expect(ask).toHaveLength(1);
@@ -203,7 +203,7 @@ describe("ManagerHomePage", () => {
   it("greets an admin", async () => {
     open(ADMIN);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Demo Admin · Demo Org" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Demo Admin · PepsiCo India" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 

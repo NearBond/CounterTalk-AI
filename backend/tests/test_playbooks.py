@@ -353,7 +353,7 @@ def test_the_test_orgs_pack_fits_k6() -> None:
     assert [(o.category, o.team) for o in pack.file.overrides] == [("payments", "area_manager")]
     assert [d.key for d in pack.distributors] == ["d1", "d2", "d3"]
     assert len({d.area for d in pack.distributors}) == 2
-    assert all(d.name.endswith("(example)") for d in pack.distributors)
+    assert not any("(example)" in d.name for d in pack.distributors)
     diwali = next(s for s in pack.schemes if s.key == "kurkure_diwali_payout")
     assert {"Diwali scheme", "दिवाली स्कीम", "Kurkure scheme"} <= set(diwali.aliases)
     # rp06's pending display payments are for August and September, and rp03's for "last

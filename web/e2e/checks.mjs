@@ -361,7 +361,7 @@ export const CHECKS = [
     async run({ page, web }) {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`${web}/`);
-      await page.getByRole("heading", { level: 1, name: "Hi, Demo Rep · Demo Org" }).waitFor();
+      await page.getByRole("heading", { level: 1, name: "Hi, Demo Rep · PepsiCo India" }).waitFor();
       const record = page.getByRole("main").getByRole("link", { name: "Record a visit", exact: true });
       expect((await record.count()) === 1 && (await record.isVisible()), "no one Record a visit in view");
       await page.getByRole("region", { name: "Ready to review" }).waitFor();
@@ -429,7 +429,7 @@ export const CHECKS = [
       await page.getByRole("banner").getByRole("link", { name: "Demo Rep" }).click();
       await page.getByRole("heading", { level: 1, name: "Profile" }).waitFor();
       const text = await page.locator("main dl").textContent();
-      expect(text.includes("Sales rep") && text.includes("Demo Org") && !text.includes("Team"), `the profile said: ${text}`);
+      expect(text.includes("Sales rep") && text.includes("PepsiCo India") && !text.includes("Team"), `the profile said: ${text}`);
       expect((await page.getByRole("main").getByRole("button", { name: "Sign out" }).count()) === 1, "no Sign out on the profile");
       await fitsAPhone(page, "the profile");
     },

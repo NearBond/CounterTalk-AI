@@ -29,7 +29,7 @@ describe("SignInPage", () => {
     await fillIn("finance@example.com", "correct horse battery");
 
     // Every role's home is / since batch F4: a team member's own.
-    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Finance Member · Demo Org" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Finance Member · PepsiCo India" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/");
     expect(api.sent()).toEqual([
       { route: "POST /api/auth/signin", body: { email: "finance@example.com", password: "correct horse battery" } },

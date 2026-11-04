@@ -32,7 +32,7 @@ const DRILL: Drill = {
   period_end: "2026-11-01T18:30:00Z",
   numbers_as_of: "2026-11-02T04:30:00Z",
   issue_id: "issue-1",
-  title_en: "Schemes and promotions · Kurkure Diwali payout · Riverbend Traders (example)",
+  title_en: "Schemes and promotions · Kurkure Diwali payout · Riverbend Traders",
   category: "schemes",
   status: "open",
   shops: 5,
@@ -50,7 +50,7 @@ const DRILL: Drill = {
           shop_id: "s-a",
           name: "Shop 13 (example)",
           area: "Old Market",
-          distributor: "Riverbend Traders (example)",
+          distributor: "Riverbend Traders",
           visits: [
             { visit_id: "v-1", visited_at: "2026-10-20T05:30:00Z", in_period: false, insights: [QUOTED] },
             { visit_id: "v-2", visited_at: "2026-10-27T05:30:00Z", in_period: true, insights: [{ ...QUOTED, id: "i-2" }] },
@@ -86,7 +86,7 @@ describe("DrillPage", () => {
       "Rep 2 (example): 0 shops, 3 insights",
     ]);
     const [shop] = within(screen.getByRole("list", { name: "Rep 1 (example)'s shops" })).getAllByRole("listitem");
-    expect(shop).toHaveTextContent("Shop 13 (example), Old Market · Riverbend Traders (example)");
+    expect(shop).toHaveTextContent("Shop 13 (example), Old Market · Riverbend Traders");
     const visits = within(shop!).getAllByRole("link");
     expect(visits.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["20 Oct 2026, 11:00 am", "/visits/v-1"],

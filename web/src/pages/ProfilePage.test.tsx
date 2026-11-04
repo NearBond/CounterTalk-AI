@@ -26,12 +26,12 @@ afterEach(() => {
 
 describe("ProfilePage", () => {
   it.each([
-    [REP, ["Name: Demo Rep", "Email: rep@example.com", "Company: Demo Org", "Position: Sales rep"]],
+    [REP, ["Name: Demo Rep", "Email: rep@example.com", "Company: PepsiCo India", "Position: Sales rep"]],
     [
       FINANCE_MEMBER,
-      ["Name: Finance Member", "Email: finance@example.com", "Company: Demo Org", "Position: Team member", "Team: Finance"],
+      ["Name: Finance Member", "Email: finance@example.com", "Company: PepsiCo India", "Position: Team member", "Team: Finance"],
     ],
-    [MANAGER, ["Name: Demo Manager", "Email: manager@example.com", "Company: Demo Org", "Position: Manager"]],
+    [MANAGER, ["Name: Demo Manager", "Email: manager@example.com", "Company: PepsiCo India", "Position: Manager"]],
   ])("shows who's signed in, read-only: %s.role", async (me, shown) => {
     open(me);
 

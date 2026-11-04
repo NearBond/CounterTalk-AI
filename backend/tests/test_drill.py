@@ -142,7 +142,7 @@ def test_the_api_drills_down_to_each_quote_counted_now(
     [visit] = corner["visits"]
     assert (corner["name"], corner["distributor"], visit["in_period"]) == (
         "Corner Daily Needs",
-        "Station Road Distributors (example)",
+        "Station Road Distributors",
         True,
     )
     assert visit["insights"][0]["quotes"][0]["start_ms"] is not None

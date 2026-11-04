@@ -29,7 +29,7 @@ function words(language: string): NoticeText {
 }
 
 const PAGE: ConsentPage = {
-  company: "PepsiCo India (example)",
+  company: "PepsiCo India",
   shop: "Corner Daily Needs",
   decision: null,
   notice_version: 1,
@@ -55,7 +55,7 @@ describe("ConsentPage", () => {
     open(() => json(200, PAGE));
 
     expect(await screen.findByRole("heading", { level: 1, name: "title-hi" })).toBeInTheDocument();
-    expect(screen.getByText("PepsiCo India (example) · Corner Daily Needs")).toBeInTheDocument();
+    expect(screen.getByText("PepsiCo India · Corner Daily Needs")).toBeInTheDocument();
     for (const part of ["what-hi", "why-hi", "real-time-hi", "retention-hi", "no-change-hi", "change-mind-hi"]) {
       expect(screen.getByText(part)).toBeInTheDocument();
     }

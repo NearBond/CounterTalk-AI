@@ -26,10 +26,8 @@ def suggested(client: TestClient, demo: Org_) -> tuple[str, str, str]:
     confirmed(client, shop(demo, "Corner Daily Needs"))  # d3
     confirmed(client, shop(demo, "Lotus General Store"))  # d2
     cards = {c["title_en"].split(" · ")[1]: c for c in inbox(client, "finance")}
-    kept = cards["Station Road Distributors (example)"]["id"]
-    other = next(
-        c["id"] for name, c in cards.items() if name != "Station Road Distributors (example)"
-    )
+    kept = cards["Station Road Distributors"]["id"]
+    other = next(c["id"] for name, c in cards.items() if name != "Station Road Distributors")
     with session_scope() as session:
         found = IssueMergeSuggestion(
             org_id=demo.org_id,

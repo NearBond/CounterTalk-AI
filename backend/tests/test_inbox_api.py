@@ -97,7 +97,7 @@ def test_a_card_counts_shops_insights_and_reps(client: TestClient, demo: Org_) -
         "status": "open",
         "version": 1,
     }
-    assert card["title_en"] == "Credit and payments · Station Road Distributors (example)"
+    assert card["title_en"] == "Credit and payments · Station Road Distributors"
     assert (card["shops"], card["insights"], card["reps"], card["raised_again"]) == (1, 1, 1, False)
     assert (card["overdue"], card["owner_id"], card["owner_name"]) == (False, None, None)
     # Two teams: one issue in each.
@@ -133,14 +133,14 @@ def test_highest_severity_first_then_most_shops_then_filters(
     titles = [card["title_en"].split(" · ")[1] for card in inbox(client, "finance")]
 
     assert titles == [
-        "Northgate Agencies (example)",
-        "Station Road Distributors (example)",
-        "Riverbend Traders (example)",
+        "Northgate Agencies",
+        "Station Road Distributors",
+        "Riverbend Traders",
     ]
     old_market = [c["title_en"] for c in inbox(client, "finance", area="Old Market")]
     assert [title.split(" · ")[1] for title in old_market] == [
-        "Northgate Agencies (example)",
-        "Riverbend Traders (example)",
+        "Northgate Agencies",
+        "Riverbend Traders",
     ]
     by_d1 = inbox(client, "finance", distributor=distributor(demo, "d1"))
     assert [card["severity"] for card in by_d1] == ["high"]
@@ -182,9 +182,9 @@ def test_the_options_are_the_org_s_teams_categories_areas_and_distributors(
         "Station Road",
     ]
     assert [d["name"] for d in found["distributors"]] == [
-        "Northgate Agencies (example)",
-        "Riverbend Traders (example)",
-        "Station Road Distributors (example)",
+        "Northgate Agencies",
+        "Riverbend Traders",
+        "Station Road Distributors",
     ]
     assert found["distributors"][0]["id"] == distributor(demo, "d1")
 
@@ -233,7 +233,7 @@ def test_a_competitor_or_product_keeps_the_issues_with_an_insight_linked_to_it(
     # The filter picks issues: its card's numbers are the whole issue's.
     assert rival == every[rival["id"]]
     assert (rival["shops"], rival["insights"]) == (2, 2)
-    assert own["title_en"] == "Credit and payments · Northgate Agencies (example)"
+    assert own["title_en"] == "Credit and payments · Northgate Agencies"
     assert inbox(client, "finance", competitor=haldirams, product=lays) == []
 
 
@@ -248,12 +248,12 @@ def test_a_brand_takes_in_its_products_and_a_product_is_itself_alone(
     change_visit(salted, sku_id=item(demo, "lays_classic_salted"))
 
     assert sorted(distributors(client, product=item(demo, "lays"))) == [
-        "Northgate Agencies (example)",
-        "Riverbend Traders (example)",
-        "Station Road Distributors (example)",
+        "Northgate Agencies",
+        "Riverbend Traders",
+        "Station Road Distributors",
     ]
     assert distributors(client, product=item(demo, "lays_magic_masala")) == [
-        "Station Road Distributors (example)"
+        "Station Road Distributors"
     ]
 
 
@@ -279,10 +279,10 @@ def test_a_period_keeps_the_issues_with_an_insight_from_a_visit_in_it(
     change_visit(october, at_midnight(OCT_5))  # 5 Oct's first moment in IST
 
     assert distributors(client, **{"from": "2026-10-05", "to": "2026-10-05"}) == [
-        "Northgate Agencies (example)"
+        "Northgate Agencies"
     ]
     assert distributors(client, to="2026-10-04") == []  # 4 Oct ends as 5 Oct starts
-    assert distributors(client, **{"from": "2026-10-06"}) == ["Station Road Distributors (example)"]
+    assert distributors(client, **{"from": "2026-10-06"}) == ["Station Road Distributors"]
 
 
 def test_the_filters_are_met_by_one_insight_together(client: TestClient, demo: Org_) -> None:

@@ -1,5 +1,5 @@
 # Batch 17d's ask eval: questions and the filter each should become, on the demo org (seed_dev's
-# Demo Org, the PepsiCo India example pack). run_eval.py --ask scores them; a paid run is the
+# PepsiCo India, on its example pack). run_eval.py --ask scores them; a paid run is the
 # planner's. Made-up questions, never a shop's own words. A field left out is null; status is
 # "any" and understood is true unless said.
 version: 1

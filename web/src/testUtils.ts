@@ -25,7 +25,7 @@ export const MANAGER: Me = {
   email: "manager@example.com",
   role: "manager",
   team: null,
-  org_name: "Demo Org",
+  org_name: "PepsiCo India",
 };
 
 export const FINANCE_MEMBER: Me = {
@@ -34,7 +34,7 @@ export const FINANCE_MEMBER: Me = {
   email: "finance@example.com",
   role: "team_member",
   team: { id: "t-finance", key: "finance", name: "Finance" },
-  org_name: "Demo Org",
+  org_name: "PepsiCo India",
 };
 
 export const ADMIN: Me = {
@@ -43,7 +43,7 @@ export const ADMIN: Me = {
   email: "admin@example.com",
   role: "admin",
   team: null,
-  org_name: "Demo Org",
+  org_name: "PepsiCo India",
 };
 
 export const REP: Me = {
@@ -52,7 +52,7 @@ export const REP: Me = {
   email: "rep@example.com",
   role: "rep",
   team: null,
-  org_name: "Demo Org",
+  org_name: "PepsiCo India",
 };
 
 const ME = "GET /api/auth/me";

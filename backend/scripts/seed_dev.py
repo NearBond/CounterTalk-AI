@@ -45,7 +45,7 @@ from countertalk.models import (
 from countertalk.playbooks import OrgPack, load_org_pack
 from scripts import _k6
 
-DEMO_ORG_NAME = "Demo Org"
+DEMO_ORG_NAME = "PepsiCo India"
 # The dev org's rep: scripts/set_password.py gives them a password to sign in with.
 DEMO_REP = {"email": "rep@example.com", "name": "Demo Rep"}
 # Two more reps, seeded the same way (4 and 5 Nov): the demo's visits come from three people.
@@ -60,10 +60,10 @@ DEMO_FIXED = {
     "kind": "problem",
     "category": "supply",
     "severity": "medium",
-    "summary": "The last two Kurkure deliveries came a week late. (example)",
+    "summary": "The last two Kurkure deliveries came a week late.",
     "quote": "Kurkure ki delivery do baar ek hafta late aayi.",
     "team": "distribution",
-    "note": "Your distributor now delivers every Monday, so the next one comes on time. (example)",
+    "note": "Your distributor now delivers every Monday, so the next one comes on time.",
 }
 DEMO_FIXED_DAYS_AGO = 3
 # What seed_fixed did, as main() prints it.
@@ -76,7 +76,7 @@ FIXED_SKIPPED = (
 # Who fixed it: the distribution team's member, with no password (made up).
 DEMO_RESOLVER = {
     "email": "distribution-member@example.com",
-    "name": "Distribution Member (example)",
+    "name": "Distribution Member",
 }
 # The language of the paper forms the seeded shops signed.
 SEEDED_CONSENT_LANGUAGE = "hi"

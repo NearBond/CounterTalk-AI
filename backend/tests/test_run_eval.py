@@ -24,6 +24,7 @@ from countertalk.routing import decide
 from scripts import _ask_eval, run_eval
 from scripts._patterns import short_hash
 from scripts.compare_extraction import Expected, Extracted
+from scripts.seed_dev import DEMO_ORG_NAME
 from tests.conftest import ORG_PACK_FIXTURES, PINNED_SETTINGS, TEST_DATABASE
 from tests.test_ask import answer as ask_answer
 from tests.test_extraction import VISITED, answer, insight
@@ -392,8 +393,8 @@ def test_an_unverified_insight_is_left_out_of_the_routing_s_whole() -> None:
 
 # --- the K6 pattern check (batch 15c) --------------------------------------------------------
 
-P1_TITLE = "Schemes and promotions · Kurkure Diwali payout · Riverbend Traders (example)"
-E_TITLE = "Schemes and promotions · Riverbend Traders (example)"
+P1_TITLE = "Schemes and promotions · Kurkure Diwali payout · Riverbend Traders"
+E_TITLE = "Schemes and promotions · Riverbend Traders"
 
 
 def the_pair(payload: dict[str, Any]) -> dict[str, Any]:
@@ -544,7 +545,7 @@ def test_ask_s_dry_run_prices_each_question_and_sends_nothing(
 
     out = capsys.readouterr().out.splitlines()
     names = [case.name for case in _ask_eval.load_cases()]
-    assert out[0].startswith(f"Ask's {len(names)} cases on Demo Org (")
+    assert out[0].startswith(f"Ask's {len(names)} cases on {DEMO_ORG_NAME} (")
     assert [line.split(":")[0] for line in out[1:-1]] == names
     assert out[-1].startswith(f"Nothing sent. With --yes: {len(names)} calls, about $")
     assert calls_made() == 0

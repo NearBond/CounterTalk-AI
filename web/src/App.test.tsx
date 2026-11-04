@@ -32,7 +32,7 @@ afterEach(() => {
 
 describe("App", () => {
   it.each([
-    ["/", MANAGER, "Hi, Demo Manager · Demo Org"],
+    ["/", MANAGER, "Hi, Demo Manager · PepsiCo India"],
     ["/visits", MANAGER, "Visits"],
     ["/record", REP, "Record a visit"],
     ["/visits/v-1", MANAGER, "Visit"],
@@ -62,8 +62,8 @@ describe("App", () => {
   });
 
   it.each([
-    [REP, true, "Hi, Demo Rep · Demo Org"],
-    [MANAGER, false, "Hi, Demo Manager · Demo Org"],
+    [REP, true, "Hi, Demo Rep · PepsiCo India"],
+    [MANAGER, false, "Hi, Demo Manager · PepsiCo India"],
   ])("offers %s.role a record button only if they record", async (me, offered, heading) => {
     renderAt("/", me);
 
@@ -74,7 +74,7 @@ describe("App", () => {
   it("starts a team member at their own home (batch F4)", async () => {
     const router = renderAt("/", FINANCE_MEMBER);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Finance Member · Demo Org" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Finance Member · PepsiCo India" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/");
   });
 

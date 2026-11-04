@@ -105,7 +105,7 @@ def test_the_page_names_the_company_by_its_pack(client: TestClient) -> None:
 
     page = client.get(f"/api/consent/{share(client, shop_id)}").json()
 
-    assert (page["company"], page["shop"]) == ("PepsiCo India (example)", "New Shop")
+    assert (page["company"], page["shop"]) == ("PepsiCo India", "New Shop")
 
 
 def test_a_no_blocks_new_recordings_and_the_rest_of_a_started_one(

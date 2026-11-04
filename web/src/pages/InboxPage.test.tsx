@@ -18,7 +18,7 @@ const OPTIONS: InboxOptions = {
     { key: "other", label: "Other" },
   ],
   areas: ["Old Market", "Station Road"],
-  distributors: [{ id: "d-1", name: "Northgate Agencies (example)" }],
+  distributors: [{ id: "d-1", name: "Northgate Agencies" }],
   competitors: [{ id: "c-1", name: "Haldiram's Navratan Mix" }],
   products: [{ id: "p-1", name: "Lay's" }],
   periods: [
@@ -31,7 +31,7 @@ const ISSUE: Issue = {
   id: "issue-1",
   team_key: "finance",
   category: "payments",
-  title_en: "Credit and payments · Station Road Distributors (example)",
+  title_en: "Credit and payments · Station Road Distributors",
   severity: "high",
   status: "open",
   owner_id: null,
@@ -304,7 +304,7 @@ describe("InboxPage", () => {
     ]);
     // It leaves the open list at once, and the page says where it went, with focus there.
     const notice = await screen.findByText(
-      "Resolved: Credit and payments · Station Road Distributors (example). It's under Status: Resolved now.",
+      "Resolved: Credit and payments · Station Road Distributors. It's under Status: Resolved now.",
     );
     expect(notice).toHaveFocus();
     expect(screen.getByText("No issues here.")).toBeInTheDocument();
@@ -315,7 +315,7 @@ describe("InboxPage", () => {
   });
 
   it("shows a merge suggestion; Merge names both versions, opens the kept issue and says so", async () => {
-    const other = { id: "issue-2", title_en: "Credit and payments · Northgate Agencies (example)", version: 7 };
+    const other = { id: "issue-2", title_en: "Credit and payments · Northgate Agencies", version: 7 };
     const suggestion = {
       id: "s-1",
       into_issue_id: "issue-1",
@@ -336,12 +336,12 @@ describe("InboxPage", () => {
     const offered = within(await screen.findByRole("list", { name: "Merge suggestions" })).getByRole("listitem");
     expect(offered).toHaveTextContent("These look like the same issue: Both are the same unpaid credit note.");
     expect(offered).toHaveTextContent(
-      "Merge moves the findings of “Credit and payments · Northgate Agencies (example)” into “Credit and payments · Station Road Distributors (example)”.",
+      "Merge moves the findings of “Credit and payments · Northgate Agencies” into “Credit and payments · Station Road Distributors”.",
     );
     await userEvent.click(within(offered).getByRole("button", { name: "Merge" }));
 
     const notice = await screen.findByText(
-      "Merged: their findings are together in Credit and payments · Station Road Distributors (example).",
+      "Merged: their findings are together in Credit and payments · Station Road Distributors.",
     );
     expect(notice).toHaveFocus();
     expect(api.sent()).toEqual([
@@ -360,7 +360,7 @@ describe("InboxPage", () => {
       into_issue_id: "issue-2",
       merge_issue_id: "issue-1",
       reason: "Same.",
-      other: { id: "issue-2", title_en: "Credit and payments · Northgate Agencies (example)", version: 7 },
+      other: { id: "issue-2", title_en: "Credit and payments · Northgate Agencies", version: 7 },
     };
     const changed = () => json(409, { error: { code: "issue_changed", message: "Someone changed one of these issues meanwhile: reload" } });
     const { api } = open("/inbox", {
@@ -396,7 +396,7 @@ describe("InboxPage", () => {
       into_issue_id: "issue-1",
       merge_issue_id: "issue-2",
       reason: "Same.",
-      other: { id: "issue-2", title_en: "Credit and payments · Northgate Agencies (example)", version: 7 },
+      other: { id: "issue-2", title_en: "Credit and payments · Northgate Agencies", version: 7 },
     };
     open("/inbox", {
       "GET /api/issues?team=finance": () => json(200, [ISSUE]),

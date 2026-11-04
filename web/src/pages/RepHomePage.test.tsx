@@ -108,7 +108,7 @@ describe("RepHomePage", () => {
   it("greets the rep, and offers one Record a visit", async () => {
     open();
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Demo Rep · Demo Org" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Demo Rep · PepsiCo India" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     const record = screen.getAllByRole("link", { name: "Record a visit" });
     expect(record).toHaveLength(1);

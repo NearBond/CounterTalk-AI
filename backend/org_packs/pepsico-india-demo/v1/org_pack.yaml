@@ -7,7 +7,7 @@
 id: pepsico-india-demo
 version: 1
 playbook: {id: fmcg-kirana-visit, version: 1}
-display_name: PepsiCo India (example)
+display_name: PepsiCo India
 sells: >-
   Snacks and drinks sold through neighbourhood shops: potato chips (Lay's, Uncle Chipps), extruded
   snacks (Kurkure, Cheetos), tortilla chips (Doritos), oats (Quaker), soft drinks (Pepsi, 7UP,

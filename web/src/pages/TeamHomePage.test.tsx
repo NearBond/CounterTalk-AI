@@ -141,7 +141,7 @@ describe("TeamHomePage", () => {
   it("greets the team member, names their team, and offers one Open the inbox", async () => {
     const api = open();
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Finance Member · Demo Org" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Finance Member · PepsiCo India" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByText("Your Finance team's issues at a glance.")).toBeInTheDocument();
     const inbox = screen.getAllByRole("link", { name: "Open the inbox" });
