@@ -1,8 +1,8 @@
-"""Seeds the demo org, its rep and a few shops: `uv run python scripts/seed_dev.py`.
+"""Seeds the demo org, its three reps and its shops: `uv run python scripts/seed_dev.py`.
 
 The demo org runs on the PepsiCo India example pack (batch 8): its teams, distributors and
 catalog are imported, and the shops are spread across the distributors and their beats. Each
-shop that hasn't answered gets a paper consent yes, marked by the rep (batch 17). Then, once,
+shop that hasn't answered gets a paper consent yes, marked by Demo Rep (batch 17). Then, once,
 a problem at Sunrise Kirana that its team has fixed since that visit, so the shop pick shows
 "Fixed since the last visit here" at once (batch 17b), made through K6's own visit and resolve.
 Its finding is the marker, so a rerun never adds a visit, even after its issue reopens. It
@@ -12,7 +12,7 @@ twice.
 
 Safe to run again, even twice at once: rows are matched on their natural keys, and existing
 ones are left exactly as they are. A shop's distributor, and its beat, are each filled in only
-while it has none. Every name is made up, and the rep's address is example.com.
+while it has none. Every name is made up, and the reps' addresses are example.com.
 """
 
 import sys
@@ -48,6 +48,9 @@ from scripts import _k6
 DEMO_ORG_NAME = "Demo Org"
 # The dev org's rep: scripts/set_password.py gives them a password to sign in with.
 DEMO_REP = {"email": "rep@example.com", "name": "Demo Rep"}
+# Two more reps, seeded the same way (4 and 5 Nov): the demo's visits come from three people.
+DEMO_REP_2 = {"email": "rep2@example.com", "name": "Demo Rep 2"}
+DEMO_REP_3 = {"email": "rep3@example.com", "name": "Demo Rep 3"}
 DEMO_PACK = ("pepsico-india-demo", 1)
 # Batch 17b's example: a problem raised three days ago, fixed since. Made-up words.
 DEMO_FIXED = {
@@ -84,6 +87,13 @@ DEMO_SHOPS = [
     ("Lotus General Store", "Old Market", "d2", "Old Market Thursday"),
     ("Corner Daily Needs", "Station Road", "d3", "Station Road Tuesday"),
     ("Moonlight Provisions", "Riverside", "d3", "Riverside Friday"),
+    ("Green Leaf Mart", "Lake View", "d1", "Lake View Wednesday"),
+    ("Anand Provision Store", "Lake View", "d1", "Lake View Wednesday"),
+    ("Royal Super Store", "Mill Road", "d2", "Mill Road Saturday"),
+    ("Bharat General Store", "Mill Road", "d2", "Mill Road Saturday"),
+    ("Sai Krupa Stores", "Riverside", "d3", "Riverside Friday"),
+    ("Hari Om Provisions", "Station Road", "d3", "Station Road Tuesday"),
+    ("Shubham General Store", "Park Road", "d3", "Park Road Thursday"),
 ]
 
 
@@ -94,12 +104,15 @@ class SeedResult:
 
 
 def seed(session: Session, pack: OrgPack) -> SeedResult:
-    """The demo org, its rep and shops, on `pack` (load it before the transaction)."""
+    """The demo org, its reps and shops, on `pack` (load it before the transaction)."""
     inserted = [_insert_missing(session, Org, {"name": DEMO_ORG_NAME}, ["name"])]
     org_id = session.scalars(select(Org.id).where(Org.name == DEMO_ORG_NAME)).one()
-    rep = {"org_id": org_id, "role": Role.REP.value, **DEMO_REP}
-    rep_id, made = _seeded_user(session, rep, "demo_rep_in_another_org")
-    inserted.append(made)
+    rep_ids: list[str] = []
+    for values in (DEMO_REP, DEMO_REP_2, DEMO_REP_3):
+        rep = {"org_id": org_id, "role": Role.REP.value, **values}
+        rep_id, made = _seeded_user(session, rep, "demo_rep_in_another_org")
+        rep_ids.append(rep_id)
+        inserted.append(made)
     for name, area, _, _ in DEMO_SHOPS:
         shop = {"org_id": org_id, "name": name, "area": area}
         inserted.append(_insert_missing(session, Shop, shop, ["org_id", "name", "area"]))
@@ -117,9 +130,9 @@ def seed(session: Session, pack: OrgPack) -> SeedResult:
             .values(distributor_id=distributors[distributor])
         )
         session.execute(update(Shop).where(*this_shop, Shop.beat.is_(None)).values(beat=beat))
-    # Batch 17: the demo records at once, so its shops agreed on paper, marked by its rep. A
-    # shop's own answer since is never changed.
-    consent.mark_unanswered(session, org_id, rep_id, SEEDED_CONSENT_LANGUAGE)
+    # Batch 17: the demo records at once, so its shops agreed on paper, marked by its first rep.
+    # A shop's own answer since is never changed.
+    consent.mark_unanswered(session, org_id, rep_ids[0], SEEDED_CONSENT_LANGUAGE)
     return SeedResult(created=sum(inserted), existing=len(inserted) - sum(inserted))
 
 

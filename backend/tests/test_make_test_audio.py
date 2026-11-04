@@ -574,6 +574,20 @@ def test_marathi_is_sent_and_cached_apart(samples: Path) -> None:
     assert first.cache_name() != hindi.cache_name()
 
 
+ENGLISH = 'language = "en-IN"\n'
+
+
+def test_an_english_script_loads_and_is_sent_in_english(samples: Path) -> None:
+    loaded = tool.load_script(with_model(samples, ENGLISH))
+    tts = FakeTts()
+
+    run(samples, "rp01", "--yes", tts=tts)
+
+    assert loaded.language == "en-IN"
+    assert tool.requests_for(loaded)[0][0].language == "en-IN"
+    assert set(tts.languages) == {"en-IN"}
+
+
 @pytest.mark.parametrize(("value", "shown"), [('"ta-IN"', "'ta-IN'"), ("1", "1")])
 def test_an_unknown_language_is_refused(samples: Path, value: str, shown: str) -> None:
     script = with_model(samples, f"language = {value}\n")
@@ -581,7 +595,7 @@ def test_an_unknown_language_is_refused(samples: Path, value: str, shown: str) -
     with pytest.raises(tool.ScriptError) as refused:
         tool.load_script(script)
 
-    assert str(refused.value) == f"rp01.toml: language {shown} isn't one of hi-IN, mr-IN"
+    assert str(refused.value) == f"rp01.toml: language {shown} isn't one of hi-IN, mr-IN, en-IN"
 
 
 def test_the_api_is_sent_the_script_s_language(samples: Path) -> None:

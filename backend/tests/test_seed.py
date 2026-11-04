@@ -15,6 +15,8 @@ from scripts.seed_dev import (
     DEMO_ORG_NAME,
     DEMO_PACK,
     DEMO_REP,
+    DEMO_REP_2,
+    DEMO_REP_3,
     DEMO_RESOLVER,
     DEMO_SHOPS,
     FIXED_MADE,
@@ -39,19 +41,23 @@ def counts() -> tuple[int, int, int]:
         )
 
 
-def test_seed_creates_the_demo_org_one_rep_and_its_shops() -> None:
+def test_seed_creates_the_demo_org_three_reps_and_its_shops() -> None:
     with session_scope() as session:
         seed(session, PACK)
 
     with session_scope(read_only=True) as session:
         org = session.scalars(select(Org)).one()
-        rep = session.scalars(select(User)).one()
+        reps = session.scalars(select(User).order_by(User.name)).all()
         shops = session.scalars(select(Shop)).all()
     assert org.name == DEMO_ORG_NAME
-    assert rep.org_id == org.id
-    assert rep.role == Role.REP
-    assert rep.email.endswith("@example.com")
-    assert 3 <= len(shops) <= 5
+    assert [(rep.email, rep.name) for rep in reps] == [
+        (DEMO_REP["email"], DEMO_REP["name"]),
+        (DEMO_REP_2["email"], DEMO_REP_2["name"]),
+        (DEMO_REP_3["email"], DEMO_REP_3["name"]),
+    ]
+    assert {(rep.org_id, rep.role) for rep in reps} == {(org.id, Role.REP)}
+    assert all(rep.email.endswith("@example.com") for rep in reps)
+    assert len(shops) == len(DEMO_SHOPS)
     assert {shop.org_id for shop in shops} == {org.id}
 
 
@@ -61,7 +67,7 @@ def test_seeding_twice_creates_no_duplicates() -> None:
     with session_scope() as session:
         second = seed(session, PACK)
 
-    assert counts() == (1, 1, len(DEMO_SHOPS))
+    assert counts() == (1, 3, len(DEMO_SHOPS))
     assert (first.created, first.existing) == (sum(counts()), 0)
     assert (second.created, second.existing) == (0, sum(counts()))
 
@@ -132,15 +138,15 @@ def test_two_seeds_racing_create_no_duplicates() -> None:
 
     assert not any(thread.is_alive() for thread in threads)
     assert errors == []
-    assert counts() == (1, 1, len(DEMO_SHOPS))
+    assert counts() == (1, 3, len(DEMO_SHOPS))
 
 
 def test_main_prints_what_it_created(capsys: pytest.CaptureFixture[str]) -> None:
     main()
     main()
 
-    # The org, its rep and its shops: the fixed example's team member isn't the seed's own.
-    total = 2 + len(DEMO_SHOPS)
+    # The org, its reps and its shops: the fixed example's team member isn't the seed's own.
+    total = 4 + len(DEMO_SHOPS)
     assert capsys.readouterr().out.strip().splitlines() == [
         f"seeded: created {total}, already there 0",
         "fixed since the last visit: made at Sunrise Kirana",
@@ -173,7 +179,7 @@ def test_the_seeded_shops_agreed_on_paper_marked_by_the_rep() -> None:
         seed(session, PACK)
 
     with session_scope(read_only=True) as session:
-        rep = session.scalars(select(User.id)).one()
+        rep = session.scalars(select(User.id).where(User.email == DEMO_REP["email"])).one()
         rows = session.execute(select(Consent.decision, Consent.method, Consent.recorded_by)).all()
     assert sorted(tuple(row) for row in rows) == [("yes", "paper", rep)] * len(DEMO_SHOPS)
 
@@ -183,7 +189,7 @@ def test_seeding_again_keeps_a_shop_s_own_answer() -> None:
         seed(session, PACK)
     with session_scope() as session:
         shop = session.scalars(select(Shop).where(Shop.name == "Sunrise Kirana")).one()
-        rep = session.scalars(select(User.id)).one()
+        rep = session.scalars(select(User.id).where(User.email == DEMO_REP["email"])).one()
         token = consent.new_link(session, shop.org_id, shop.id, rep)
     with session_scope() as session:
         consent.answer(session, token, "no", "hi")

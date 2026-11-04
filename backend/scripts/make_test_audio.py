@@ -8,7 +8,7 @@
 - Scripts are data/samples/scripts/rpNN.toml at the repo root, git-ignored like all of data/.
 - Each turn goes to Sarvam's text-to-speech (Bulbul): bulbul:v3, or the script's own `model`
   (batch T2: bulbul:v4-flash, whose voices are persona IDs such as kavya_hi_conversational),
-  in Hindi or the script's own `language` (batch T3: "mr-IN", Marathi).
+  in Hindi or the script's own `language` (batch T3: "mr-IN", Marathi; "en-IN", English).
   Each reply is cached under
   data/samples/tts_cache/, keyed by everything the request sends, so a rerun pays only for what's
   missing (§9.4). Without --yes nothing is sent: it prints the characters and the cost.
@@ -57,7 +57,7 @@ DEFAULT_MODEL = "bulbul:v3"
 RUPEES_PER_1000_CHARS = {"bulbul:v3": 3.00, "bulbul:v4-flash": 1.00}
 # The languages a script may be spoken in (`language`, batch T3).
 DEFAULT_LANGUAGE = "hi-IN"
-LANGUAGES = ("hi-IN", "mr-IN")
+LANGUAGES = ("hi-IN", "mr-IN", "en-IN")
 MAX_CHARS_PER_REQUEST = 2_500
 SAMPLE_RATE = 22_050  # Sarvam's default, kept through the mix
 REQUEST_TIMEOUT_S = 60

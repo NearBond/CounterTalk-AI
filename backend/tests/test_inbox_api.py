@@ -173,7 +173,14 @@ def test_the_options_are_the_org_s_teams_categories_areas_and_distributors(
     ]
     assert {"key": "payments", "label": "Credit and payments"} in found["categories"]
     assert found["categories"][-1] == {"key": "other", "label": "Other"}
-    assert found["areas"] == ["Old Market", "Riverside", "Station Road"]
+    assert found["areas"] == [
+        "Lake View",
+        "Mill Road",
+        "Old Market",
+        "Park Road",
+        "Riverside",
+        "Station Road",
+    ]
     assert [d["name"] for d in found["distributors"]] == [
         "Northgate Agencies (example)",
         "Riverbend Traders (example)",
