@@ -1,5 +1,24 @@
 /* CounterTalk's landing page — no dependencies. */
 
+// ---------- Scroll reveal (sections fade up as they enter the viewport) ----------
+// First: the head script's .js class hides [data-reveal] until this runs, so nothing that
+// fails further down may stop it.
+const revealEls = document.querySelectorAll('[data-reveal]');
+
+if ('IntersectionObserver' in window) {
+  const revealer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-visible');
+      revealer.unobserve(entry.target);
+    });
+  }, { threshold: 0.2, rootMargin: '0px 0px -8% 0px' });
+
+  revealEls.forEach((el) => revealer.observe(el));
+} else {
+  revealEls.forEach((el) => el.classList.add('is-visible'));
+}
+
 // ---------- Header: border once the page scrolls ----------
 const header = document.querySelector('[data-header]');
 
@@ -35,26 +54,13 @@ if (nav && navToggle) {
   document.addEventListener('click', (e) => {
     if (isOpen() && !header.contains(e.target)) setMenu(false);
   });
-  window.matchMedia('(min-width: 861px)').addEventListener('change', (e) => {
+  const wide = window.matchMedia('(min-width: 861px)');
+  const onWide = (e) => {
     if (e.matches) setMenu(false);
-  });
-}
-
-// ---------- Scroll reveal (sections fade up as they enter the viewport) ----------
-const revealEls = document.querySelectorAll('[data-reveal]');
-
-if ('IntersectionObserver' in window) {
-  const revealer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add('is-visible');
-      revealer.unobserve(entry.target);
-    });
-  }, { threshold: 0.2, rootMargin: '0px 0px -8% 0px' });
-
-  revealEls.forEach((el) => revealer.observe(el));
-} else {
-  revealEls.forEach((el) => el.classList.add('is-visible'));
+  };
+  // Safari before 14 has only the older addListener.
+  if (wide.addEventListener) wide.addEventListener('change', onWide);
+  else wide.addListener(onWide);
 }
 
 // ---------- How it works: recording timer ticks while on screen ----------
@@ -176,7 +182,7 @@ if (waitlistForm) {
     }
 
     const data = Object.fromEntries(new FormData(waitlistForm));
-    if (data.website) { // bots fill the hidden field; pretend it worked
+    if (data.leave_empty) { // bots fill the hidden field; pretend it worked
       showSuccess({});
       return;
     }

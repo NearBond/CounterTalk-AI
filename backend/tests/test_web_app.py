@@ -140,6 +140,35 @@ def test_a_build_without_the_landing_page_serves_the_app_at_the_root(
     assert web_client.get("/").text == INDEX
 
 
+def test_a_landing_page_gone_since_the_listing_shows_the_app(
+    dist: Path, web_client: TestClient
+) -> None:
+    assert web_client.get("/").text == LANDING  # listed now
+    (dist / "landing" / "index.html").unlink()  # index.html unchanged: the listing stays
+
+    response = web_client.get("/")
+
+    assert (response.status_code, response.text) == (200, INDEX)
+
+
+@pytest.mark.parametrize("path", ["/", "/landing/css/styles.css", "/visits"])
+def test_a_file_the_browser_already_has_is_a_304_with_its_headers(
+    web_client: TestClient, path: str
+) -> None:
+    # FileResponse never answers a conditional request: the hero video went in full each visit.
+    first = web_client.get(path)
+    etag = first.headers["etag"]
+
+    again = web_client.get(path, headers={"If-None-Match": etag})
+    changed = web_client.get(path, headers={"If-None-Match": '"another"'})
+
+    assert (again.status_code, again.content) == (304, b"")
+    assert again.headers["etag"] == etag
+    assert again.headers["cache-control"] == first.headers["cache-control"]
+    assert again.headers.get("vary") == first.headers.get("vary")
+    assert (changed.status_code, changed.content) == (200, first.content)
+
+
 def test_a_built_asset_is_served_with_its_type_and_cached_for_good(web_client: TestClient) -> None:
     response = web_client.get("/assets/app-3f2a1b.js")
 

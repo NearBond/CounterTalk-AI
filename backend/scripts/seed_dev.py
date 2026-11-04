@@ -12,7 +12,8 @@ twice.
 
 Safe to run again, even twice at once: rows are matched on their natural keys, and existing
 ones are left exactly as they are. A shop's distributor, and its beat, are each filled in only
-while it has none. Every name is made up, and the reps' addresses are example.com.
+while it has none. Every name is made up except the org's, the pack's company (5 Nov), and the
+reps' addresses are example.com.
 """
 
 import sys

@@ -10,6 +10,10 @@ The landing page (batch F6) is web/public/landing/, which Vite copies to dist/la
 is. "/" shows it to a visitor without the session cookie, and the app to one with it. Only the
 cookie's presence is checked: a stale one gets the app, which sends a signed-out visitor to
 /signin. The landing's own files are served by their exact paths, like any other built file.
+
+A file unchanged since the browser's copy gets 304 (review fixes, 5 Nov): FileResponse never
+answers a conditional request itself, so every no-cache file (the landing's 3.6 MB hero video
+among them) was sent in full on every visit.
 """
 
 from pathlib import Path
@@ -17,7 +21,9 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from starlette.exceptions import HTTPException
+from starlette.responses import Response
 from starlette.routing import Match, Route
+from starlette.staticfiles import NotModifiedResponse, StaticFiles
 from starlette.types import Scope
 
 from countertalk.auth import COOKIE
@@ -77,14 +83,22 @@ def mount_web_app(app: FastAPI, dist: Path) -> bool:
     if not (dist / "index.html").is_file():
         return False
     build = _Build(dist)
+    # Only for Starlette's own If-None-Match and If-Modified-Since check: it serves nothing.
+    conditional = StaticFiles(directory=dist, check_dir=False)
 
-    async def serve(request: Request) -> FileResponse:
+    def send(request: Request, file: Path, headers: dict[str, str]) -> Response:
+        response = FileResponse(file, headers=headers, stat_result=file.stat())
+        if conditional.is_not_modified(response.headers, request.headers):
+            return NotModifiedResponse(response.headers)  # keeps Cache-Control, ETag and Vary
+        return response
+
+    async def serve(request: Request) -> Response:
         path = request.scope["path"]
         files = build.current()
         file = files.get(path)
         if file is not None and file.is_file() and path != "/index.html":
             cache = IMMUTABLE if path.startswith("/assets/") else NO_CACHE
-            return FileResponse(file, headers={"Cache-Control": cache})
+            return send(request, file, {"Cache-Control": cache})
         if path.startswith("/assets/"):
             # A stale page asking for an old hashed file needs an error, not the app as HTML.
             raise HTTPException(status_code=404)
@@ -92,11 +106,12 @@ def mount_web_app(app: FastAPI, dist: Path) -> bool:
         if index is None:
             raise HTTPException(status_code=404)
         if path != "/":
-            return FileResponse(index, headers={"Cache-Control": NO_CACHE})
-        # "/" depends on the cookie, so a cache must keep the two answers apart.
-        shown = files.get(LANDING) if COOKIE not in request.cookies else None
-        headers = {"Cache-Control": NO_CACHE, "Vary": "Cookie"}
-        return FileResponse(shown or index, headers=headers)
+            return send(request, index, {"Cache-Control": NO_CACHE})
+        # "/" depends on the cookie, so a cache must keep the two answers apart. A landing gone
+        # from the disk since the listing was made shows the app, as a build without one does.
+        landing = files.get(LANDING) if COOKIE not in request.cookies else None
+        shown = landing if landing is not None and landing.is_file() else index
+        return send(request, shown, {"Cache-Control": NO_CACHE, "Vary": "Cookie"})
 
     app.router.routes.append(_AppRoute("/{path:path}", serve, methods=["GET", "HEAD"]))
     return True
