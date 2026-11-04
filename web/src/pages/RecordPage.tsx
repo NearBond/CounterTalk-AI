@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ConsentNeeded } from "../components/ConsentNeeded";
+import { ShopBriefCard } from "../components/BriefCard";
 import { RetryAlert } from "../components/RetryAlert";
 import { UploadPanel } from "../components/UploadPanel";
 import { messageOf } from "../lib/api";
@@ -196,6 +197,8 @@ export function RecordPage() {
       {picked !== undefined && !picked.do_not_record && !agreed && !locked && (
         <ConsentNeeded key={picked.id} shop={picked} onAnswered={shops.reload} />
       )}
+      {/* The picked shop's pre-visit brief (batch F5): read before the visit, free. */}
+      {picked !== undefined && <ShopBriefCard key={`brief:${shopId}`} shopId={shopId} compact />}
 
       <section aria-labelledby="record-heading" className="flex flex-col gap-3">
         <h2 id="record-heading" className="text-lg font-semibold">

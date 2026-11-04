@@ -1,5 +1,6 @@
 import type { RouteObject } from "react-router";
-import { ADMINS, Home, Only, RECORDS, SignedIn, TEAM_WORK, WHOLE_ORG } from "./lib/session";
+import { ADMINS, BRIEFS, Home, Only, RECORDS, SignedIn, TEAM_WORK, WHOLE_ORG } from "./lib/session";
+import { BriefsPage, ShopBriefPage } from "./pages/BriefsPage";
 import { CatalogPage } from "./pages/CatalogPage";
 import { ConsentPage } from "./pages/ConsentPage";
 import { DrillPage } from "./pages/DrillPage";
@@ -56,6 +57,23 @@ export const routes: RouteObject[] = [
         element: (
           <Only roles={RECORDS}>
             <UpdatesPage />
+          </Only>
+        ),
+      },
+      // Batch F5: every shop's pre-visit brief, and one shop's.
+      {
+        path: "/briefs",
+        element: (
+          <Only roles={BRIEFS}>
+            <BriefsPage />
+          </Only>
+        ),
+      },
+      {
+        path: "/briefs/:shopId",
+        element: (
+          <Only roles={BRIEFS}>
+            <ShopBriefPage />
           </Only>
         ),
       },

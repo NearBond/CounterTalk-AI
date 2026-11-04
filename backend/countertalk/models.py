@@ -551,6 +551,8 @@ class LlmPurpose(StrEnum):
     MERGE = "merge"
     # Batch 17d's questions: about no visit and no summary.
     ASK = "ask"
+    # Batch F5's pre-visit briefs: about a shop, naming its brief once it's saved.
+    BRIEF = "brief"
 
 
 # The purposes whose calls are a summary's.
@@ -572,6 +574,8 @@ class LlmCall(Base):
             f"({_one_of('purpose', SUMMARY_PURPOSES)}) = (summary_id IS NOT NULL)", name="summary"
         ),
         CheckConstraint("summary_id IS NULL OR visit_id IS NULL", name="visit_or_summary"),
+        # Only a brief's call names a brief (one whose answer wasn't kept names none).
+        CheckConstraint(f"brief_id IS NULL OR purpose = '{LlmPurpose.BRIEF}'", name="brief"),
     )
     __mapper_args__ = {"eager_defaults": True}
 
@@ -586,6 +590,10 @@ class LlmCall(Base):
     # Summaries are never deleted, so nothing happens on delete.
     summary_id: Mapped[str | None] = mapped_column(
         Uuid(as_uuid=False), ForeignKey("summaries.id"), index=True
+    )
+    # Briefs are never deleted either (batch F5).
+    brief_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("briefs.id"), index=True
     )
     purpose: Mapped[str] = mapped_column(String)
     provider: Mapped[str] = mapped_column(String)
@@ -1500,4 +1508,38 @@ class IssueMergeSuggestion(Base):
     summary_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
     decided_by_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False))
     decided_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class Brief(Base):
+    """A shop's pre-visit brief (batch F5; BRIEF S2): the facts code picked from its confirmed
+    visits, and Muse Spark's words about them, checked (brief.py). Written only when someone
+    asks; asking again writes a new one, so the latest is shown and the older ones are kept.
+    Never changed or deleted, so its LLM calls stay counted."""
+
+    __tablename__ = "briefs"
+    __table_args__ = (
+        # Its shop is its own org's. Shops are never deleted, so nothing happens on delete.
+        ForeignKeyConstraint(["org_id", "shop_id"], ["shops.org_id", "shops.id"]),
+        # Who asked, and the visit it covers, are the org's own: neither can be deleted while a
+        # brief names it (as an issue's decided_by).
+        ForeignKeyConstraint(["org_id", "user_id"], ["users.org_id", "users.id"]),
+        ForeignKeyConstraint(["org_id", "visit_id"], ["visits.org_id", "visits.id"]),
+        # A shop's latest, and the org's, at once.
+        Index("ix_briefs_shop_id_created_at", "shop_id", "created_at"),
+        CheckConstraint(f"visits >= {limits.BRIEF_VISITS_MIN}", name="visits"),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=new_id)
+    org_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("orgs.id"))
+    shop_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    # Who asked for it.
+    user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    # The latest confirmed visit it covers, and the shop's confirmed visits then: "after visit N".
+    visit_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    visits: Mapped[int]
+    # What it shows, and the facts the AI was given (brief.Content).
+    content: Mapped[dict] = mapped_column(JSONB)
+    # The LLM that wrote its words.
+    model: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)

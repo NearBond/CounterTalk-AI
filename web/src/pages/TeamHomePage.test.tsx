@@ -324,6 +324,14 @@ describe("TeamHomePage", () => {
     expect(screen.queryByRole("button", { name: /^View all/ })).not.toBeInTheDocument();
   });
 
+  it("says so when the team member isn't on a team yet, and asks for no summary", async () => {
+    const api = open({ "GET /api/auth/me": () => json(200, { ...FINANCE_MEMBER, team: null }) });
+
+    const summary = await screen.findByRole("region", { name: "Your team's latest summary" });
+    expect(within(summary).getByText("You're not on a team yet, so there's no team summary to show.")).toBeInTheDocument();
+    await vi.waitFor(() => expect(api.gets()).toBe(3));
+  });
+
   it("says Loading… until the issues come, then offers Try again when they couldn't be loaded", async () => {
     let fail: (response: Response) => void = () => {};
     open({

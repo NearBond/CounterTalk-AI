@@ -1,4 +1,7 @@
+import type { ReactNode } from "react";
+import { Link } from "react-router";
 import { countOf } from "../lib/format";
+import type { IssueStatus, SummaryStatus } from "../types/api";
 
 /* The homes' shared pieces (batches F3 and F4): v2's look for the rep's, the manager's and the
  * team member's home, each a page of stat cards, then sections of SHOWN_FIRST with View all. */
@@ -97,5 +100,47 @@ export function Figure({ figure, words, tail, said }: FigureProps) {
         →
       </span>
     </>
+  );
+}
+
+// A small pill: a team, a status, a severity.
+export const PILL = "rounded-full px-2.5 py-0.5 text-xs font-bold";
+
+// Each issue status's pill.
+export const ISSUE_PILLS: Record<IssueStatus, string> = {
+  open: "bg-amber-100 text-amber-900",
+  in_progress: "bg-blue-50 text-blue-800",
+  resolved: "bg-leaf-soft text-leaf",
+  merged: "bg-paper-2 text-ink-2",
+};
+
+// A summary's status, as the homes say it, and its pill.
+export const SUMMARY_STATUS: Record<SummaryStatus, { label: string; tone: string }> = {
+  ready: { label: "Ready to read", tone: "bg-leaf-soft text-leaf" },
+  writing: { label: "Being written…", tone: "bg-marigold-soft text-ink" },
+  failed: { label: "Couldn't be written", tone: "bg-vermilion-soft text-vermilion-ink" },
+};
+
+/** A home's one h1, "Hi, <name> · <org>", and its plain line under it. */
+export function Greeting({ name, org, children }: { name: string; org: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <h1 className="text-3xl leading-tight font-semibold wrap-break-word text-ink">
+        Hi, {name}{" "}
+        <span className="text-ink-3">· {org}</span>
+      </h1>
+      <p className="text-ink-2">{children}</p>
+    </div>
+  );
+}
+
+/** A home's small footer link to the server's status. */
+export function ServerStatus() {
+  return (
+    <p className="mt-auto text-sm">
+      <Link to="/health" className={`${QUIET_LINK} text-ink-3 hover:text-ink`}>
+        Server status
+      </Link>
+    </p>
   );
 }

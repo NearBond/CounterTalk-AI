@@ -3,6 +3,8 @@
  * so a caller has one thing to catch and always gets a status, a code and a readable message.
  */
 import type {
+  BriefRow,
+  ShopBrief,
   AskAnswer,
   CatalogItem,
   CatalogItemChange,
@@ -56,6 +58,7 @@ import type {
   Transcript,
   Finding,
   Visit,
+  VisitStatus,
 } from "../types/api";
 
 const BASE_URL = "/api";
@@ -195,8 +198,9 @@ export function listShops(signal?: AbortSignal): Promise<Page<Shop>> {
   return apiRequest("/shops", { signal });
 }
 
-export function listVisits(signal?: AbortSignal): Promise<Page<Visit>> {
-  return apiRequest("/visits", { signal });
+/** Newest first; with `status`, only those (the rep's home's visits in review, batch F3). */
+export function listVisits(signal?: AbortSignal, status?: VisitStatus): Promise<Page<Visit>> {
+  return apiRequest(status === undefined ? "/visits" : `/visits?status=${status}`, { signal });
 }
 
 export function getVisit(visitId: string, signal?: AbortSignal): Promise<Visit> {
@@ -540,4 +544,21 @@ function isHealth(value: unknown): value is Health {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// --- the pre-visit brief (batch F5) -----------------------------------------------------------
+
+/** Every shop of the org with its latest brief's state: those with a brief first, newest first. */
+export function listBriefs(signal?: AbortSignal): Promise<Page<BriefRow>> {
+  return apiRequest("/briefs", { signal });
+}
+
+/** A shop's latest brief, and whether one may be generated now. Reading it costs nothing. */
+export function getShopBrief(shopId: string, signal?: AbortSignal): Promise<ShopBrief> {
+  return apiRequest(`/shops/${encodeURIComponent(shopId)}/brief`, { signal });
+}
+
+/** Muse Spark writes the shop's brief (a few seconds), saved as its latest. */
+export function generateBrief(shopId: string, signal?: AbortSignal): Promise<ShopBrief> {
+  return apiRequest(`/shops/${encodeURIComponent(shopId)}/brief`, { method: "POST", signal });
 }

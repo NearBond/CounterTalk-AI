@@ -37,6 +37,7 @@ BAD_INPUTS = {
     "export_eval_case.py": ([UNKNOWN, "rp99"], {}),
     "run_eval.py": (["--cases", "no-such-folder"], {}),
     "write_summary.py": ([UNKNOWN, "--org", "--period", "week"], {}),
+    "write_brief.py": ([UNKNOWN], {}),
     "load_patterns.py": (["--world", "no-such-world.yaml"], {}),
     "set_password.py": (["nobody@example.com"], {"NEW_PASSWORD": ""}),
     "add_user.py": ([UNKNOWN, "new@example.com", "New", "manager"], {"NEW_PASSWORD": ""}),

@@ -152,11 +152,17 @@ class Counts:
 def _problems_of(org_id: str, rep_id: str) -> list[Any]:
     """The rep's own problems: visible insights of kind problem from their confirmed visits
     (the counts' and the pending list's one rule, R1)."""
+    return _problems(org_id, Visit.rep_id == rep_id)
+
+
+def _problems(org_id: str, whose: Any) -> list[Any]:
+    """Visible insights of kind problem from confirmed visits: a rep's (`whose` names them) or a
+    shop's."""
     return [
         Insight.org_id == org_id,
         Insight.kind == PROBLEM_KIND,
         Insight.visible,
-        Visit.rep_id == rep_id,
+        whose,
         Visit.status == VisitStatus.CONFIRMED,
     ]
 
@@ -190,6 +196,7 @@ def my_counts(session: Session, org_id: str, rep_id: str) -> Counts:
 class Pending:
     """One of the rep's problems still being worked on (batch F3): its issue in one team's inbox."""
 
+    issue_id: str
     shop: str
     area: str
     team: str
@@ -202,6 +209,16 @@ class Pending:
 def pending(session: Session, org_id: str, rep_id: str) -> list[Pending]:
     """The rep's own problems whose issue is open or in progress now: one row per issue (a team's),
     the rep's latest insight in it, newest first. Never another rep's name, never a quote."""
+    return _still_open(session, _problems_of(org_id, rep_id))
+
+
+def shop_pending(session: Session, org_id: str, shop_id: str) -> list[Pending]:
+    """The shop's problems still open, raised on any rep's visit (batch F5's brief), as the rep's
+    pending list words them."""
+    return _still_open(session, _problems(org_id, Visit.shop_id == shop_id))
+
+
+def _still_open(session: Session, problems: list[Any]) -> list[Pending]:
     found = session.execute(
         select(Issue.id, Shop.name, Shop.area, Team.name)
         .add_columns(Insight.summary_en, Issue.status, Visit.created_at)
@@ -211,10 +228,10 @@ def pending(session: Session, org_id: str, rep_id: str) -> list[Pending]:
         .join(InsightRoute, InsightRoute.insight_id == Insight.id)
         .join(Issue, Issue.id == InsightRoute.issue_id)
         .join(Team, (Team.org_id == Issue.org_id) & (Team.id == Issue.team_id))
-        .where(*_problems_of(org_id, rep_id), Issue.status.in_(ACTIVE_ISSUE))
+        .where(*problems, Issue.status.in_(ACTIVE_ISSUE))
         .order_by(Visit.created_at.desc(), Insight.seq.desc())
     ).all()
     kept: dict[str, Pending] = {}
     for issue_id, shop, area, team, problem, status, raised_at in found:
-        kept.setdefault(issue_id, Pending(shop, area, team, problem, status, raised_at))
+        kept.setdefault(issue_id, Pending(issue_id, shop, area, team, problem, status, raised_at))
     return list(kept.values())

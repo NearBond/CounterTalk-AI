@@ -91,10 +91,10 @@ describe("App", () => {
   });
 
   it.each([
-    [REP, ["Home", "Updates"]],
+    [REP, ["Home", "Updates", "Briefs"]],
     [FINANCE_MEMBER, ["Home", "Inbox", "Summaries"]],
-    [MANAGER, ["Home", "Visits", "Inbox", "Triage", "Summaries"]],
-    [ADMIN, ["Home", "Visits", "Inbox", "Triage", "Summaries", "Catalog"]],
+    [MANAGER, ["Home", "Visits", "Briefs", "Inbox", "Triage", "Summaries"]],
+    [ADMIN, ["Home", "Visits", "Briefs", "Inbox", "Triage", "Summaries", "Catalog"]],
   ])("shows %s.role's pages in the header", async (me, links) => {
     renderAt("/visits/v-1", me);
 

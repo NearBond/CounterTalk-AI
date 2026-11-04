@@ -323,6 +323,10 @@ CASES = [
     case("GET", "/api/shops", at("/api/shops"), EVERYONE),
     # Batch 17b: what's been fixed for a shop since its last visit, for the org's own staff.
     case("GET", "/api/shops/{shop_id}/fixed", at("/api/shops/{w.shop_id}/fixed"), (*REPS, *WHOLE)),
+    # Batch F5: the pre-visit briefs, for the org's own staff. No key here: Generate is 503.
+    case("GET", "/api/briefs", at("/api/briefs"), (*REPS, *WHOLE)),
+    case("GET", "/api/shops/{shop_id}/brief", at("/api/shops/{w.shop_id}/brief"), (*REPS, *WHOLE)),
+    case("POST", "/api/shops/{shop_id}/brief", at("/api/shops/{w.shop_id}/brief"), (*REPS, *WHOLE)),
     # Batch 17: the org's own staff share a shop's consent link or mark its paper form.
     case(
         "POST",

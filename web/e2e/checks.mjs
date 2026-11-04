@@ -392,6 +392,28 @@ export const CHECKS = [
     },
   },
   {
+    name: "at 390 px, a manager's Pre-visit briefs: the home's latest, then View all, then the shop's brief in five parts",
+    as: "k6-manager",
+    async run({ page, web, seeded }) {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`${web}/`);
+      const section = page.getByRole("region", { name: "Pre-visit briefs" });
+      await section.getByRole("list", { name: "Latest briefs" }).getByRole("link", { name: seeded.k6.brief_shop }).waitFor();
+      await section.getByRole("link", { name: "View all" }).click();
+      await page.getByRole("heading", { level: 1, name: "Pre-visit briefs" }).waitFor();
+      await fitsAPhone(page, "the briefs page");
+      await page.getByRole("list", { name: "Shops" }).getByRole("link", { name: seeded.k6.brief_shop }).first().click();
+      for (const part of ["Shop overview", /^Last visit · /, "Still open", "Fixed since", "Worth raising this time"]) {
+        await page.getByRole("heading", { level: 3, name: part }).waitFor({ state: "attached" });
+      }
+      const text = await page.getByRole("main").textContent();
+      const said = text.includes("This shop raises payment delays most often.") && text.includes("Generated on");
+      expect(said && !text.includes("Regenerate"), `the brief said: ${text}`);
+      await fitsAPhone(page, "the shop's brief");
+      await shoot(page, "brief");
+    },
+  },
+  {
     name: "at 390 px, a team member's home: their team's numbers, what needs action, and its summary",
     as: "k6",
     async run({ page, web }) {

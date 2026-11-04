@@ -77,9 +77,10 @@ def overview(session: Session, user: CurrentUser) -> Overview:
         made = select(func.count()).where(
             Visit.org_id == user.org_id,
             Visit.created_at >= monday,
-            Visit.status != VisitStatus.FAILED,
+            # Made: never failed, and not a recording that was never sent.
+            Visit.status.not_in([VisitStatus.FAILED, VisitStatus.RECORDING]),
         )
         visits = session.scalar(made) or 0
     if user.role == Role.ADMIN:
-        names = len(catalog_admin.open_reviews(session, user.org_id))
+        names = catalog_admin.open_review_count(session, user.org_id)
     return Overview(still_open, started, overdue, resolved, triage, visits, names)

@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { Me } from "./types/api";
+import type { Brief, BriefRow, Me, ShopBrief } from "./types/api";
 
 /** Helpers for tests that fake the API. */
 
@@ -59,6 +59,69 @@ const ME = "GET /api/auth/me";
 
 /** A fake API: answers by "METHOD /path", recording each request's body; one may wait. Who's
  * signed in is MANAGER unless the routes answer GET /api/auth/me themselves. */
+/** A shop on /briefs (batch F5). */
+export function briefRow(n: number, more: Partial<BriefRow> = {}): BriefRow {
+  return {
+    shop_id: `s${n}`,
+    name: `Shop ${n}`,
+    area: "Old Market",
+    visits: 4,
+    state: "up_to_date",
+    since: 0,
+    generated_at: `2026-11-0${n}T06:00:00Z`,
+    ...more,
+  };
+}
+
+/** /api/briefs as the server orders it: four briefs newest first, then one with none, then one
+ * with too few visits. */
+export const BRIEF_ROWS: BriefRow[] = [
+  briefRow(4),
+  briefRow(3, { state: "out_of_date", since: 2 }),
+  briefRow(2),
+  briefRow(1, { state: "out_of_date", since: 1 }),
+  briefRow(5, { state: "none", generated_at: null }),
+  briefRow(6, { state: "not_enough_visits", visits: 1, generated_at: null }),
+];
+
+/** A brief, every part filled in. */
+export const BRIEF: Brief = {
+  id: "b-1",
+  generated_at: "2026-11-02T06:00:00Z",
+  after_visit: 4,
+  overview: ["The shop raises late credit notes most.", "It orders Lay's every visit."],
+  last_visit: {
+    visited_at: "2026-11-01T06:00:00Z",
+    raised: [{ category: "Payments", problem: "The credit note is late.", quote: "पैसा अभी तक नहीं आया" }],
+    ordered: [
+      { name: "Lay's Classic", quantity: 2, unit: "boxes" },
+      { name: "Kurkure", quantity: null, unit: null },
+    ],
+  },
+  still_open: [
+    { team: "Finance", status: "in_progress", problem: "The credit note is late.", raised_at: "2026-11-01T06:00:00Z" },
+  ],
+  fixed_since: [
+    { team: "Distribution", problem: "Deliveries came late.", tell_them: "Deliveries are on Mondays now.", resolved_at: "2026-11-01T09:00:00Z" },
+  ],
+  worth_raising: ["Ask whether the credit note has come."],
+};
+
+/** A shop's brief as GET /api/shops/{id}/brief answers: up to date, nothing to generate. */
+export function shopBrief(more: Partial<ShopBrief> = {}): ShopBrief {
+  return {
+    shop_id: "s1",
+    name: "Sunrise Kirana",
+    area: "Old Market",
+    visits: 4,
+    state: "up_to_date",
+    since: 0,
+    can_generate: false,
+    brief: BRIEF,
+    ...more,
+  };
+}
+
 export function fakeApi(given: Record<string, Handler | Handler[]>) {
   const routes: Record<string, Handler | Handler[]> = { [ME]: () => jsonResponse(200, MANAGER), ...given };
   const sent: Array<{ route: string; body: unknown }> = [];

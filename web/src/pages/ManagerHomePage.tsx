@@ -1,36 +1,39 @@
 import { Fragment, useState } from "react";
 import { Link } from "react-router";
+import { BriefsSection } from "../components/BriefsSection";
 import { RetryAlert } from "../components/RetryAlert";
-import { EMPTY, Figure, H2, QUIET_LINK, RECORD, SECONDARY, SHOWN_FIRST, STAT, ViewAll, stat } from "../components/home";
+import {
+  EMPTY,
+  Figure,
+  Greeting,
+  H2,
+  ISSUE_PILLS,
+  PILL,
+  RECORD,
+  SECONDARY,
+  SHOWN_FIRST,
+  STAT,
+  SUMMARY_STATUS,
+  ServerStatus,
+  ViewAll,
+  stat,
+} from "../components/home";
 import { getOverview, getSummaryPage, listTriage } from "../lib/api";
 import { countOf, formatDay, formatPeriod } from "../lib/format";
 import { usePolling } from "../lib/hooks";
 import { STATUS_LABELS } from "../lib/issues";
 import { keepsCatalog, useMe } from "../lib/session";
-import type { CauseNumbers, Finding, IssueStatus, SummaryStatus } from "../types/api";
+import type { CauseNumbers, Finding, IssueStatus } from "../types/api";
 
 // A row of a list that is one link: the visits list's look on the rep's home.
 const ROW =
   "flex min-h-11 items-center gap-3 px-4 py-3 transition-colors hover:bg-paper focus-visible:outline-2" +
   " focus-visible:-outline-offset-2 motion-reduce:transition-none";
 const LIST = "flex flex-col divide-y divide-line overflow-hidden rounded-lg border border-line bg-card";
-const PILL = "rounded-full px-2.5 py-0.5 text-xs font-bold";
 
-// Each status's pill, as the rep's Pending resolutions shows them.
-const STATUS_PILLS: Record<IssueStatus, string> = {
-  open: "bg-amber-100 text-amber-900",
-  in_progress: "bg-blue-50 text-blue-800",
-  resolved: "bg-leaf-soft text-leaf",
-  merged: "bg-paper-2 text-ink-2",
-};
 // What "open" means here: a team still has it.
 const ACTIVE: IssueStatus[] = ["open", "in_progress"];
 
-const SUMMARY_STATUS: Record<SummaryStatus, { label: string; pill: string }> = {
-  ready: { label: "Ready to read", pill: "bg-leaf-soft text-leaf" },
-  writing: { label: "Being written…", pill: "bg-marigold-soft text-ink" },
-  failed: { label: "Couldn't be written", pill: "bg-vermilion-soft text-vermilion-ink" },
-};
 
 /** `/` for a manager or admin (batch F4): the whole org at a glance. Ask a question first, the
  * org's numbers each in plain words, then what waits in triage, last week's top open issues as
@@ -93,13 +96,9 @@ export function ManagerHomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-8 px-4 py-6 sm:max-w-3xl sm:py-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl leading-tight font-semibold wrap-break-word text-ink">
-          Hi, {me.name}{" "}
-          <span className="text-ink-3">· {me.org_name}</span>
-        </h1>
-        <p className="text-ink-2">What's happening across your teams this week.</p>
-      </div>
+      <Greeting name={me.name} org={me.org_name}>
+        What's happening across your teams this week.
+      </Greeting>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
         {/* The Ask box is at the top of the inbox. */}
@@ -210,11 +209,11 @@ export function ManagerHomePage() {
               </h2>
               {causes.length > 0 && (
                 <p className="text-sm text-ink-2">
-                  As last week's summary ranks them: how serious, how many shops wait on a fix, and for how long.
+                  As last week's summary ranks them: how serious, how many shops wait on a fix, and for how long. Each team's status is as the week ended.
                 </p>
               )}
             </div>
-            {page.data !== undefined && causes.length === 0 && <p className={EMPTY}>No open issues this week.</p>}
+            {page.data !== undefined && causes.length === 0 && <p className={EMPTY}>No open issues at the end of last week.</p>}
             {causes.length > 0 && (
               <ul id="issues-list" className={LIST}>
                 {(allIssues ? causes : causes.slice(0, SHOWN_FIRST)).map((cause) => (
@@ -240,7 +239,7 @@ export function ManagerHomePage() {
                     {formatPeriod("week", page.data.period_start, page.data.period_end)}
                   </span>
                 </p>
-                <span className={`${PILL} ${SUMMARY_STATUS[summary.status].pill}`}>
+                <span className={`${PILL} ${SUMMARY_STATUS[summary.status].tone}`}>
                   {SUMMARY_STATUS[summary.status].label}
                 </span>
                 <Link to="/summaries" className={SECONDARY}>
@@ -249,14 +248,12 @@ export function ManagerHomePage() {
               </div>
             )}
           </section>
+
+          <BriefsSection />
         </div>
       </div>
 
-      <p className="mt-auto text-sm">
-        <Link to="/health" className={`${QUIET_LINK} text-ink-3 hover:text-ink`}>
-          Server status
-        </Link>
-      </p>
+      <ServerStatus />
     </main>
   );
 }
@@ -293,7 +290,7 @@ function CauseRow({ cause }: { cause: CauseNumbers }) {
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             {cause.teams.map((work) => (
               <Fragment key={work.issue_id}>
-                <span className={`${PILL} ${STATUS_PILLS[work.status]}`}>
+                <span className={`${PILL} ${ISSUE_PILLS[work.status]}`}>
                   {work.team_name}: {STATUS_LABELS[work.status]}
                 </span>{" "}
               </Fragment>

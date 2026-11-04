@@ -30,7 +30,7 @@ from tests.test_inbox_api import OTHER, change_visit, confirmed, shop, team_id
 from tests.test_inbox_routing import only_insight
 from tests.test_review_api import error_of, signed_in_manager
 from tests.test_summaries import resolve
-from tests.test_visits import Org_
+from tests.test_visits import Org_, new_visit
 
 SUPPLY = insight(category="supply", severity="low", suggested_team="distribution")
 # What a team member's overview leaves out.
@@ -71,8 +71,9 @@ def last_week() -> datetime:
 
 def a_busy_week(client: TestClient, demo: Org_) -> None:
     """Finance's three issues (d3 open, d1 in progress, d2 resolved today), all past their due
-    date; distribution's two (d3 open, d1 resolved last week); one insight in triage. Seven
-    visits: one of them last week's, and one failed."""
+    date; distribution's two (d3 open, d1 resolved last week); one insight in triage. Eight
+    visits: one of them last week's, one failed, and one still recording (never sent)."""
+    new_visit(shop(demo, "Lotus General Store"))  # still recording: not a visit made
     corner = confirmed(client, shop(demo, "Corner Daily Needs"))  # finance, d3
     sunrise = confirmed(client, shop(demo, "Sunrise Kirana"))  # finance, d1
     lotus = confirmed(client, shop(demo, "Lotus General Store"))  # finance, d2

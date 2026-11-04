@@ -2,7 +2,7 @@ import { type FormEvent, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { RetryAlert } from "../components/RetryAlert";
 import { messageOf, signIn } from "../lib/api";
-import { homeFor } from "../lib/session";
+import { HOME } from "../lib/session";
 
 /** Only our own pages, never sign-in itself: an address from elsewhere ("//evil.example", or
  * "/\\evil.example", which a browser reads as the same) goes home instead. */
@@ -26,8 +26,8 @@ export function SignInPage() {
     setBusy(true);
     setFailed(null);
     try {
-      const me = await signIn({ email, password });
-      navigate(ownPath(params.get("next")) ?? homeFor(me), { replace: true });
+      await signIn({ email, password });
+      navigate(ownPath(params.get("next")) ?? HOME, { replace: true });
     } catch (error) {
       setFailed(messageOf(error, "Signing in didn't work. Try again."));
       setBusy(false);

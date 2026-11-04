@@ -13,6 +13,16 @@ from pydantic import BaseModel
 from countertalk import limits, narrative, storage, summaries
 from countertalk.api.ask import AskIn, AskOut, ChipOut
 from countertalk.api.auth import MeOut, SignInIn
+from countertalk.api.briefs import (
+    BriefFixedOut,
+    BriefLastVisitOut,
+    BriefOpenOut,
+    BriefOrderedOut,
+    BriefOut,
+    BriefRaisedOut,
+    BriefRowOut,
+    ShopBriefOut,
+)
 from countertalk.api.catalog import (
     AliasIn,
     AliasOut,
@@ -99,6 +109,14 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "MyCounts": CountsOut,
     "MyHome": HomeOut,
     "PendingItem": PendingOut,
+    "BriefRow": BriefRowOut,
+    "BriefRaised": BriefRaisedOut,
+    "BriefOrdered": BriefOrderedOut,
+    "BriefLastVisit": BriefLastVisitOut,
+    "BriefOpen": BriefOpenOut,
+    "BriefFixed": BriefFixedOut,
+    "Brief": BriefOut,
+    "ShopBrief": ShopBriefOut,
     "Overview": OverviewOut,
     "Visit": VisitOut,
     "NewVisit": VisitIn,

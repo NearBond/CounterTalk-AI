@@ -27,7 +27,7 @@ from collections import defaultdict
 from dataclasses import dataclass, replace
 from typing import Any
 
-from sqlalchemy import JSON, select
+from sqlalchemy import JSON, func, select
 from sqlalchemy.orm import Session
 
 from countertalk import entities, rows
@@ -133,13 +133,22 @@ def item(session: Session, org_id: str, item_id: str) -> ItemView:
     return _view(found, [AliasView(a.id, a.text, a.source) for a in _aliases_of(session, found.id)])
 
 
+def _open(org_id: str) -> list[Any]:
+    """The org's names waiting for review (one rule for the list and its count, R1)."""
+    return [AliasReview.org_id == org_id, AliasReview.status == AliasReviewStatus.OPEN]
+
+
+def open_review_count(session: Session, org_id: str) -> int:
+    """How many open_reviews lists: one per kind and name (batch F4's admin home)."""
+    each = select(AliasReview.kind, AliasReview.normalised).where(*_open(org_id)).distinct()
+    return session.scalar(select(func.count()).select_from(each.subquery())) or 0
+
+
 def open_reviews(session: Session, org_id: str) -> list[ReviewView]:
     """One per kind and name, the most said first, then the oldest."""
     grouped: dict[tuple[str, str], list[AliasReview]] = defaultdict(list)
     for review in session.scalars(
-        select(AliasReview)
-        .where(AliasReview.org_id == org_id, AliasReview.status == AliasReviewStatus.OPEN)
-        .order_by(AliasReview.created_at, AliasReview.id)
+        select(AliasReview).where(*_open(org_id)).order_by(AliasReview.created_at, AliasReview.id)
     ):
         grouped[(review.kind, review.normalised)].append(review)
     views = [

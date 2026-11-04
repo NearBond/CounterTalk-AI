@@ -21,13 +21,14 @@ from datetime import timedelta
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import make_url
 
-from countertalk import auth, issues, storage, transcription
+from countertalk import auth, brief, issues, storage, transcription
 from countertalk.config import BACKEND_DIR, get_settings
 from countertalk.db import session_scope
 from countertalk.errors import DomainError, describe
+from countertalk.llm.base import CallDetails, Outcome
 from countertalk.logs import configure_logging
 from countertalk.models import (
     Distributor,
@@ -45,6 +46,7 @@ from countertalk.models import (
 )
 from countertalk.playbooks import load_org_pack
 from countertalk.summaries import last_complete
+from countertalk.users import CurrentUser
 from scripts import _k6
 from scripts.seed_dev import DEMO_PACK, DEMO_REP, seed, seed_fixed
 
@@ -59,6 +61,22 @@ TURNS = [
 
 # Made up, like the seed's, and with no consent yet (batch 17).
 UNANSWERED_SHOPS = ("Link Kirana", "Paper Kirana")
+# A brief's words in the e2e world (batch F5): no number, so the checker keeps them all.
+BRIEF_WORDS = {
+    "overview": ["This shop raises payment delays most often.", "Its orders come in steadily."],
+    "worth_raising": ["Ask whether the payout they waited for has reached them."],
+}
+
+
+class SeededWords:
+    """Stands in for Muse Spark when the e2e world is made: BRIEF_WORDS, never a real call."""
+
+    provider = "e2e"
+    model = "e2e-seeded"
+
+    def complete(self, *_: object, **__: object) -> Outcome:
+        details = CallDetails(model=self.model, prompt_hash="e2e", latency_ms=0)
+        return Outcome(calls=(details,), answer=BRIEF_WORDS)
 
 
 def recreate(name: str) -> None:
@@ -121,7 +139,32 @@ def k6() -> dict[str, str]:
             leads[role.value] = email
     for visit_id in visits:
         make_playback(visit_id)
-    return {"email": _k6.finance_email(world.org_id), "d2": d2, "p1": p1, **leads}
+    shop = seed_brief(world.org_id, leads[Role.MANAGER.value])
+    return {
+        "email": _k6.finance_email(world.org_id),
+        "d2": d2,
+        "p1": p1,
+        "brief_shop": shop,
+        **leads,
+    }
+
+
+def seed_brief(org_id: str, email: str) -> str:
+    """K6's shop with the most confirmed visits, with a pre-visit brief its manager asked for
+    (batch F5), its words SeededWords': the shop's name."""
+    with session_scope(read_only=True) as session:
+        manager = session.scalars(select(User).where(User.email == email)).one()
+        user = CurrentUser(manager.id, manager.org_id, manager.role, manager.team_id)
+        shop_id, name = session.execute(
+            select(Visit.shop_id, Shop.name)
+            .join(Shop, Shop.id == Visit.shop_id)
+            .where(Visit.org_id == org_id, Visit.status == VisitStatus.CONFIRMED)
+            .group_by(Visit.shop_id, Shop.name)
+            .order_by(func.count().desc(), Shop.name)
+            .limit(1)
+        ).one()
+    brief.generate(SeededWords(), user, shop_id)
+    return name
 
 
 def main() -> int:

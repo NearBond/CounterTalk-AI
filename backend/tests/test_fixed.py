@@ -245,6 +245,18 @@ def test_a_rep_s_home_counts_their_own_visits_to_review_and_the_shops_to_pass_on
     assert response.json() == {"to_review": 1, "to_pass_on": 1}
 
 
+def test_the_home_lists_only_the_rep_s_visits_in_review_however_many_others(
+    client: TestClient, org: Org_
+) -> None:
+    waiting, _ = reviewed(org, insight())
+    raised(org, 2, category="payments", severity="low")  # confirmed: not in review
+
+    response = client.get("/api/visits", params={"status": "review"})
+
+    assert response.status_code == 200
+    assert [visit["id"] for visit in response.json()["items"]] == [waiting]
+
+
 def test_a_rep_s_pending_are_their_own_problems_still_open_or_in_progress(
     client: TestClient, org: Org_
 ) -> None:
@@ -260,7 +272,8 @@ def test_a_rep_s_pending_are_their_own_problems_still_open_or_in_progress(
         return response.json()["items"]
 
     [row] = pending()
-    assert set(row) == {"shop", "area", "team", "problem", "status", "raised_at"}
+    assert set(row) == {"issue_id", "shop", "area", "team", "problem", "status", "raised_at"}
+    assert row["issue_id"] == issue
     assert (row["team"], row["status"]) == ("Field team", "open")
     with session_scope() as session:
         found = session.get_one(Issue, issue)

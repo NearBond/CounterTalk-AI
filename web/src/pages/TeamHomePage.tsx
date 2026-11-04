@@ -1,13 +1,28 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { RetryAlert } from "../components/RetryAlert";
-import { EMPTY, FOCUS, Figure, H2, QUIET_LINK, RECORD, SHOWN_FIRST, STAT, ViewAll, stat } from "../components/home";
+import {
+  EMPTY,
+  FOCUS,
+  Figure,
+  Greeting,
+  H2,
+  PILL,
+  QUIET_LINK,
+  RECORD,
+  SHOWN_FIRST,
+  STAT,
+  SUMMARY_STATUS,
+  ServerStatus,
+  ViewAll,
+  stat,
+} from "../components/home";
 import { getOverview, getSummaryPage, listIssues } from "../lib/api";
 import { countOf, formatDay, formatPeriod } from "../lib/format";
 import { usePolling } from "../lib/hooks";
 import { STATUS_LABELS } from "../lib/issues";
 import { useMe } from "../lib/session";
-import type { Issue, SummaryPage, SummaryStatus } from "../types/api";
+import type { Issue, SummaryPage } from "../types/api";
 
 // The overdue card, tinted while anything is past its due date.
 const ALARM = STAT.replace("border-line bg-card", "border-vermilion bg-vermilion-soft");
@@ -15,7 +30,6 @@ const ALARM = STAT.replace("border-line bg-card", "border-vermilion bg-vermilion
 const ROW =
   "flex flex-col gap-1.5 rounded-lg border border-line bg-card p-4 transition hover:border-ink" +
   ` hover:shadow-[3px_3px_0_var(--color-ink)] motion-reduce:transition-none ${FOCUS}`;
-const PILL = "rounded-full px-2.5 py-0.5 text-xs font-bold";
 
 const SEVERITY: Record<string, { label: string; tone: string }> = {
   high: { label: "High severity", tone: "bg-vermilion-soft text-vermilion-ink" },
@@ -23,11 +37,6 @@ const SEVERITY: Record<string, { label: string; tone: string }> = {
   low: { label: "Low severity", tone: "bg-paper-2 text-ink-2" },
 };
 
-const SUMMARY_STATUS: Record<SummaryStatus, { label: string; tone: string }> = {
-  ready: { label: "Ready to read", tone: "bg-leaf-soft text-leaf" },
-  writing: { label: "Being written…", tone: "bg-marigold-soft text-ink" },
-  failed: { label: "Couldn't be written", tone: "bg-vermilion-soft text-vermilion-ink" },
-};
 
 /** `/` for a team member (batch F4): their team's numbers each in plain words, one big Open the
  * inbox, what needs action in the inbox's own order, what was resolved and what the shop was
@@ -81,15 +90,9 @@ export function TeamHomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-8 px-4 py-6 sm:max-w-3xl sm:py-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl leading-tight font-semibold wrap-break-word text-ink">
-          Hi, {me.name}{" "}
-          <span className="text-ink-3">· {me.org_name}</span>
-        </h1>
-        <p className="text-ink-2">
-          {me.team === null ? "Your team's issues at a glance." : `Your ${me.team.name} team's issues at a glance.`}
-        </p>
-      </div>
+      <Greeting name={me.name} org={me.org_name}>
+        {me.team === null ? "Your team's issues at a glance." : `Your ${me.team.name} team's issues at a glance.`}
+      </Greeting>
 
       <div className="flex flex-col gap-3">
         <ul aria-label="Your numbers" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -216,15 +219,14 @@ export function TeamHomePage() {
               <RetryAlert onRetry={summary.reload}>The summary couldn't be loaded: {summary.error.message}</RetryAlert>
             )}
             {summary.data !== undefined && <LatestSummary page={summary.data} />}
+            {teamId === null && (
+              <p className={EMPTY}>You're not on a team yet, so there's no team summary to show.</p>
+            )}
           </section>
         </div>
       </div>
 
-      <p className="mt-auto text-sm">
-        <Link to="/health" className={`${QUIET_LINK} text-ink-3 hover:text-ink`}>
-          Server status
-        </Link>
-      </p>
+      <ServerStatus />
     </main>
   );
 }

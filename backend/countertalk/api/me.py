@@ -69,6 +69,8 @@ def my_home(user: CurrentUser, session: DbSession) -> HomeOut:
 class PendingOut(BaseModel):
     """One of the rep's problems still being worked on (batch F3): never a rep's name or a quote."""
 
+    # Its issue: what the page keys a row by.
+    issue_id: str
     shop: str
     area: str
     team: str

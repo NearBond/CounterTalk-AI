@@ -423,13 +423,19 @@ def playback_file(session: Session, org_id: str, visit_id: str) -> Path:
 
 
 def list_visits(
-    session: Session, org_id: str, cursor: str | None, rep_id: str | None = None
+    session: Session,
+    org_id: str,
+    cursor: str | None,
+    rep_id: str | None = None,
+    status: str | None = None,
 ) -> tuple[list[Visit], str | None]:
-    """A page of the org's visits, or one rep's, newest first, and the cursor for the next
-    page, if any."""
+    """A page of the org's visits, or one rep's, of one status if given, newest first, and the
+    cursor for the next page, if any."""
     query = select(Visit).where(Visit.org_id == org_id)
     if rep_id is not None:
         query = query.where(Visit.rep_id == rep_id)
+    if status is not None:
+        query = query.where(Visit.status == status)
     if cursor is not None:
         created_at, seq = _decode_cursor(cursor)
         query = query.where(tuple_(Visit.created_at, Visit.seq) < tuple_(created_at, seq))

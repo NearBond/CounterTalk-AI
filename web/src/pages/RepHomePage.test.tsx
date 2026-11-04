@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { routes } from "../App";
-import { type Handler, REP, fakeApi, jsonResponse as json } from "../testUtils";
+import { BRIEF_ROWS, type Handler, REP, fakeApi, jsonResponse as json } from "../testUtils";
 import userEvent from "@testing-library/user-event";
 import type { FixedItem, PendingItem, ShopFixed, Visit } from "../types/api";
 
@@ -50,6 +50,7 @@ const FIXED: ShopFixed[] = [
 
 function pending(n: number, status: PendingItem["status"] = "open"): PendingItem {
   return {
+    issue_id: `i-${n}`,
     shop: `Shop ${n}`,
     area: "Old Market",
     team: "Finance",
@@ -61,16 +62,25 @@ function pending(n: number, status: PendingItem["status"] = "open"): PendingItem
 
 const PENDING = [pending(2, "in_progress"), pending(1)];
 
+/** The visits list's first page, and its visits in review as the home asks for them. */
+function visitsOf(items: Visit[]): Record<string, Handler> {
+  const review = items.filter((item) => item.status === "review");
+  return {
+    "GET /api/visits": () => json(200, { items, next_cursor: null }),
+    "GET /api/visits?status=review": () => json(200, { items: review, next_cursor: null }),
+  };
+}
+
 function open(routesByCall: Record<string, Handler | Handler[]> = {}) {
   const api = fakeApi({
     "GET /api/auth/me": () => json(200, REP),
-    "GET /api/visits": () =>
-      json(200, { items: [visit("v-r", "s1", "review"), visit("v-c", "s2", "confirmed")], next_cursor: null }),
+    ...visitsOf([visit("v-r", "s1", "review"), visit("v-c", "s2", "confirmed")]),
     "GET /api/shops": () => json(200, { items: SHOPS, next_cursor: null }),
     "GET /api/me/home": () => json(200, { to_review: 1, to_pass_on: 2 }),
     "GET /api/me/counts": () => json(200, { raised: 3, fixed: 1 }),
     "GET /api/me/fixed": () => json(200, { items: FIXED, next_cursor: null }),
     "GET /api/me/pending": () => json(200, { items: PENDING, next_cursor: null }),
+    "GET /api/briefs": () => json(200, { items: BRIEF_ROWS, next_cursor: null }),
     ...routesByCall,
   });
   render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: ["/"] })} />);
@@ -169,7 +179,7 @@ describe("RepHomePage", () => {
   });
 
   it("explains the empty lists when there are no visits yet", async () => {
-    open({ "GET /api/visits": () => json(200, { items: [], next_cursor: null }) });
+    open(visitsOf([]));
 
     const waiting = await screen.findByRole("region", { name: "Ready to review" });
     expect(
@@ -201,7 +211,7 @@ describe("RepHomePage", () => {
 
   it("shows 3 visits to review, then View all (N) opens the rest in place", async () => {
     const waiting = [1, 2, 3, 4, 5].map((n) => visit(`v-${n}`, "s1", "review"));
-    open({ "GET /api/visits": () => json(200, { items: waiting, next_cursor: null }) });
+    open(visitsOf(waiting));
 
     const section = await screen.findByRole("region", { name: "Ready to review" });
     await within(section).findAllByRole("link", { name: "Review" });
@@ -212,6 +222,51 @@ describe("RepHomePage", () => {
 
     expect(within(section).getAllByRole("link", { name: "Review" })).toHaveLength(5);
     expect(within(section).getByRole("button", { name: "Show fewer" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("lists every visit in review, not only those on the visits list's first page", async () => {
+    open({
+      "GET /api/visits": () => json(200, { items: [visit("v-c", "s2", "confirmed")], next_cursor: "more" }),
+      "GET /api/visits?status=review": () => json(200, { items: [visit("v-old", "s1", "review")], next_cursor: null }),
+    });
+
+    const section = await screen.findByRole("region", { name: "Ready to review" });
+    expect(await within(section).findByRole("link", { name: "Review" })).toHaveAttribute("href", "/visits/v-old");
+  });
+
+  it("says when its numbers couldn't be loaded, and Try again asks for them again", async () => {
+    const failing = () => json(403, { error: { code: "forbidden", message: "Not now." } });
+    open({ "GET /api/me/counts": [failing, () => json(200, { raised: 3, fixed: 1 })] });
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Some of your numbers and lists couldn't be loaded.");
+    await userEvent.click(within(alert).getByRole("button", { name: "Try again" }));
+
+    const cards = await numbers();
+    expect(await cards.findByRole("link", { name: "3 problems raised this month · 1 fixed" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("lists the latest 3 pre-visit briefs, marks those out of date, and View all opens /briefs", async () => {
+    open();
+
+    const section = await screen.findByRole("region", { name: "Pre-visit briefs" });
+    const rows = await within(section).findAllByRole("listitem");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "Shop 4, Old MarketGenerated 4 Nov 2026 · Up to date",
+      "Shop 3, Old MarketGenerated 3 Nov 2026 · 2 visits since",
+      "Shop 2, Old MarketGenerated 2 Nov 2026 · Up to date",
+    ]);
+    expect(within(rows[1] as HTMLElement).getByRole("link")).toHaveAttribute("href", "/briefs/s3");
+    expect(within(section).getByRole("link", { name: "View all" })).toHaveAttribute("href", "/briefs");
+  });
+
+  it("explains the briefs when there are none yet", async () => {
+    open({ "GET /api/briefs": () => json(200, { items: BRIEF_ROWS.slice(4), next_cursor: null }) });
+
+    const section = await screen.findByRole("region", { name: "Pre-visit briefs" });
+    expect(await within(section).findByText(/^No briefs yet\. Once a shop has 2 confirmed visits/)).toBeInTheDocument();
+    expect(within(section).queryAllByRole("listitem")).toEqual([]);
   });
 
   it("has no View all for 3 or fewer", async () => {
@@ -276,7 +331,8 @@ describe("RepHomePage", () => {
     expect(await cards.findByRole("link", { name: "Nothing raised yet this month" })).toHaveAttribute("href", "/updates");
     expect(cards.getByRole("link", { name: "No visits waiting for you to check" })).toBeInTheDocument();
     expect(cards.getByRole("link", { name: "No news to pass on yet" })).toBeInTheDocument();
-    await vi.waitFor(() => expect(api.gets()).toBe(6));
+    // Shops, the visits list and its visits in review, the home, counts, fixed, pending and briefs.
+    await vi.waitFor(() => expect(api.gets()).toBe(8));
     const fixes = await screen.findByRole("region", { name: "Fixed since the last visit" });
     expect(fixes).toHaveTextContent(
       "Nothing yet. When a team fixes a problem a shop raised, what to tell the shopkeeper shows up here.",

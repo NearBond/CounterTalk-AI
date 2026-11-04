@@ -145,6 +145,15 @@ ASK_LAST_DAYS = 30
 # A question is asked while the manager waits, not in a job: a short wait, no SDK retries.
 ASK_LLM_TIMEOUT_MS = 20_000
 ASK_LLM_MAX_RETRIES = 0
+# The pre-visit brief (batch F5): a shop needs this many confirmed visits, by any rep. The AI
+# writes up to BRIEF_OVERVIEW_SENTENCES about the shop and BRIEF_RAISING_SENTENCES worth
+# raising; the facts list up to BRIEF_ITEMS_MAX of each kind. Written while the rep waits.
+BRIEF_VISITS_MIN = 2
+BRIEF_OVERVIEW_SENTENCES = 4
+BRIEF_RAISING_SENTENCES = 2
+BRIEF_ITEMS_MAX = 8
+BRIEF_LLM_TIMEOUT_MS = 45_000
+BRIEF_LLM_MAX_RETRIES = 0
 
 # Summaries' trend labels (batch 15b; BRIEF D16). An issue is `growing` with this many shops in
 # the period or more, and a Poisson chance under GROWING_MAX_P of that many at its baseline: the

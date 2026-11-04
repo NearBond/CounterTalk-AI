@@ -19,6 +19,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from countertalk.api import (
     ask,
     auth,
+    briefs,
     catalog,
     consent,
     debug,
@@ -153,6 +154,8 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(me.router)
     app.include_router(ask.router)
+    app.include_router(briefs.router)
+    app.include_router(briefs.shop_router)
     app.include_router(shops.router)
     app.include_router(consent.router)
     app.include_router(visits.router)

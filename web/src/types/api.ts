@@ -125,6 +125,8 @@ export interface MyHome {
 /** GET /api/me/pending (batch F3): PendingOut, one of the rep's own problems still being worked
  * on: its issue in one team's inbox. Never a rep's name or a quote. */
 export interface PendingItem {
+  /** Its issue: what the page keys a row by. */
+  issue_id: string;
   shop: string;
   area: string;
   team: string;
@@ -949,3 +951,88 @@ export interface Resolved {
   item: CatalogItem | null;
 }
 
+
+// --- the pre-visit brief (batch F5) -------------------------------------------------------
+
+/** A shop's brief, as the briefs list and the brief say it: its latest covers every confirmed
+ * visit (up_to_date), visits came since (out_of_date), there's none yet (none), or the shop has
+ * fewer than 2 confirmed visits (not_enough_visits). */
+export type BriefState = "up_to_date" | "out_of_date" | "not_enough_visits" | "none";
+
+/** BriefRowOut: GET /api/briefs, a Page of them. Shops with a brief first, newest first. */
+export interface BriefRow {
+  shop_id: string;
+  name: string;
+  area: string;
+  /** The shop's confirmed visits now, by any rep. */
+  visits: number;
+  state: BriefState;
+  /** Confirmed visits since its latest brief; 0 without one. */
+  since: number;
+  /** Its latest brief's time; null without one. */
+  generated_at: string | null;
+}
+
+/** BriefRaisedOut: a problem the last visit raised. The quote stays in the shopkeeper's own words. */
+export interface BriefRaised {
+  category: string;
+  problem: string;
+  quote: string | null;
+}
+
+/** BriefOrderedOut: what the last visit ordered, as said. */
+export interface BriefOrdered {
+  name: string;
+  quantity: number | null;
+  unit: string | null;
+}
+
+/** BriefLastVisitOut. */
+export interface BriefLastVisit {
+  visited_at: string;
+  raised: BriefRaised[];
+  ordered: BriefOrdered[];
+}
+
+/** BriefOpenOut: a problem still being worked on. */
+export interface BriefOpen {
+  team: string;
+  status: "open" | "in_progress";
+  problem: string;
+  raised_at: string;
+}
+
+/** BriefFixedOut: fixed since the last visit, with what to tell the shop. */
+export interface BriefFixed {
+  team: string;
+  problem: string;
+  tell_them: string;
+  resolved_at: string;
+}
+
+/** BriefOut: the facts from the database, and the AI's checked sentences (either may be empty). */
+export interface Brief {
+  id: string;
+  generated_at: string;
+  /** The confirmed visits it covers: "after visit N". */
+  after_visit: number;
+  overview: string[];
+  last_visit: BriefLastVisit;
+  still_open: BriefOpen[];
+  fixed_since: BriefFixed[];
+  worth_raising: string[];
+}
+
+/** ShopBriefOut: GET /api/shops/{id}/brief; POST generates one and answers the same. POST: 409
+ * brief_not_enough_visits or brief_up_to_date, 503 without Muse Spark. */
+export interface ShopBrief {
+  shop_id: string;
+  name: string;
+  area: string;
+  visits: number;
+  state: BriefState;
+  since: number;
+  /** Generate (none yet) or Regenerate (a confirmed visit since) is allowed now. */
+  can_generate: boolean;
+  brief: Brief | null;
+}

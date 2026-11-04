@@ -36,7 +36,7 @@ from countertalk.api.issues import TeamOut
 from countertalk.db import DbSession, session_scope
 from countertalk.errors import Invalid, LengthRequired
 from countertalk.limits import MAX_SEGMENT_BYTES
-from countertalk.models import Role, Visit, VisitClient, VisitKind
+from countertalk.models import Role, Visit, VisitClient, VisitKind, VisitStatus
 
 log = logging.getLogger(__name__)
 
@@ -212,8 +212,15 @@ def create_visit(body: VisitIn, user: CurrentUser, session: DbSession) -> VisitO
 
 
 @router.get("")
-def list_visits(user: CurrentUser, session: DbSession, cursor: str | None = None) -> VisitPage:
-    page, next_cursor = visits.list_visits(session, user.org_id, cursor, access.visits_of(user))
+def list_visits(
+    user: CurrentUser,
+    session: DbSession,
+    cursor: str | None = None,
+    status: VisitStatus | None = None,
+) -> VisitPage:
+    """Newest first; `status` gives only those (the rep's home's visits in review, batch F3)."""
+    rep = access.visits_of(user)
+    page, next_cursor = visits.list_visits(session, user.org_id, cursor, rep, status)
     processing = visits.processing_visit_ids(session, [visit.id for visit in page])
     return VisitPage(
         items=[_visit_out(visit, processing) for visit in page], next_cursor=next_cursor

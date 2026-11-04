@@ -23,8 +23,10 @@ export const TEAM_WORK: Role[] = ["team_member", ...WHOLE_ORG];
 export const RECORDS: Role[] = ["rep"];
 /** Who keeps the catalog (batch 16b). */
 export const ADMINS: Role[] = ["admin"];
-/** Whose home is the visits list: a rep's own, the whole org's for a manager or admin. */
+/** Who reads a visits list: a rep their own (on their home), a manager or admin the org's. */
 export const VISITS: Role[] = [...RECORDS, ...WHOLE_ORG];
+/** Who reads and generates pre-visit briefs (batch F5): a rep, a manager or an admin. */
+export const BRIEFS: Role[] = [...RECORDS, ...WHOLE_ORG];
 
 /** The header's pages, each with who uses it: App.tsx's gates read the same lists. */
 export const PAGE_LINKS: Array<{ to: string; label: string; roles: Role[] }> = [
@@ -33,6 +35,8 @@ export const PAGE_LINKS: Array<{ to: string; label: string; roles: Role[] }> = [
   { to: "/visits", label: "Visits", roles: WHOLE_ORG },
   // Batch 17e: what got fixed for each shop, and the rep's own counts.
   { to: "/updates", label: "Updates", roles: RECORDS },
+  // Batch F5: every shop's pre-visit brief.
+  { to: "/briefs", label: "Briefs", roles: BRIEFS },
   { to: "/inbox", label: "Inbox", roles: TEAM_WORK },
   { to: "/inbox/triage", label: "Triage", roles: WHOLE_ORG },
   { to: "/summaries", label: "Summaries", roles: TEAM_WORK },
@@ -62,10 +66,8 @@ export function useMe(): Me {
   return me;
 }
 
-/** Where a role starts: its own home (batch F4), for every role. */
-export function homeFor(_me: Me): string {
-  return "/";
-}
+/** Where everyone starts: their own home at / (batch F4). */
+export const HOME = "/";
 
 /** /signin, with where to come back to. */
 export function signInPath(next: string): string {
@@ -136,7 +138,6 @@ export function Only({ roles, children }: { roles: Role[]; children: ReactNode }
   return roles.includes(me.role) ? children : <NotFoundPage />;
 }
 
-/** `/`: the visits list for those who have one; anyone else goes to their own home. */
 /** `/`: each role's own home (batches F2 and F4): a rep's, a manager's or admin's, or a team
  * member's. */
 export function Home({ repHome, managerHome, teamHome }: { repHome: ReactNode; managerHome: ReactNode; teamHome: ReactNode }) {

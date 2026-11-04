@@ -1,9 +1,25 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import { BriefsSection } from "../components/BriefsSection";
 import { RetryAlert } from "../components/RetryAlert";
 import { StatusBadge } from "../components/StatusBadge";
 import { getMyCounts, getMyFixed, getMyHome, getMyPending, listVisits } from "../lib/api";
-import { EMPTY, Figure, H2, QUIET_LINK, RECORD, SECONDARY, SHOWN_FIRST, STAT, ViewAll, stat } from "../components/home";
+import {
+  EMPTY,
+  Figure,
+  Greeting,
+  H2,
+  ISSUE_PILLS,
+  PILL,
+  QUIET_LINK,
+  RECORD,
+  SECONDARY,
+  SHOWN_FIRST,
+  STAT,
+  ServerStatus,
+  ViewAll,
+  stat,
+} from "../components/home";
 import { formatDateTime, formatDay, formatDuration } from "../lib/format";
 import { usePolling, useShops } from "../lib/hooks";
 import { STATUS_LABELS } from "../lib/issues";
@@ -21,7 +37,24 @@ export function RepHomePage() {
     key: "visits",
     shouldPoll: (page) => anyProcessing(page.items),
   });
-  const home = usePolling((signal) => getMyHome(signal), { key: "home", shouldPoll: () => false });
+  // While a visit is still processing, what waits for review can change: asked again with it,
+  // and until the visits list has said whether one is.
+  const processing = () => visits.error === null && (visits.data === undefined || anyProcessing(visits.data.items));
+  const reviewing = usePolling((signal) => listVisits(signal, "review"), { key: "reviewing", shouldPoll: processing });
+  const home = usePolling((signal) => getMyHome(signal), { key: "home", shouldPoll: processing });
+  // Once nothing is processing, both are asked once more: a load that set out before the last
+  // visit finished isn't left as the last word.
+  const busy = anyProcessing(visits.data?.items ?? []);
+  const wasBusy = useRef(false);
+  const { reload: reloadReviewing } = reviewing;
+  const { reload: reloadHome } = home;
+  useEffect(() => {
+    if (wasBusy.current && !busy) {
+      reloadReviewing();
+      reloadHome();
+    }
+    wasBusy.current = busy;
+  }, [busy, reloadReviewing, reloadHome]);
   const counts = usePolling((signal) => getMyCounts(signal), { key: "counts", shouldPoll: () => false });
   const fixed = usePolling((signal) => getMyFixed(signal), { key: "fixed", shouldPoll: () => false });
   const pending = usePolling((signal) => getMyPending(signal), { key: "pending", shouldPoll: () => false });
@@ -32,10 +65,14 @@ export function RepHomePage() {
   const shops = useShops();
   const shopById = new Map((shops.data?.items ?? []).map((shop) => [shop.id, shop]));
   const all = visits.data?.items ?? [];
-  const waiting = all.filter((visit) => visit.status === "review");
+  // The visits in review from their own list (its first page, newest first), not only those
+  // on the visits list's first page.
+  const waiting = reviewing.data?.items ?? [];
   const rest = all.filter((visit) => visit.status !== "review");
   const fixedShops = fixed.data?.items ?? [];
   const pendingRows = pending.data?.items ?? [];
+  // The numbers' and lists' own loads: one alert says which failed, and Try again asks them again.
+  const failed = [reviewing, home, counts, fixed, pending].filter((load) => load.error !== null);
 
   const toReview = stat(home.data?.to_review, {
     one: "visit waiting for you to check before teams see it",
@@ -59,13 +96,9 @@ export function RepHomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-8 px-4 py-6 sm:max-w-3xl sm:py-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl leading-tight font-semibold wrap-break-word text-ink">
-          Hi, {me.name}{" "}
-          <span className="text-ink-3">· {me.org_name}</span>
-        </h1>
-        <p className="text-ink-2">Your visits and what to tell your shops.</p>
-      </div>
+      <Greeting name={me.name} org={me.org_name}>
+        Your visits and what to tell your shops.
+      </Greeting>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
         <Link to="/record" className={RECORD}>
@@ -118,6 +151,11 @@ export function RepHomePage() {
 
       {visits.error !== null && <RetryAlert onRetry={visits.reload}>{visits.error.message}</RetryAlert>}
       {shops.error !== null && <RetryAlert onRetry={shops.reload}>The shop names couldn't be loaded.</RetryAlert>}
+      {failed.length > 0 && (
+        <RetryAlert onRetry={() => failed.forEach((load) => load.reload())}>
+          Some of your numbers and lists couldn't be loaded.
+        </RetryAlert>
+      )}
       {visits.data === undefined && visits.error === null && (
         <p role="status" className="text-ink-2">
           Loading…
@@ -201,7 +239,7 @@ export function RepHomePage() {
                 <>
                   <ul id="pending-list" className="flex flex-col gap-2">
                     {(allPending ? pendingRows : pendingRows.slice(0, SHOWN_FIRST)).map((row) => (
-                      <PendingRow key={`${row.team}|${row.raised_at}|${row.problem}`} row={row} />
+                      <PendingRow key={row.issue_id} row={row} />
                     ))}
                   </ul>
                   <ViewAll count={pendingRows.length} open={allPending} controls="pending-list" onToggle={setAllPending} />
@@ -241,19 +279,15 @@ export function RepHomePage() {
         </section>
       </div>
 
-      <p className="mt-auto text-sm">
-        <Link to="/health" className={`${QUIET_LINK} text-ink-3 hover:text-ink`}>
-          Server status
-        </Link>
-      </p>
+      <BriefsSection />
+
+      <ServerStatus />
     </main>
   );
 }
 
 /** One of the rep's problems a team is still working on: where, which team, what, and since when. */
 function PendingRow({ row }: { row: PendingItem }) {
-  const status =
-    row.status === "in_progress" ? "bg-blue-50 text-blue-800" : "bg-amber-100 text-amber-900";
   return (
     <li className="flex flex-col gap-1.5 rounded-lg border border-line bg-card p-4">
       <span className="font-semibold wrap-break-word text-ink">
@@ -262,7 +296,7 @@ function PendingRow({ row }: { row: PendingItem }) {
       </span>
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-3">
         <span className="rounded-full bg-paper-2 px-2.5 py-0.5 text-xs font-bold text-ink-2">{row.team}</span>
-        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${status}`}>{STATUS_LABELS[row.status]}</span>
+        <span className={`${PILL} ${ISSUE_PILLS[row.status]}`}>{STATUS_LABELS[row.status]}</span>
         <span>raised {formatDay(row.raised_at)}</span>
       </span>
       <span className="text-sm wrap-break-word text-ink-2">Problem: {row.problem}</span>

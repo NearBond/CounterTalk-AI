@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { routes } from "../App";
-import { ADMIN, type Handler, MANAGER, fakeApi, jsonResponse as json } from "../testUtils";
+import { BRIEF_ROWS, ADMIN, type Handler, MANAGER, fakeApi, jsonResponse as json } from "../testUtils";
 import type {
   CauseNumbers,
   Finding,
@@ -164,6 +164,7 @@ function open(me: Me = MANAGER, routesByCall: Record<string, Handler | Handler[]
     "GET /api/me/overview": () => json(200, { ...OVERVIEW, names_to_review: me === ADMIN ? 6 : null }),
     "GET /api/issues/triage": () => json(200, TRIAGE),
     [SUMMARIES]: () => json(200, summaryPage(CAUSES, summary("ready"))),
+    "GET /api/briefs": () => json(200, { items: BRIEF_ROWS, next_cursor: null }),
     ...routesByCall,
   });
   render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: ["/"] })} />);
@@ -352,6 +353,19 @@ describe("ManagerHomePage", () => {
     expect(within(section).getByRole("link", { name: "Read it →" })).toHaveAttribute("href", "/summaries");
   });
 
+  it.each([
+    ["a manager", MANAGER],
+    ["an admin", ADMIN],
+  ])("gives %s the latest 3 pre-visit briefs and View all", async (_who, me) => {
+    open(me);
+
+    const section = await screen.findByRole("region", { name: "Pre-visit briefs" });
+    const rows = await within(section).findAllByRole("listitem");
+    expect(rows).toHaveLength(3);
+    expect(rows[1]).toHaveTextContent("2 visits since");
+    expect(within(section).getByRole("link", { name: "View all" })).toHaveAttribute("href", "/briefs");
+  });
+
   it("explains each empty section", async () => {
     const api = open(MANAGER, {
       "GET /api/issues/triage": () => json(200, []),
@@ -360,9 +374,9 @@ describe("ManagerHomePage", () => {
 
     const triage = await screen.findByRole("region", { name: "Waiting in triage" });
     expect(await within(triage).findByText("Nothing waiting: every finding has a team.")).toBeInTheDocument();
-    await vi.waitFor(() => expect(api.gets()).toBe(3));
+    await vi.waitFor(() => expect(api.gets()).toBe(4));
     const issues = screen.getByRole("region", { name: "Top open issues" });
-    expect(await within(issues).findByText("No open issues this week.")).toBeInTheDocument();
+    expect(await within(issues).findByText("No open issues at the end of last week.")).toBeInTheDocument();
     const latest = screen.getByRole("region", { name: "Latest summary" });
     expect(latest).toHaveTextContent("No summary yet for last week. It's written once the week ends.");
     for (const section of [triage, issues, latest]) expect(within(section).queryByRole("link")).not.toBeInTheDocument();
