@@ -1,20 +1,41 @@
-import type { ReactNode } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { RetryAlert } from "../components/RetryAlert";
-import { VisitList } from "../components/VisitList";
-import { getMyCounts, getMyFixed, getMyHome, listVisits } from "../lib/api";
-import { countOf, shopLabel } from "../lib/format";
+import { StatusBadge } from "../components/StatusBadge";
+import { getMyCounts, getMyFixed, getMyHome, getMyPending, listVisits } from "../lib/api";
+import { countOf, formatDateTime, formatDay, formatDuration } from "../lib/format";
 import { usePolling, useShops } from "../lib/hooks";
+import { STATUS_LABELS } from "../lib/issues";
 import { useMe } from "../lib/session";
 import { anyProcessing } from "../lib/status";
+import type { FixedItem, PendingItem, Shop, ShopFixed, Visit } from "../types/api";
 
-// The fixes the home shows before "See all updates →".
-const FIXED_ON_HOME = 3;
-const CARD = "flex min-h-20 flex-col justify-between gap-1 rounded-lg border p-3 focus-visible:outline-2 focus-visible:outline-offset-2";
+// What each list shows before its View all (N) (the user, 4 Nov).
+const SHOWN_FIRST = 3;
 
-/** `/` for a rep (batch F2; the user, 4 Nov): a greeting, cards for recording and their own
- * numbers, the visits waiting for review, the newest fixes to pass on, then the rest of their
- * visits. Only the rep's own data: no rankings, no comparisons, no location. */
+const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2";
+// v2's primary button, as one big card: marigold, an ink edge and a hard ink shadow that lifts.
+const RECORD =
+  "flex min-h-16 w-full items-center gap-4 rounded-[10px] border-[1.5px] border-ink bg-marigold px-4 py-3 text-lg" +
+  " font-semibold text-ink shadow-[3px_3px_0_var(--color-ink)] transition hover:-translate-x-px hover:-translate-y-px" +
+  " hover:shadow-[4px_4px_0_var(--color-ink)] active:translate-x-0.5 active:translate-y-0.5" +
+  " active:shadow-[1px_1px_0_var(--color-ink)] focus-visible:outline-2 focus-visible:outline-offset-4" +
+  " motion-reduce:transition-none sm:w-auto sm:min-w-72 sm:shrink-0";
+// v2's secondary button: an ink outline on the card.
+const SECONDARY =
+  "inline-flex min-h-11 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-ink px-5" +
+  ` font-semibold text-ink transition-colors hover:bg-paper-2 motion-reduce:transition-none ${FOCUS}`;
+const STAT =
+  "flex h-full min-h-11 items-center gap-4 rounded-lg border border-line bg-card p-4 transition hover:border-ink" +
+  ` hover:shadow-[3px_3px_0_var(--color-ink)] motion-reduce:transition-none sm:flex-col sm:items-start sm:gap-2 ${FOCUS}`;
+const QUIET_LINK = `inline-flex min-h-11 items-center underline underline-offset-4 ${FOCUS}`;
+const H2 = "text-xl font-semibold text-ink sm:text-2xl";
+const EMPTY = "rounded-lg border border-dashed border-line-strong p-4 text-ink-2";
+
+/** `/` for a rep (batch F2; redone for first-time viewers, the user, 4 Nov): who they are, one
+ * big Record a visit, their numbers each in plain words, the visits waiting for them to check,
+ * what's been fixed for their shops with the line to say, then the rest of their visits. Only
+ * the rep's own data: no rankings, no comparisons, no location. */
 export function RepHomePage() {
   const me = useMe();
   const visits = usePolling((signal) => listVisits(signal), {
@@ -24,120 +45,372 @@ export function RepHomePage() {
   const home = usePolling((signal) => getMyHome(signal), { key: "home", shouldPoll: () => false });
   const counts = usePolling((signal) => getMyCounts(signal), { key: "counts", shouldPoll: () => false });
   const fixed = usePolling((signal) => getMyFixed(signal), { key: "fixed", shouldPoll: () => false });
+  const pending = usePolling((signal) => getMyPending(signal), { key: "pending", shouldPoll: () => false });
+  // Each list's View all (N), opened inline.
+  const [allWaiting, setAllWaiting] = useState(false);
+  const [allFixed, setAllFixed] = useState(false);
+  const [allPending, setAllPending] = useState(false);
   const shops = useShops();
-  const shopName = new Map((shops.data?.items ?? []).map((shop) => [shop.id, shopLabel(shop)]));
+  const shopById = new Map((shops.data?.items ?? []).map((shop) => [shop.id, shop]));
   const all = visits.data?.items ?? [];
   const waiting = all.filter((visit) => visit.status === "review");
   const rest = all.filter((visit) => visit.status !== "review");
-  const newest = (fixed.data?.items ?? [])
-    .flatMap((shop) => shop.items.map((item) => ({ shop, item })))
-    .sort((a, b) => b.item.resolved_at.localeCompare(a.item.resolved_at))
-    .slice(0, FIXED_ON_HOME);
-  const month =
-    counts.data === undefined
-      ? "–"
-      : counts.data.raised === 0
-        ? "Nothing raised yet this month"
-        : `${counts.data.raised} raised · ${counts.data.fixed} fixed`;
+  const fixedShops = fixed.data?.items ?? [];
+  const pendingRows = pending.data?.items ?? [];
+
+  const toReview = stat(home.data?.to_review, {
+    one: "visit waiting for you to check before teams see it",
+    many: "visits waiting for you to check before teams see them",
+    none: "No visits waiting for you to check",
+    loading: "Visits waiting for you to check",
+  });
+  const month = stat(counts.data?.raised, {
+    one: "problem raised this month",
+    many: "problems raised this month",
+    none: "Nothing raised yet this month",
+    loading: "Problems raised this month",
+    tail: `· ${counts.data?.fixed ?? 0} fixed`,
+  });
+  const passOn = stat(home.data?.to_pass_on, {
+    one: "shop has news to pass on",
+    many: "shops have news to pass on",
+    none: "No news to pass on yet",
+    loading: "Shops with news to pass on",
+  });
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8 sm:max-w-2xl">
-      <h1 className="text-2xl font-semibold">
-        Hi, {me.name} · {me.org_name}
-      </h1>
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-8 px-4 py-6 sm:max-w-3xl sm:py-8">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-3xl leading-tight font-semibold wrap-break-word text-ink">
+          Hi, {me.name}{" "}
+          <span className="text-ink-3">· {me.org_name}</span>
+        </h1>
+        <p className="text-ink-2">Your visits and what to tell your shops.</p>
+      </div>
 
-      <ul aria-label="Shortcuts" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+        <Link to="/record" className={RECORD}>
+          <span
+            aria-hidden="true"
+            className="grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-ink bg-card"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              focusable="false"
+              className="size-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="9" y="3" width="6" height="11" rx="3" />
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+            </svg>
+          </span>
+          Record a visit
+          <span aria-hidden="true" className="ml-auto">
+            →
+          </span>
+        </Link>
+        <p className="text-sm text-ink-2">
+          Talk with the shopkeeper as you always do. You check what the app heard, then it goes to the right team.
+        </p>
+      </div>
+
+      <ul aria-label="Your numbers" className="grid gap-3 sm:grid-cols-3">
         <li>
-          <Link to="/record" className={`${CARD} border-red-700 bg-red-700 font-medium text-white`}>
-            Record a visit
+          {/* A jump to a section of this page, not a route. */}
+          <a href="#ready-to-review" className={STAT}>
+            <Figure {...toReview} />
+          </a>
+        </li>
+        <li>
+          <Link to="/updates" className={STAT}>
+            <Figure {...month} />
           </Link>
         </li>
-        <Card to="/updates" title="This month" value={month} />
-        <Card to="#ready-to-review" title="To review" value={home.data?.to_review ?? "–"} />
-        <Card
-          to="/updates"
-          title="To pass on"
-          value={home.data === undefined ? "–" : countOf(home.data.to_pass_on, "shop", "shops")}
-        />
+        <li>
+          <Link to="/updates" className={STAT}>
+            <Figure {...passOn} />
+          </Link>
+        </li>
       </ul>
 
       {visits.error !== null && <RetryAlert onRetry={visits.reload}>{visits.error.message}</RetryAlert>}
       {shops.error !== null && <RetryAlert onRetry={shops.reload}>The shop names couldn't be loaded.</RetryAlert>}
       {visits.data === undefined && visits.error === null && (
-        <p role="status" className="text-gray-600">
+        <p role="status" className="text-ink-2">
           Loading…
         </p>
       )}
 
-      <section aria-labelledby="ready-to-review" className="flex flex-col gap-2">
-        <h2 id="ready-to-review" className="text-lg font-semibold">
-          Ready to review
-        </h2>
-        {visits.data !== undefined && waiting.length === 0 && <p className="text-gray-600">Nothing waiting for review.</p>}
-        <VisitList
-          visits={waiting}
-          shopName={shopName}
-          extra={() => <span className="text-sm font-medium text-blue-700 underline">Review</span>}
-        />
-      </section>
-
-      {newest.length > 0 && (
-        <section aria-labelledby="fixed-heading" className="flex flex-col gap-2">
-          <h2 id="fixed-heading" className="text-lg font-semibold">
-            Fixed since the last visit
-          </h2>
-          <ul className="flex flex-col gap-3 rounded-md border border-green-300 bg-green-50 p-3">
-            {newest.map(({ shop, item }) => (
-              <li key={`${shop.shop_id}|${item.team}|${item.resolved_at}|${item.problem}`} className="flex flex-col gap-1">
-                <span className="text-sm text-gray-700">
-                  {shop.name} · {item.team}
-                </span>
-                <span className="font-medium">Tell them: {item.note}</span>
-              </li>
-            ))}
-          </ul>
-          <Link to="/updates" className="text-blue-700 underline">
-            See all updates →
-          </Link>
+      {/* On a wide screen: the visits on the left; the fixes to pass on, and what's still pending,
+          beside them. */}
+      <div className="grid gap-8 lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:items-start">
+        <section aria-labelledby="ready-to-review" className="flex flex-col gap-3 lg:col-start-1 lg:row-start-1">
+          <div className="flex flex-col gap-1">
+            <h2 id="ready-to-review" className={H2}>
+              Ready to review
+            </h2>
+            <p className="text-sm text-ink-2">
+              Check what the app picked up at each shop, then confirm. Teams see it only after that.
+            </p>
+          </div>
+          {visits.data !== undefined && waiting.length === 0 && (
+            <p className={EMPTY}>Nothing to check. New recordings show up here once they're processed.</p>
+          )}
+          {waiting.length > 0 && (
+            <ul id="waiting-list" className="flex flex-col gap-2">
+              {(allWaiting ? waiting : waiting.slice(0, SHOWN_FIRST)).map((visit) => (
+                <li key={visit.id} className="flex items-center gap-4 rounded-lg border border-line bg-card p-4">
+                  <VisitFacts visit={visit} shop={shopById.get(visit.shop_id)} />
+                  <Link to={`/visits/${visit.id}`} className={SECONDARY}>
+                    Review
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <ViewAll count={waiting.length} open={allWaiting} controls="waiting-list" onToggle={setAllWaiting} />
         </section>
-      )}
 
-      <section aria-labelledby="recent-heading" className="flex flex-col gap-2">
-        <h2 id="recent-heading" className="text-lg font-semibold">
-          Recent visits
-        </h2>
-        {visits.data !== undefined && all.length === 0 && <p className="text-gray-600">No visits yet.</p>}
-        <VisitList visits={rest} shopName={shopName} />
-      </section>
+        <div className="flex flex-col gap-8 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          {fixed.data !== undefined && (
+            <section aria-labelledby="fixed-heading" className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <h2 id="fixed-heading" className={H2}>
+                  Fixed since the last visit
+                </h2>
+                {fixedShops.length > 0 && (
+                  <p className="text-sm text-ink-2">Teams fixed what these shops raised. Pass it on at your next visit.</p>
+                )}
+              </div>
+              {fixedShops.length === 0 ? (
+                <p className={EMPTY}>
+                  Nothing yet. When a team fixes a problem a shop raised, what to tell the shopkeeper shows up here.
+                </p>
+              ) : (
+                <>
+                  <ul id="fixed-list" className="flex flex-col gap-3">
+                    {(allFixed ? fixedShops : fixedShops.slice(0, SHOWN_FIRST)).map((shop) => (
+                      <FixedShop key={shop.shop_id} shop={shop} />
+                    ))}
+                  </ul>
+                  <ViewAll count={fixedShops.length} open={allFixed} controls="fixed-list" onToggle={setAllFixed} />
+                  <Link to="/updates" className={`${QUIET_LINK} self-start font-semibold text-pen`}>
+                    See all updates →
+                  </Link>
+                </>
+              )}
+            </section>
+          )}
 
-      <div className="flex gap-4 text-sm">
-        <Link to="/health" className="text-gray-500 underline">
+          {pending.data !== undefined && (
+            <section aria-labelledby="pending-heading" className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <h2 id="pending-heading" className={H2}>
+                  Pending resolutions
+                </h2>
+                {pendingRows.length > 0 && (
+                  <p className="text-sm text-ink-2">Problems you raised that a team is still working on.</p>
+                )}
+              </div>
+              {pendingRows.length === 0 ? (
+                <p className={EMPTY}>Nothing pending: every problem you raised has been fixed.</p>
+              ) : (
+                <>
+                  <ul id="pending-list" className="flex flex-col gap-2">
+                    {(allPending ? pendingRows : pendingRows.slice(0, SHOWN_FIRST)).map((row) => (
+                      <PendingRow key={`${row.team}|${row.raised_at}|${row.problem}`} row={row} />
+                    ))}
+                  </ul>
+                  <ViewAll count={pendingRows.length} open={allPending} controls="pending-list" onToggle={setAllPending} />
+                </>
+              )}
+            </section>
+          )}
+        </div>
+
+        <section aria-labelledby="recent-heading" className="flex flex-col gap-3 lg:col-start-1 lg:row-start-2">
+          <h2 id="recent-heading" className={H2}>
+            Recent visits
+          </h2>
+          {visits.data !== undefined && all.length === 0 && (
+            <p className={EMPTY}>No visits yet. Tap Record a visit to start.</p>
+          )}
+          {visits.data !== undefined && all.length > 0 && rest.length === 0 && (
+            <p className={EMPTY}>No other visits yet.</p>
+          )}
+          {rest.length > 0 && (
+            <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-lg border border-line bg-card">
+              {rest.map((visit) => (
+                <li key={visit.id}>
+                  <Link
+                    to={`/visits/${visit.id}`}
+                    className="flex min-h-11 items-center gap-3 px-4 py-3 transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:-outline-offset-2 motion-reduce:transition-none"
+                  >
+                    <VisitFacts visit={visit} shop={shopById.get(visit.shop_id)} />
+                    <span className="shrink-0">
+                      <StatusBadge status={visit.status} />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      <p className="mt-auto text-sm">
+        <Link to="/health" className={`${QUIET_LINK} text-ink-3 hover:text-ink`}>
           Server status
         </Link>
-      </div>
+      </p>
     </main>
   );
 }
 
-function Card({ to, title, value }: { to: string; title: string; value: ReactNode }) {
-  const inside = (
+/** A list's "View all (N)": shown only past SHOWN_FIRST; it opens the rest in place. */
+function ViewAll({
+  count,
+  open,
+  controls,
+  onToggle,
+}: {
+  count: number;
+  open: boolean;
+  controls: string;
+  onToggle: (open: boolean) => void;
+}) {
+  if (count <= SHOWN_FIRST) return null;
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      aria-controls={controls}
+      onClick={() => onToggle(!open)}
+      className={`${SECONDARY} self-start`}
+    >
+      {open ? "Show fewer" : `View all (${count})`}
+    </button>
+  );
+}
+
+/** One of the rep's problems a team is still working on: where, which team, what, and since when. */
+function PendingRow({ row }: { row: PendingItem }) {
+  const status =
+    row.status === "in_progress" ? "bg-blue-50 text-blue-800" : "bg-amber-100 text-amber-900";
+  return (
+    <li className="flex flex-col gap-1.5 rounded-lg border border-line bg-card p-4">
+      <span className="font-semibold wrap-break-word text-ink">
+        {row.shop}
+        <span className="font-normal text-ink-2">, {row.area}</span>
+      </span>
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-3">
+        <span className="rounded-full bg-paper-2 px-2.5 py-0.5 text-xs font-bold text-ink-2">{row.team}</span>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${status}`}>{STATUS_LABELS[row.status]}</span>
+        <span>raised {formatDay(row.raised_at)}</span>
+      </span>
+      <span className="text-sm wrap-break-word text-ink-2">Problem: {row.problem}</span>
+    </li>
+  );
+}
+
+/** A stat card's big figure and the plain words after it. */
+interface FigureProps {
+  /** "12", or "–" while it loads. */
+  figure: string;
+  words: string;
+  /** Kept on one line after the words: "· 1 fixed". */
+  tail?: string;
+  /** Whether the figure is read out with the words, as one sentence: "12 visits waiting…". */
+  said: boolean;
+}
+
+/** A count as a stat card says it. At 0 or while it loads the words say it all ("No visits
+ * waiting…"), and the figure is only shown: never read out as a wrong number. */
+function stat(
+  count: number | undefined,
+  wording: { one: string; many: string; none: string; loading: string; tail?: string },
+): FigureProps {
+  if (count === undefined) return { figure: "–", words: wording.loading, said: false };
+  if (count === 0) return { figure: "0", words: wording.none, said: false };
+  // countOf leads with the count: shown big here, apart from its words.
+  const words = countOf(count, wording.one, wording.many);
+  return { figure: String(count), words: words.slice(String(count).length + 1), tail: wording.tail, said: true };
+}
+
+function Figure({ figure, words, tail, said }: FigureProps) {
+  return (
     <>
-      <span className="text-sm text-gray-600">{title}</span>{" "}
-      <span className="font-semibold">{value}</span>
+      <span
+        aria-hidden={said ? undefined : true}
+        className="min-w-14 shrink-0 text-center font-display text-4xl leading-none font-semibold text-ink tabular-nums sm:min-w-0 sm:text-left"
+      >
+        {figure}
+      </span>{" "}
+      <span className="min-w-0 flex-1 leading-snug wrap-break-word text-ink-2">
+        {words}
+        {tail !== undefined && (
+          <>
+            {" "}
+            <span className="whitespace-nowrap">{tail}</span>
+          </>
+        )}
+      </span>
+      <span aria-hidden="true" className="text-ink-3 sm:hidden">
+        →
+      </span>
     </>
   );
+}
+
+/** Where and when a visit was: its shop and area, then its day and length. */
+function VisitFacts({ visit, shop }: { visit: Visit; shop: Shop | undefined }) {
   return (
-    <li>
-      {to.startsWith("#") ? (
-        // A jump to a section of this page, not a route.
-        <a href={to} className={`${CARD} border-gray-200 hover:bg-gray-50`}>
-          {inside}
-        </a>
-      ) : (
-        <Link to={to} className={`${CARD} border-gray-200 hover:bg-gray-50`}>
-          {inside}
-        </Link>
-      )}
+    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <span className="font-semibold wrap-break-word text-ink">
+        {shop?.name ?? "A shop"}
+        {shop !== undefined && <span className="font-normal text-ink-2">, {shop.area}</span>}
+      </span>
+      <span className="text-sm text-ink-3">
+        {formatDateTime(visit.created_at)} · {formatDuration(visit.duration_ms)}
+      </span>
+    </span>
+  );
+}
+
+/** One shop's fixes since its last visit, each with the line the shopkeeper hears, the most
+ * visible thing on it. */
+function FixedShop({ shop }: { shop: ShopFixed }) {
+  return (
+    <li className="flex flex-col gap-3 rounded-lg border border-line bg-card p-4">
+      <h3 className="text-lg leading-snug font-semibold wrap-break-word text-ink">
+        {shop.name}
+        <span className="font-sans text-base font-normal text-ink-2">, {shop.area}</span>
+      </h3>
+      <ul className="flex flex-col gap-4">
+        {shop.items.map((item) => (
+          // No ID comes with it: a team's two issues, resolved together, differ in what they say.
+          <Fix key={`${item.team}|${item.category}|${item.resolved_at}|${item.problem}|${item.note}`} item={item} />
+        ))}
+      </ul>
+    </li>
+  );
+}
+
+function Fix({ item }: { item: FixedItem }) {
+  return (
+    <li className="flex flex-col gap-1.5">
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-3">
+        <span className="rounded-full bg-leaf-soft px-2.5 py-0.5 text-xs font-bold text-leaf">{item.team}</span>
+        <span>fixed {formatDay(item.resolved_at)}</span>
+      </span>
+      <span className="text-sm wrap-break-word text-ink-2">Problem: {item.problem}</span>
+      <p className="border-l-4 border-leaf pl-3 font-display text-lg leading-snug font-semibold wrap-break-word text-ink">
+        <span className="font-sans text-sm font-bold tracking-wide text-leaf uppercase">Tell them:</span> {item.note}
+      </p>
     </li>
   );
 }

@@ -326,20 +326,27 @@ export const CHECKS = [
     },
   },
   {
-    name: "at 390 px, the rep's home greets them, its cards two by two, with the newest fixes to pass on",
+    name: "at 390 px, the rep's home greets them, offers Record a visit first, and shows the fixes to pass on by shop",
     async run({ page, web }) {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`${web}/`);
       await page.getByRole("heading", { level: 1, name: "Hi, Demo Rep · Demo Org" }).waitFor();
-      const cards = page.getByRole("list", { name: "Shortcuts" }).getByRole("listitem");
-      const boxes = await Promise.all([0, 1, 2, 3].map((n) => cards.nth(n).boundingBox()));
-      const [a, b, c, d] = boxes;
-      expect(a.y === b.y && c.y === d.y && c.y > a.y && a.x === c.x, `the cards weren't 2×2: ${JSON.stringify(boxes)}`);
+      const record = page.getByRole("main").getByRole("link", { name: "Record a visit", exact: true });
+      expect((await record.count()) === 1 && (await record.isVisible()), "no one Record a visit in view");
+      await page.getByRole("region", { name: "Ready to review" }).waitFor();
       const fixes = page.getByRole("region", { name: "Fixed since the last visit" });
       await fixes.waitFor();
       const text = await fixes.textContent();
-      expect(text.includes("Sunrise Kirana · Distribution") && text.includes("See all updates"), `the fixes said: ${text}`);
+      const said = text.includes("Sunrise Kirana") && text.includes("Tell them: Your distributor now delivers every Monday");
+      expect(said && text.includes("See all updates"), `the fixes said: ${text}`);
+      await page.getByRole("region", { name: "Pending resolutions" }).waitFor();
       await fitsAPhone(page, "the rep's home");
+      // F3's screenshots for the user, when asked for: the phone, then a desktop's width.
+      if (process.env.E2E_SHOTS) {
+        await page.screenshot({ path: `${process.env.E2E_SHOTS}/rep-home-390.png`, fullPage: true });
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.screenshot({ path: `${process.env.E2E_SHOTS}/rep-home-desktop.png`, fullPage: true });
+      }
     },
   },
   {

@@ -23,6 +23,7 @@ no comparison with other reps, no location (the plan's rule against tracking rep
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import and_, exists, func, select
 from sqlalchemy.orm import Session
@@ -31,6 +32,7 @@ from countertalk import rows
 from countertalk.errors import NotFound
 from countertalk.limits import FIXED_MAX
 from countertalk.models import (
+    ACTIVE_ISSUE,
     Insight,
     InsightRoute,
     Issue,
@@ -147,6 +149,18 @@ class Counts:
     fixed: int
 
 
+def _problems_of(org_id: str, rep_id: str) -> list[Any]:
+    """The rep's own problems: visible insights of kind problem from their confirmed visits
+    (the counts' and the pending list's one rule, R1)."""
+    return [
+        Insight.org_id == org_id,
+        Insight.kind == PROBLEM_KIND,
+        Insight.visible,
+        Visit.rep_id == rep_id,
+        Visit.status == VisitStatus.CONFIRMED,
+    ]
+
+
 def my_counts(session: Session, org_id: str, rep_id: str) -> Counts:
     """The rep's own problems this IST month, and how many are fixed now."""
     month = period_of("month", ist_date(utc_now()))
@@ -154,11 +168,7 @@ def my_counts(session: Session, org_id: str, rep_id: str) -> Counts:
         select(Insight.id)
         .join(Visit, Visit.id == Insight.visit_id)
         .where(
-            Insight.org_id == org_id,
-            Insight.kind == PROBLEM_KIND,
-            Insight.visible,
-            Visit.rep_id == rep_id,
-            Visit.status == VisitStatus.CONFIRMED,
+            *_problems_of(org_id, rep_id),
             Visit.created_at >= month.start,
             Visit.created_at < month.end,
         )
@@ -174,3 +184,37 @@ def my_counts(session: Session, org_id: str, rep_id: str) -> Counts:
     done = mine.where(routed, ~open_route)
     fixed = session.scalar(select(func.count()).select_from(done.subquery())) or 0
     return Counts(raised, fixed)
+
+
+@dataclass(frozen=True)
+class Pending:
+    """One of the rep's problems still being worked on (batch F3): its issue in one team's inbox."""
+
+    shop: str
+    area: str
+    team: str
+    # The rep's own insight's summary, as it said it.
+    problem: str
+    status: str
+    raised_at: datetime
+
+
+def pending(session: Session, org_id: str, rep_id: str) -> list[Pending]:
+    """The rep's own problems whose issue is open or in progress now: one row per issue (a team's),
+    the rep's latest insight in it, newest first. Never another rep's name, never a quote."""
+    found = session.execute(
+        select(Issue.id, Shop.name, Shop.area, Team.name)
+        .add_columns(Insight.summary_en, Issue.status, Visit.created_at)
+        .select_from(Insight)
+        .join(Visit, Visit.id == Insight.visit_id)
+        .join(Shop, Shop.id == Visit.shop_id)
+        .join(InsightRoute, InsightRoute.insight_id == Insight.id)
+        .join(Issue, Issue.id == InsightRoute.issue_id)
+        .join(Team, (Team.org_id == Issue.org_id) & (Team.id == Issue.team_id))
+        .where(*_problems_of(org_id, rep_id), Issue.status.in_(ACTIVE_ISSUE))
+        .order_by(Visit.created_at.desc(), Insight.seq.desc())
+    ).all()
+    kept: dict[str, Pending] = {}
+    for issue_id, shop, area, team, problem, status, raised_at in found:
+        kept.setdefault(issue_id, Pending(shop, area, team, problem, status, raised_at))
+    return list(kept.values())

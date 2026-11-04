@@ -306,6 +306,8 @@ CASES = [
     case("GET", "/api/me/counts", at("/api/me/counts"), REPS),
     # Batch F2: the rep's home's counts, a rep's own.
     case("GET", "/api/me/home", at("/api/me/home"), REPS),
+    # Batch F3: the rep's own problems still being worked on.
+    case("GET", "/api/me/pending", at("/api/me/pending"), REPS),
     # Batch 17e: every shop's fixes since its last visit, for the rep's Updates page.
     case("GET", "/api/me/fixed", at("/api/me/fixed"), (*REPS, *WHOLE)),
     # Batch 17d: a question for the whole org (a team member's: their team's). No key here: 503.

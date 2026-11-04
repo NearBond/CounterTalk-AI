@@ -1,6 +1,8 @@
 """/api/me: the signed-in rep's own numbers (batch 17b), and what got fixed for every shop since
 its last visit, for the rep's Updates page (batch 17e)."""
 
+from datetime import datetime
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -60,6 +62,34 @@ def my_home(user: CurrentUser, session: DbSession) -> HomeOut:
     access.only(user, Role.REP)
     found = fixed.home(session, user.org_id, user.id)
     return HomeOut(to_review=found.to_review, to_pass_on=found.to_pass_on)
+
+
+class PendingOut(BaseModel):
+    """One of the rep's problems still being worked on (batch F3): never a rep's name or a quote."""
+
+    shop: str
+    area: str
+    team: str
+    problem: str
+    # open or in_progress
+    status: str
+    raised_at: datetime
+
+
+class PendingPage(BaseModel):
+    # Newest first.
+    items: list[PendingOut]
+    next_cursor: str | None = None
+
+
+@router.get("/pending")
+def my_pending(user: CurrentUser, session: DbSession) -> PendingPage:
+    """A rep's own problems whose issue is still open or in progress."""
+    access.only(user, Role.REP)
+    found = fixed.pending(session, user.org_id, user.id)
+    return PendingPage(
+        items=[PendingOut.model_validate(row, from_attributes=True) for row in found]
+    )
 
 
 @router.get("/counts")

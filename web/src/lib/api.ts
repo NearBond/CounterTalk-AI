@@ -20,6 +20,7 @@ import type {
   Me,
   MyCounts,
   MyHome,
+  PendingItem,
   NameReview,
   NewAlias,
   NewCatalogItem,
@@ -407,6 +408,11 @@ export function getMyFixed(signal?: AbortSignal): Promise<Page<ShopFixed>> {
 /** The rep's home's counts (batch F2): their own visits to review, and the shops to pass on. */
 export function getMyHome(signal?: AbortSignal): Promise<MyHome> {
   return apiRequest("/me/home", { signal });
+}
+
+/** The rep's own problems still open or in progress, newest first (batch F3). */
+export function getMyPending(signal?: AbortSignal): Promise<Page<PendingItem>> {
+  return apiRequest("/me/pending", { signal });
 }
 
 /** The signed-in rep's own counts this month: never anyone else's. */

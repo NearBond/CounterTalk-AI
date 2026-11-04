@@ -1,1 +1,99 @@
 @import "tailwindcss";
+
+/*
+ * The landing page v2's look, app-wide (batch F3): its palette, its system font stacks and its
+ * radii. Nothing is loaded from outside: the fonts are each device's own, as v2's are. Tailwind's
+ * gray, blue, red, green and amber scales are v2's warm tones here, so every page picks up the
+ * look with no layout change; text colours keep WCAG AA contrast on paper.
+ */
+@theme {
+  --color-paper: #f6f0e4;
+  --color-paper-2: #ede3d0;
+  --color-card: #fffcf5;
+  --color-ink: #1c1a16;
+  --color-ink-2: #48433a;
+  --color-ink-3: #6e675b;
+  --color-line: #ded3bf;
+  --color-line-strong: #c9bba2;
+  --color-marigold: #f4a62a;
+  --color-marigold-soft: #fad58a;
+  --color-vermilion: #c8442a;
+  --color-vermilion-ink: #a2321c;
+  --color-vermilion-soft: #f7ddd3;
+  --color-leaf: #1e5b47;
+  --color-leaf-soft: #dcebe3;
+  --color-slate: #51617e;
+  --color-pen: #2c4a8c;
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", Georgia, serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-deva: "Kohinoor Devanagari", "Devanagari Sangam MN", "Nirmala UI", "Noto Sans Devanagari", Mangal, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  /* Paper and ink, not cool grey. */
+  --color-white: #fffcf5;
+  --color-gray-50: #fbf7ef;
+  --color-gray-100: #ede3d0;
+  --color-gray-200: #ded3bf;
+  --color-gray-300: #c9bba2;
+  --color-gray-400: #9f9583;
+  --color-gray-500: #6e675b;
+  --color-gray-600: #5c564b;
+  --color-gray-700: #48433a;
+  --color-gray-800: #2f2b25;
+  --color-gray-900: #1c1a16;
+
+  /* Links and secondary actions: v2's pen blue. */
+  --color-blue-50: #eef1f8;
+  --color-blue-600: #3a5a9e;
+  --color-blue-700: #2c4a8c;
+  --color-blue-800: #233b70;
+
+  /* Errors and the record action: vermilion. */
+  --color-red-50: #fbede7;
+  --color-red-100: #f7ddd3;
+  --color-red-700: #a2321c;
+  --color-red-800: #8a2a17;
+  --color-red-900: #6e2112;
+
+  /* Fixed and done: leaf. */
+  --color-green-50: #eaf3ee;
+  --color-green-100: #dcebe3;
+  --color-green-300: #a9cbb9;
+  --color-green-700: #1e5b47;
+  --color-green-900: #143d30;
+
+  /* Waiting and busy: marigold. */
+  --color-amber-50: #fdf3e1;
+  --color-amber-100: #fbe3b4;
+  --color-amber-300: #f1c36f;
+  --color-amber-800: #7a4b06;
+  --color-amber-900: #5e3a05;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  :lang(hi),
+  :lang(mr) {
+    font-family: var(--font-deva);
+  }
+
+  :focus-visible {
+    outline-color: var(--color-vermilion);
+  }
+}

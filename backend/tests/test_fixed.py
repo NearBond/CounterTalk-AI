@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from countertalk import consent, fixed
+from countertalk import consent, fixed, issues
 from countertalk.db import session_scope
 from countertalk.models import (
     Insight,
@@ -243,6 +243,31 @@ def test_a_rep_s_home_counts_their_own_visits_to_review_and_the_shops_to_pass_on
 
     assert response.status_code == 200
     assert response.json() == {"to_review": 1, "to_pass_on": 1}
+
+
+def test_a_rep_s_pending_are_their_own_problems_still_open_or_in_progress(
+    client: TestClient, org: Org_
+) -> None:
+    supply = raised(org, 3, kind="problem", category="supply", severity="low")
+    raised(org, 2, kind="product_request", category="payments", severity="low")  # no problem
+    other_rep = Org_(org.org_id, a_user(org.org_id, Role.REP, "Other Rep"), org.shop_id)
+    raised(other_rep, 1, kind="problem", category="payments", severity="low")  # not theirs
+    issue = issues_of(supply)["field"]
+
+    def pending() -> list[dict[str, Any]]:
+        response = client.get("/api/me/pending")
+        assert response.status_code == 200
+        return response.json()["items"]
+
+    [row] = pending()
+    assert set(row) == {"shop", "area", "team", "problem", "status", "raised_at"}
+    assert (row["team"], row["status"]) == ("Field team", "open")
+    with session_scope() as session:
+        found = session.get_one(Issue, issue)
+        issues.change(session, org.org_id, org.rep_id, issue, found.version, status="in_progress")
+    assert [row["status"] for row in pending()] == ["in_progress"]
+    resolve(org, issue, NOW)
+    assert pending() == []
 
 
 # --- the rep's own counts this month -----------------------------------------------------------

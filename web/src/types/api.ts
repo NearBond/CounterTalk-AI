@@ -122,6 +122,17 @@ export interface MyHome {
   to_pass_on: number;
 }
 
+/** GET /api/me/pending (batch F3): PendingOut, one of the rep's own problems still being worked
+ * on: its issue in one team's inbox. Never a rep's name or a quote. */
+export interface PendingItem {
+  shop: string;
+  area: string;
+  team: string;
+  problem: string;
+  status: "open" | "in_progress";
+  raised_at: string;
+}
+
 /** GET /api/me/counts (batch 17b): the rep's own, this IST month. */
 export interface MyCounts {
   raised: number;
