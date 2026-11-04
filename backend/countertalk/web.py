@@ -5,6 +5,11 @@ are listed, and a request can only pick one of them by its exact URL path. Anyth
 index.html, so the app's own router can answer it; a missing file under /assets/ is a 404.
 Dotfiles, symlinks and anything outside the folder are never listed. Unknown /api paths keep
 the JSON 404.
+
+The landing page (batch F6) is web/public/landing/, which Vite copies to dist/landing/ as it
+is. "/" shows it to a visitor without the session cookie, and the app to one with it. Only the
+cookie's presence is checked: a stale one gets the app, which sends a signed-out visitor to
+/signin. The landing's own files are served by their exact paths, like any other built file.
 """
 
 from pathlib import Path
@@ -15,10 +20,13 @@ from starlette.exceptions import HTTPException
 from starlette.routing import Match, Route
 from starlette.types import Scope
 
+from countertalk.auth import COOKIE
+
 # Vite puts a content hash in every file name under assets/, so those can be kept for good;
 # index.html must be fetched again, or a redeploy wouldn't reach open browsers.
 IMMUTABLE = "public, max-age=31536000, immutable"
 NO_CACHE = "no-cache"
+LANDING = "/landing/index.html"
 
 
 class _AppRoute(Route):
@@ -83,7 +91,12 @@ def mount_web_app(app: FastAPI, dist: Path) -> bool:
         index = files.get("/index.html")
         if index is None:
             raise HTTPException(status_code=404)
-        return FileResponse(index, headers={"Cache-Control": NO_CACHE})
+        if path != "/":
+            return FileResponse(index, headers={"Cache-Control": NO_CACHE})
+        # "/" depends on the cookie, so a cache must keep the two answers apart.
+        shown = files.get(LANDING) if COOKIE not in request.cookies else None
+        headers = {"Cache-Control": NO_CACHE, "Vary": "Cookie"}
+        return FileResponse(shown or index, headers=headers)
 
     app.router.routes.append(_AppRoute("/{path:path}", serve, methods=["GET", "HEAD"]))
     return True

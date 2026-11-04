@@ -1,4 +1,5 @@
-"""Serving the built web app from FastAPI (batch 2, decision 6)."""
+"""Serving the built web app from FastAPI (batch 2, decision 6), and the landing page at "/"
+for visitors who aren't signed in (batch F6)."""
 
 import asyncio
 import os
@@ -9,10 +10,15 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from countertalk.auth import COOKIE
 from countertalk.config import get_settings
 from countertalk.main import create_app
 
 INDEX = "<!doctype html><title>CounterTalk</title><div id=root></div>"
+LANDING = "<!doctype html><title>CounterTalk</title><main id=main></main>"
+STYLES = b"body { margin: 0; }\n"
+# Any value: only the cookie's presence is checked, so a stale one counts too.
+SIGNED_IN = {"Cookie": f"{COOKIE}=stale"}
 CANARY = "canary text that must never be served"
 
 
@@ -23,6 +29,9 @@ def dist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (built / "assets").mkdir(parents=True)
     (built / "index.html").write_text(INDEX, encoding="utf-8")
     (built / "assets" / "app-3f2a1b.js").write_bytes(b"export {};\n")
+    (built / "landing" / "css").mkdir(parents=True)
+    (built / "landing" / "index.html").write_text(LANDING, encoding="utf-8")
+    (built / "landing" / "css" / "styles.css").write_bytes(STYLES)
     (built / ".env").write_text(CANARY, encoding="utf-8")
     (built / "assets" / ".hidden").write_text(CANARY, encoding="utf-8")
     for outside in (tmp_path / "backend" / ".env", tmp_path / "web" / "backend" / ".env"):
@@ -92,13 +101,43 @@ def raw_get(app: FastAPI, path: str, method: str = "GET") -> tuple[int, dict[str
     return asyncio.run(call())
 
 
-def test_root_serves_the_app_and_is_never_cached(web_client: TestClient) -> None:
+def test_root_serves_the_landing_page_without_the_session_cookie(web_client: TestClient) -> None:
     response = web_client.get("/")
 
     assert response.status_code == 200
-    assert response.text == INDEX
+    assert response.text == LANDING
     assert response.headers["content-type"].startswith("text/html")
     assert response.headers["cache-control"] == "no-cache"
+    assert response.headers["vary"] == "Cookie"
+
+
+def test_root_serves_the_app_with_the_session_cookie(web_client: TestClient) -> None:
+    response = web_client.get("/", headers=SIGNED_IN)
+
+    assert response.status_code == 200
+    assert response.text == INDEX
+    assert response.headers["cache-control"] == "no-cache"
+    assert response.headers["vary"] == "Cookie"
+
+
+def test_the_landing_page_s_files_are_served_and_never_kept_for_good(
+    web_client: TestClient,
+) -> None:
+    # Not content-hashed like Vite's assets/, so a browser always asks again.
+    response = web_client.get("/landing/css/styles.css")
+
+    assert response.status_code == 200
+    assert response.content == STYLES
+    assert response.headers["content-type"].startswith("text/css")
+    assert response.headers["cache-control"] == "no-cache"
+
+
+def test_a_build_without_the_landing_page_serves_the_app_at_the_root(
+    dist: Path, web_client: TestClient
+) -> None:
+    (dist / "landing" / "index.html").unlink()
+
+    assert web_client.get("/").text == INDEX
 
 
 def test_a_built_asset_is_served_with_its_type_and_cached_for_good(web_client: TestClient) -> None:
@@ -137,7 +176,7 @@ def test_a_new_build_is_picked_up_without_a_restart(dist: Path, web_client: Test
 
     assert web_client.get("/assets/app-9e8d7c.js").content == b"export const v = 2;\n"
     assert web_client.get("/assets/app-3f2a1b.js").status_code == 404
-    assert web_client.get("/").text.endswith("<!-- build 2 -->")
+    assert web_client.get("/visits").text.endswith("<!-- build 2 -->")
 
 
 def test_head_sends_the_headers_only(web_client: TestClient) -> None:
@@ -163,6 +202,12 @@ def test_an_unknown_api_path_is_the_json_404(
 def test_the_api_still_answers_with_the_app_mounted(web_client: TestClient) -> None:
     assert web_client.get("/api/health").json() == {"status": "ok", "database": "ok"}
     assert web_client.delete("/api/health").json()["error"]["code"] == "method_not_allowed"
+
+
+def test_the_session_cookie_changes_nothing_under_api(web_client: TestClient) -> None:
+    assert web_client.get("/api/health", headers=SIGNED_IN).json()["status"] == "ok"
+    missing = web_client.get("/api/no-such-thing", headers=SIGNED_IN)
+    assert (missing.status_code, missing.json()["error"]["code"]) == (404, "not_found")
 
 
 @pytest.mark.parametrize(
