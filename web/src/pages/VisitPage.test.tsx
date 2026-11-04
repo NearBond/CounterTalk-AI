@@ -33,6 +33,7 @@ const REVIEW: Review = {
   kinds: [{ key: "problem", label: "Problem" }],
   categories: [{ key: "payments", label: "Credit and payments" }],
   severities: [{ key: "low", label: "Low" }],
+  teams: [],
 };
 
 const ANSWERS: Record<string, unknown> = {

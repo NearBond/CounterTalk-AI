@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChoiceSelect } from "../components/ChoiceSelect";
 import { PagePlayer } from "../components/PagePlayer";
 import { QuoteLine } from "../components/QuoteLine";
+import { RepChoiceNote } from "../components/RepChoiceNote";
 import { RetryAlert } from "../components/RetryAlert";
 import { SaveError } from "../components/SaveError";
 import { ApiError, assignTeam, audioUrl, getInboxOptions, listTriage } from "../lib/api";
@@ -76,6 +77,7 @@ function TriageItem({
         {item.shop_name} ({item.area}) · {item.rep_name} · {formatDateTime(item.visited_at)}
       </p>
       <p>{insight.summary_en}</p>
+      <RepChoiceNote insight={insight} />
       {quote !== undefined && <QuoteLine quote={quote} onPlay={onPlay} />}
       {taken && <RetryAlert onRetry={onAssigned}>Someone gave it a team meanwhile.</RetryAlert>}
       {!taken && <SaveError error={failed} onRetry={save.retry} />}

@@ -41,6 +41,7 @@ const PAYMENT: Insight = {
   ai_team_reason: "Money owed.",
   quotes: [{ seq: 0, turn_id: 1, speaker_role: "shopkeeper", text: "Payment abhi tak nahi aaya", match: "exact", start_ms: 2_500 }],
   routes: [route("money", "Money desk")],
+  suggested_team: null, chosen_by_rep: false, left_by_rep: false, routing_version: 1, locked_team_id: null,
 };
 
 const UNFOUND: Insight = {
@@ -92,6 +93,11 @@ function reviewOf(status: "review" | "confirmed", insights: Insight[] = [PAYMENT
     severities: [
       { key: "high", label: "High" },
       { key: "low", label: "Low" },
+    ],
+    teams: [
+      { id: "team-money", key: "money", name: "Money desk" },
+      { id: "team-field", key: "field", name: "Field team" },
+      { id: "team-area", key: "area", name: "Area manager" },
     ],
   };
 }
@@ -206,6 +212,125 @@ describe("ReviewPanel", () => {
 
     expect(await within(found).findByText("Sent to Field team")).toBeInTheDocument();
     expect(api.sent()).toEqual([{ route: "PATCH /api/insights/i1", body: { category: "supply" } }]);
+  });
+
+  it("saves a new category first, then the teams picked, naming the version that answer gave", async () => {
+    const reset = { ...PAYMENT, category: "supply", routes: [route("field", "Field team")], routing_version: 2 };
+    const area = { ...route("area", "Area manager"), routed_by: "rep" as const };
+    const api = fakeApi({
+      "GET /api/visits/v1/review": () => json(200, reviewOf("review")),
+      "PATCH /api/insights/i1": () => json(200, reset),
+      "PUT /api/insights/i1/teams": () => json(200, { ...reset, routes: [area], chosen_by_rep: true, routing_version: 3 }),
+    });
+    show();
+    const found = await cardOf("A payout is late.");
+
+    await userEvent.click(within(found).getByRole("button", { name: "Edit" }));
+    await userEvent.selectOptions(within(found).getByLabelText("Category"), "supply");
+    await userEvent.selectOptions(within(found).getByLabelText("Main team"), "team-area");
+    await userEvent.click(within(found).getByRole("button", { name: "Save" }));
+
+    expect(await within(found).findByText("Sent to Area manager")).toBeInTheDocument();
+    expect(api.sent()).toEqual([
+      { route: "PATCH /api/insights/i1", body: { category: "supply" } },
+      { route: "PUT /api/insights/i1/teams", body: { team_ids: ["team-area"], routing_version: 2 } },
+    ]);
+  });
+
+  it("changes a finding's main team and adds a second, naming the routing version it read", async () => {
+    const field = { ...route("field", "Field team"), routed_by: "rep" as const };
+    const area = { ...route("area", "Area manager"), slot: 2, routed_by: "rep" as const };
+    const api = fakeApi({
+      "GET /api/visits/v1/review": () => json(200, reviewOf("review")),
+      "PUT /api/insights/i1/teams": () =>
+        json(200, { ...PAYMENT, routes: [field, area], chosen_by_rep: true, suggested_team: "Money desk", routing_version: 3 }),
+    });
+    show();
+    const found = await cardOf("A payout is late.");
+
+    await userEvent.click(within(found).getByRole("button", { name: "Edit" }));
+    expect(within(found).getByLabelText("Main team")).toHaveValue("team-money"); // the suggestion
+    await userEvent.selectOptions(within(found).getByLabelText("Main team"), "team-field");
+    await userEvent.selectOptions(within(found).getByLabelText("Second team"), "team-area");
+    await userEvent.click(within(found).getByRole("button", { name: "Save" }));
+
+    expect(await within(found).findByText("Sent to Field team, Area manager")).toBeInTheDocument();
+    expect(api.sent()).toEqual([
+      { route: "PUT /api/insights/i1/teams", body: { team_ids: ["team-field", "team-area"], routing_version: 1 } },
+    ]);
+  });
+
+  it("leaves a finding for the manager: no team, and it says so", async () => {
+    const api = fakeApi({
+      "GET /api/visits/v1/review": () => json(200, reviewOf("review")),
+      "PUT /api/insights/i1/teams": () => json(200, { ...PAYMENT, routes: [], chosen_by_rep: true, left_by_rep: true }),
+    });
+    show();
+    const found = await cardOf("A payout is late.");
+
+    await userEvent.click(within(found).getByRole("button", { name: "Edit" }));
+    await userEvent.selectOptions(within(found).getByLabelText("Main team"), "leave");
+    expect(within(found).getByLabelText("Second team")).toBeDisabled();
+    await userEvent.click(within(found).getByRole("button", { name: "Save" }));
+
+    expect(await within(found).findByText("Left for the manager: it goes to triage")).toBeInTheDocument();
+    expect(api.sent()).toEqual([{ route: "PUT /api/insights/i1/teams", body: { team_ids: [], routing_version: 1 } }]);
+  });
+
+  it("keeps the category's override team: shown, and never offered to take off", async () => {
+    const override = { ...route("area", "Area manager"), slot: 2, routed_by: "override" as const };
+    const high = { ...PAYMENT, severity: "high", routes: [route("money", "Money desk"), override], locked_team_id: "team-area" };
+    const api = fakeApi({
+      "GET /api/visits/v1/review": () => json(200, reviewOf("review", [high])),
+      "PUT /api/insights/i1/teams": () => json(200, high),
+    });
+    show();
+    const found = await cardOf("A payout is late.");
+
+    await userEvent.click(within(found).getByRole("button", { name: "Edit" }));
+    expect(within(found).getByText(/always gets it, for this category and severity/)).toHaveTextContent("Area manager");
+    const also = within(found).getByLabelText("Also send to");
+    expect([...also.querySelectorAll("option")].map((option) => option.textContent)).toEqual(["None", "Money desk", "Field team"]);
+    await userEvent.selectOptions(also, "team-field");
+    await userEvent.click(within(found).getByRole("button", { name: "Save" }));
+
+    await vi.waitFor(() =>
+      expect(api.sent()).toEqual([
+        { route: "PUT /api/insights/i1/teams", body: { team_ids: ["team-field", "team-area"], routing_version: 1 } },
+      ]),
+    );
+  });
+
+  it("says a team choice made on an old read is out of date, and reads the review again", async () => {
+    const api = fakeApi({
+      "GET /api/visits/v1/review": [() => json(200, reviewOf("review")), () => json(200, reviewOf("review"))],
+      "PUT /api/insights/i1/teams": () =>
+        json(409, { error: { code: "route_changed", message: "Someone routed it meanwhile: reload it" } }),
+    });
+    show();
+    const found = await cardOf("A payout is late.");
+
+    await userEvent.click(within(found).getByRole("button", { name: "Edit" }));
+    await userEvent.selectOptions(within(found).getByLabelText("Main team"), "team-field");
+    await userEvent.click(within(found).getByRole("button", { name: "Save" }));
+    expect(await within(found).findByRole("alert")).toHaveTextContent("Its teams changed since this page was read");
+    await userEvent.click(within(found).getByRole("button", { name: "Try again" }));
+
+    await vi.waitFor(() => expect(api.gets()).toBe(2)); // the review, read again
+    expect(api.sent()).toHaveLength(1); // the choice was sent once, never retried by itself
+  });
+
+  it("says a confirmed finding's team was the rep's own choice, with the suggestion", async () => {
+    const chosen = { ...PAYMENT, visible: true, routes: [{ ...route("field", "Field team"), routed_by: "rep" as const }] };
+    fakeApi({
+      "GET /api/visits/v1/review": () =>
+        json(200, reviewOf("confirmed", [{ ...chosen, chosen_by_rep: true, suggested_team: "Money desk" }])),
+    });
+    show();
+    const found = await cardOf("A payout is late.");
+
+    expect(within(found).getByText("Suggested: Money desk · chosen by the rep")).toBeInTheDocument();
+    expect(within(found).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 
   it("locks the form while its save is in flight, retries it, then offers Try again", async () => {

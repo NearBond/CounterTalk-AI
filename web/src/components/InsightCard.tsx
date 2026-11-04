@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
-import { ApiError, deleteInsight, patchInsight } from "../lib/api";
+import { ApiError, chooseTeams, deleteInsight, patchInsight } from "../lib/api";
 import { useSave } from "../lib/hooks";
 import { STATUS_LABELS } from "../lib/issues";
 import { changesOf, type Draft, draftOf, labelOf, saveWithRetry } from "../lib/review";
-import { type Choice, type Insight, SUMMARY_MAX_CHARS } from "../types/api";
+import { type Choice, type Insight, SUMMARY_MAX_CHARS, type Team } from "../types/api";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { QuoteLine } from "./QuoteLine";
+import { RepChoiceNote } from "./RepChoiceNote";
+import { RetryAlert } from "./RetryAlert";
 import { SaveError } from "./SaveError";
+import { TeamFields } from "./TeamFields";
 
 export interface Codebook {
   kinds: Choice[];
   categories: Choice[];
   severities: Choice[];
+  /** The org's teams, for the Edit form's team fields (batch F1). */
+  teams: Team[];
 }
 
 interface Props {
@@ -26,29 +31,56 @@ interface Props {
   onDeleted: (insightId: string) => void;
   /** Whether it has edits not yet saved: the page warns before leaving. */
   onDirty: (insightId: string, dirty: boolean) => void;
+  /** The review is out of date (its teams changed meanwhile): read it again. */
+  onStale: () => void;
 }
 
 /** One insight: what it is, the shopkeeper's words with ▶, its teams, and its edits. */
-export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved, onDeleted, onDirty }: Props) {
+export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved, onDeleted, onDirty, onStale }: Props) {
   const [draft, setDraft] = useState<Draft | null>(null);
+  // The Edit form's teams (batch F1), and what they were when it opened.
+  const [picked, setPicked] = useState<string[]>([]);
+  const [pickedAtStart, setPickedAtStart] = useState<string[]>([]);
   const save = useSave();
   const remove = useSave();
   const busy = save.saving || remove.saving;
   const change = draft === null ? {} : changesOf(insight, draft);
-  const dirty = Object.keys(change).length > 0;
+  const teamsChanged = draft !== null && picked.join() !== pickedAtStart.join();
+  const dirty = Object.keys(change).length > 0 || teamsChanged;
+  const stale = save.error instanceof ApiError && save.error.code === "route_changed";
+  const edit = () => {
+    const now = insight.routes.map((route) => route.team_id);
+    setDraft(draftOf(insight));
+    setPicked(now);
+    setPickedAtStart(now);
+  };
   useEffect(() => {
     onDirty(insight.id, dirty);
     return () => onDirty(insight.id, false);
   }, [insight.id, dirty, onDirty]);
 
-  /** Sends the form as it is now: the first time, and again behind Try again. */
+  /** Sends the form as it is now: the first time, and again behind Try again. A new category
+   * or severity first, which resets the teams to its suggestion; then the teams, with that
+   * answer's routing version, if the rep changed them and they aren't the suggestion now. */
   const send = () => {
     if (!dirty) {
       setDraft(null);
       return;
     }
     save.run(
-      (signal) => saveWithRetry((s) => patchInsight(insight.id, change, s), signal),
+      async (signal) => {
+        let saved = insight;
+        if (Object.keys(change).length > 0) {
+          saved = await saveWithRetry((s) => patchInsight(insight.id, change, s), signal);
+        }
+        if (teamsChanged && picked.join() !== saved.routes.map((route) => route.team_id).join()) {
+          // One try: the server checks the version it names, so a retry of a save that went
+          // through would be refused as a change made meanwhile.
+          const choice = { team_ids: picked, routing_version: saved.routing_version };
+          saved = await chooseTeams(insight.id, choice, signal);
+        }
+        return saved;
+      },
       (saved) => {
         setDraft(null);
         onSaved(saved);
@@ -123,7 +155,14 @@ export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved
             onChange={(severity) => setDraft({ ...draft, severity })}
           />
           <p className="text-xs text-gray-600">A new category or severity sends it to that one's team.</p>
-          <SaveError error={save.error} onRetry={send} />
+          <TeamFields insight={insight} teams={codebook.teams} chosen={picked} disabled={busy} onChange={setPicked} />
+          {stale ? (
+            <RetryAlert small onRetry={onStale}>
+              Its teams changed since this page was read: read it again.
+            </RetryAlert>
+          ) : (
+            <SaveError error={save.error} onRetry={send} />
+          )}
           <div className="flex gap-3">
             <button
               type="submit"
@@ -161,8 +200,15 @@ export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved
         </p>
       )}
       {insight.verified && (editable || insight.routes.length === 0) && (
-        <p className="text-sm text-gray-600">{teams === "" ? "No team yet: it goes to triage" : `Sent to ${teams}`}</p>
+        <p className="text-sm text-gray-600">
+          {teams !== ""
+            ? `Sent to ${teams}`
+            : insight.left_by_rep
+              ? "Left for the manager: it goes to triage"
+              : "No team yet: it goes to triage"}
+        </p>
       )}
+      {!editable && <RepChoiceNote insight={insight} />}
       {insight.verified && !editable && insight.routes.length > 0 && (
         // Confirmed: each team's issue status and its answer, for the rep to tell the shop. A
         // route confirmed before issues existed shows its team alone.
@@ -186,7 +232,7 @@ export function InsightCard({ insight, codebook, editable, lang, onPlay, onSaved
       {editable && draft === null && (
         <div className="flex gap-3 text-sm">
           {insight.verified && (
-            <button type="button" disabled={busy} onClick={() => setDraft(draftOf(insight))} className="underline">
+            <button type="button" disabled={busy} onClick={edit} className="underline">
               Edit
             </button>
           )}

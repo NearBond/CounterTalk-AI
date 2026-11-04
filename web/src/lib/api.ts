@@ -49,6 +49,7 @@ import type {
   SummaryAsk,
   SummaryPage,
   SummaryScope,
+  TeamsChoice,
   Transcript,
   Finding,
   Visit,
@@ -294,6 +295,11 @@ export function getIssue(issueId: string, signal?: AbortSignal): Promise<IssueDe
 
 export function changeIssue(issueId: string, change: IssueChange, signal?: AbortSignal): Promise<IssueDetail> {
   return apiRequest(`/issues/${encodeURIComponent(issueId)}`, { method: "PATCH", body: change, signal });
+}
+
+/** The visit's rep's teams for a finding in review (batch F1). */
+export function chooseTeams(insightId: string, choice: TeamsChoice, signal?: AbortSignal): Promise<Insight> {
+  return apiRequest(`/insights/${encodeURIComponent(insightId)}/teams`, { method: "PUT", body: choice, signal });
 }
 
 export function listTriage(signal?: AbortSignal): Promise<Finding[]> {

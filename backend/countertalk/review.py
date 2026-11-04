@@ -32,6 +32,7 @@ from countertalk.models import (
     Issue,
     OrderItem,
     Report,
+    RoutedBy,
     Task,
     Team,
     Turn,
@@ -126,13 +127,21 @@ def _edit_row(
     )
 
 
-def _route(session: Session, pack: OrgPack, insight: Insight, actor: str | None) -> None:
-    """The rule's routes for the insight's category and severity, and its AI team: given to a
-    new insight, or replacing an edited one's (a `reroute` by the actor)."""
-    teams = routing.team_ids(session, insight.org_id)
+def _suggestion(
+    session: Session, pack: OrgPack, insight: Insight, teams: dict[str, str] | None = None
+) -> tuple[routing.Decision, dict[str, str]]:
+    """The rule's routes for the insight's category and severity, and its AI team, with the
+    org's teams (key: id; read unless given)."""
+    teams = teams if teams is not None else routing.team_ids(session, insight.org_id)
     ai = routing.ai_team_key(session, insight, teams)
     table = routing.table_of(pack)
-    decision = routing.decide(insight.category, insight.severity, ai, table, teams)
+    return routing.decide(insight.category, insight.severity, ai, table, teams), teams
+
+
+def _route(session: Session, pack: OrgPack, insight: Insight, actor: str | None) -> None:
+    """The rule's routes, given to a new insight, or replacing an edited one's (a `reroute` by
+    the actor): a rep's own choice goes, for the new suggestion."""
+    decision, teams = _suggestion(session, pack, insight)
     if actor is None:
         routing.route_new(session, insight, decision, teams)
     else:
@@ -175,6 +184,24 @@ def edit_insight(
     if pack is not None and {"category", "severity"} & changed.keys():
         _route(session, pack, insight, actor)
     log.info("insight edited visit=%s insight=%s fields=%d", visit.id, insight.id, len(changed))
+    return insight
+
+
+def choose_teams(
+    session: Session,
+    pack_for: Callable[[], OrgPack],
+    org_id: str,
+    actor: str,
+    insight_id: str,
+    chosen: list[str],
+    seen: int,
+) -> Insight:
+    """The visit's rep's own teams for a finding, in review (batch F1; routing.choose): the
+    rule's routes are the suggestion, and the override's team stays."""
+    visit, insight = _locked_insight(session, org_id, insight_id)
+    decision, teams = _suggestion(session, pack_for(), insight)
+    routing.choose(session, insight, decision, teams, chosen, actor, seen)
+    log.info("teams chosen visit=%s insight=%s teams=%d", visit.id, insight.id, len(chosen))
     return insight
 
 
@@ -350,6 +377,14 @@ class InsightView:
     ai_team: str | None
     quotes: list[QuoteView]
     routes: list[RouteView]
+    # Batch F1: the rule's main team (its suggestion; None for triage), whether the rep chose
+    # otherwise or left it for the manager, and what a rep's choice names. In review, the
+    # category override's team, which the rep can't take off (review_of sets it).
+    locked_team_id: str | None = None
+    suggested_team: str | None = None
+    chosen_by_rep: bool = False
+    left_by_rep: bool = False
+    routing_version: int = 0
 
 
 @dataclass(frozen=True)
@@ -381,6 +416,8 @@ class ReviewView:
     kinds: list[Choice]
     categories: list[Choice]
     severities: list[Choice]
+    # The org's teams, for the rep's team picker (batch F1).
+    teams: list[Team]
 
 
 def team_part(found: ReviewView, team_id: str) -> ReviewView:
@@ -438,7 +475,7 @@ def review_of(
             )
             for item, brand, product in session.execute(order)
         ],
-        insights=insight_views(session, list(session.scalars(query))),
+        insights=_with_locks(session, pack, insight_views(session, list(session.scalars(query)))),
         notes=list(session.scalars(notes.order_by(VisitNote.created_at, VisitNote.id))),
         speaker_roles={
             label: role
@@ -449,7 +486,30 @@ def review_of(
         kinds=[Choice(key, _label(key)) for key in book.kinds],
         categories=category_choices(pack),
         severities=[Choice(key, _label(key)) for key in book.severities],
+        teams=list(session.scalars(select(Team).where(Team.org_id == org_id).order_by(Team.name))),
     )
+
+
+def _with_locks(session: Session, pack: OrgPack, views: list[InsightView]) -> list[InsightView]:
+    """Each verified insight's locked team: its category override's, as the rule decides it now
+    (what the rep's choice is checked against)."""
+    teams = routing.team_ids(session, views[0].insight.org_id) if views else {}
+    shown = []
+    for view in views:
+        locked = None
+        if view.insight.verified:
+            decision, _ = _suggestion(session, pack, view.insight, teams)
+            overridden = [c.team for c in decision.routes if c.routed_by == RoutedBy.OVERRIDE]
+            locked = teams[overridden[0]] if overridden else None
+        shown.append(replace(view, locked_team_id=locked))
+    return shown
+
+
+def review_view(session: Session, pack: OrgPack, insight: Insight) -> InsightView:
+    """One insight as the review page shows it, its locked team too: what a review edit's
+    answer carries, so the next Edit shows the lock (batch F1)."""
+    [view] = _with_locks(session, pack, insight_views(session, [insight]))
+    return view
 
 
 def view_of(session: Session, org_id: str, insight_id: str) -> InsightView:
@@ -500,14 +560,28 @@ def insight_views(session: Session, insights: list[Insight]) -> list[InsightView
             select(Team.id, Team.key).where(Team.id.in_({i.ai_team_id for i in insights} - {None}))
         )
     }
-    return [
-        InsightView(
-            insight=insight,
-            sku=names.get(insight.sku_id),
-            competitor=names.get(insight.competitor_id),
-            ai_team=teams.get(insight.ai_team_id),
-            quotes=quotes.get(insight.id, []),
-            routes=routes.get(insight.id, []),
+    histories = routing.histories(session, ids)
+    suggested_ids = {h.suggested_team_id for h in histories.values()} - {None}
+    named = select(Team.id, Team.name).where(Team.id.in_(suggested_ids))
+    team_names = {team_id: name for team_id, name in session.execute(named)}
+    shown = []
+    for insight in insights:
+        history = histories.get(insight.id, routing.History(0, (), False, False))
+        found = routes.get(insight.id, [])
+        teams_now = [route.team_id for route in found]
+        shown.append(
+            InsightView(
+                insight=insight,
+                sku=names.get(insight.sku_id),
+                competitor=names.get(insight.competitor_id),
+                ai_team=teams.get(insight.ai_team_id),
+                quotes=quotes.get(insight.id, []),
+                routes=found,
+                suggested_team=team_names.get(history.suggested_team_id or ""),
+                # The rep's choice is the latest, and it isn't the suggestion.
+                chosen_by_rep=history.latest_is_rep and teams_now != list(history.suggested),
+                left_by_rep=history.left_by_rep and not found,
+                routing_version=history.version,
+            )
         )
-        for insight in insights
-    ]
+    return shown

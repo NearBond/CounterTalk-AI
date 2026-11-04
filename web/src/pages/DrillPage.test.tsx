@@ -23,6 +23,7 @@ const QUOTED: Insight = {
   ai_team_reason: null,
   quotes: [{ seq: 0, turn_id: 0, speaker_role: "shopkeeper", text: "Diwali scheme payout pending", match: "exact", start_ms: 1_000 }],
   routes: [],
+  suggested_team: null, chosen_by_rep: false, left_by_rep: false, routing_version: 1, locked_team_id: null,
 };
 
 const DRILL: Drill = {

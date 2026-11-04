@@ -17,6 +17,13 @@ An unverified insight is never routed (BRIEF D9).
 
 Only this module writes InsightRoute (an architecture test), and every change writes its
 RoutingDecision rows in the same transaction.
+
+**The rep's choice** (batch F1; the user, 4 Nov): in review, the visit's rep picks each
+verified finding's teams, the rule's being the suggestion: up to INSIGHT_TEAMS_MAX of the org's, or
+none (left for the manager's triage). The category override's team stays. A team kept in its
+suggested slot keeps how the rule routed it; any other is routed_by rep. The history keeps
+the rule's rows (the suggestion), and each change is compare-and-set on the count of the
+insight's history rows, which only grows.
 """
 
 import logging
@@ -25,14 +32,15 @@ from dataclasses import dataclass
 from itertools import count
 from typing import Literal
 
-from sqlalchemy import delete, exists, select
+from sqlalchemy import delete, exists, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from countertalk import issues, rows
 from countertalk.db import constraint_name
-from countertalk.errors import Conflict, NotFound
+from countertalk.errors import Conflict, Invalid, NotFound
 from countertalk.models import (
+    INSIGHT_TEAMS_MAX,
     TRIAGE_RULE,
     Insight,
     InsightRoute,
@@ -46,8 +54,10 @@ from countertalk.playbooks import OrgPack, Route, routing_table
 
 log = logging.getLogger(__name__)
 
-# The constraint that caps an insight's teams (models.InsightRoute).
+# The constraint that caps an insight's teams (models.InsightRoute, INSIGHT_TEAMS_MAX).
 CAP_CONSTRAINT = "ck_insight_routes_slot"
+# The rule's own decisions: the suggestion a rep's choice is compared with.
+RULE_ACTIONS = (RoutingAction.ROUTE, RoutingAction.OVERRIDE, RoutingAction.REROUTE)
 
 
 @dataclass(frozen=True)
@@ -68,8 +78,9 @@ class Choice:
     slot: int
     team: str
     routed_by: RoutedBy
-    # agreed, table_only, ai_filled_gap, disagreed or override:<category>
-    rule: str
+    # agreed, table_only, ai_filled_gap, disagreed or override:<category>; None for a rep's
+    # own choice (batch F1).
+    rule: str | None
 
 
 @dataclass(frozen=True)
@@ -175,13 +186,116 @@ def reroute(
     insight = _lock(session, insight.org_id, insight.id)
     if not insight.verified:
         return "unverified"
+    _clear_rule_routes(session, insight)
+    return _write(session, insight, decision, team_ids, actor)
+
+
+def choose(
+    session: Session,
+    insight: Insight,
+    suggestion: Decision,
+    team_ids: dict[str, str],
+    chosen: list[str],
+    actor: str,
+    seen: int,
+) -> Routed:
+    """The visit's rep's own teams for the insight, in review (the module docstring): `chosen`
+    are team IDs, the main team first, or none to leave it for the manager. `seen` is the
+    routing version read (409 route_changed if it has moved on). 400 for more than
+    INSIGHT_TEAMS_MAX,
+    a team twice, one that isn't the org's, or the override's team left out. Under the
+    insight's lock, in the caller's transaction."""
+    insight = _lock(session, insight.org_id, insight.id)
+    if not insight.verified:
+        raise Conflict(
+            "insight_unverified", "It couldn't be found in the recording: it has no team"
+        )
+    if version_of(session, insight.id) != seen:
+        raise Conflict("route_changed", "Someone routed it meanwhile: reload it")
+    if len(chosen) > INSIGHT_TEAMS_MAX:
+        raise Invalid("too_many_teams", f"A finding goes to {INSIGHT_TEAMS_MAX} teams at most")
+    if len(set(chosen)) != len(chosen):
+        raise Invalid("team_twice", "Pick each team once")
+    if not set(chosen) <= set(team_ids.values()):
+        raise Invalid("unknown_team", "That isn't one of the org's teams")
+    locked = {team_ids[c.team] for c in suggestion.routes if c.routed_by == RoutedBy.OVERRIDE}
+    if not locked <= set(chosen):
+        raise Invalid(
+            "override_locked", "The category's override team stays: it can't be taken off"
+        )
+    _clear_rule_routes(session, insight)
+    keys = {team_id: key for key, team_id in team_ids.items()}
+    suggested = {(c.team, c.slot): c.routed_by for c in suggestion.routes}
+    picks = []
+    for slot, team_id in enumerate(chosen, start=1):
+        kept = RoutedBy.OVERRIDE if team_id in locked else RoutedBy.REP
+        routed_by = suggested.get((keys[team_id], slot), kept)
+        picks.append(Choice(slot, keys[team_id], routed_by, None))
+    decision = Decision(tuple(picks), None)
+    return _write(session, insight, decision, team_ids, actor, RoutingAction.REP_CHOICE)
+
+
+def _clear_rule_routes(session: Session, insight: Insight) -> None:
+    """The insight's routes go, before new ones are written; refused (409) for one a team
+    member routed by hand, which would lose its route without a trace."""
     by_hand = select(InsightRoute.id).where(
         InsightRoute.insight_id == insight.id, InsightRoute.routed_by == RoutedBy.PERSON
     )
     if session.scalar(by_hand.limit(1)) is not None:
         raise Conflict("routed_by_hand", "A team member has routed it by hand: change it there")
     session.execute(delete(InsightRoute).where(InsightRoute.insight_id == insight.id))
-    return _write(session, insight, decision, team_ids, actor)
+
+
+@dataclass(frozen=True)
+class History:
+    """What an insight's routing history says, for its card (batch F1)."""
+
+    # Its rows so far: what a rep's choice names (compare-and-set).
+    version: int
+    # The rule's latest decision's teams, in slot order (its suggestion): none for triage.
+    suggested: tuple[str, ...]
+    # Its latest row is the visit's rep's own choice: a team, or none (left for the manager).
+    latest_is_rep: bool
+    left_by_rep: bool
+
+    @property
+    def suggested_team_id(self) -> str | None:
+        return self.suggested[0] if self.suggested else None
+
+
+def histories(session: Session, insight_ids: list[str]) -> dict[str, History]:
+    """Each insight's History, from one query of the few columns it needs. One with no rows
+    has none. A rule decision's rows are written slot 1 (or triage) first, so each such row
+    starts its decision."""
+    found: dict[str, list[tuple[str, int | None, str | None]]] = {}
+    query = (
+        select(RoutingDecision.insight_id, RoutingDecision.action)
+        .add_columns(RoutingDecision.slot, RoutingDecision.team_id)
+        .where(RoutingDecision.insight_id.in_(insight_ids))
+        .order_by(RoutingDecision.created_at, RoutingDecision.id)
+    )
+    for insight_id, action, slot, team_id in session.execute(query):
+        found.setdefault(insight_id, []).append((action, slot, team_id))
+    shown = {}
+    for insight_id, made in found.items():
+        suggested: list[str] = []
+        for action, slot, team_id in made:
+            if action not in RULE_ACTIONS:
+                continue
+            if slot in (1, None):
+                suggested = []
+            if team_id is not None:
+                suggested.append(team_id)
+        action, _, team_id = made[-1]
+        rep = action == RoutingAction.REP_CHOICE
+        shown[insight_id] = History(len(made), tuple(suggested), rep, rep and team_id is None)
+    return shown
+
+
+def version_of(session: Session, insight_id: str) -> int:
+    """Its history rows so far: what a rep's choice names."""
+    count_of = select(func.count()).where(RoutingDecision.insight_id == insight_id)
+    return session.scalar(count_of) or 0
 
 
 def _write(
@@ -190,9 +304,11 @@ def _write(
     decision: Decision,
     team_ids: dict[str, str],
     rerouted_by: str | None,
+    action: RoutingAction | None = None,
 ) -> Routed:
     """The decided routes, each with its history row, or a triage row: the rule's (`route`,
-    `override`), or a rep's re-route (`reroute`, decided_by the rep)."""
+    `override`), a rep's re-route (`reroute`, decided_by the rep), or with `action` the rep's
+    own choice (`rep_choice`, batch F1)."""
     history = {
         "org_id": insight.org_id,
         "insight_id": insight.id,
@@ -201,9 +317,9 @@ def _write(
     }
     unknown = decision.ai_team_key_unknown
     if not decision.routes:
-        action = RoutingAction.REROUTE if rerouted_by else RoutingAction.ROUTE
+        triage = action or (RoutingAction.REROUTE if rerouted_by else RoutingAction.ROUTE)
         session.add(
-            RoutingDecision(**history, action=action, rule=TRIAGE_RULE, ai_team_key_unknown=unknown)
+            RoutingDecision(**history, action=triage, rule=TRIAGE_RULE, ai_team_key_unknown=unknown)
         )
         return "triage"
     for choice in decision.routes:
@@ -217,18 +333,20 @@ def _write(
                 routed_by=choice.routed_by,
             )
         )
-        if rerouted_by is not None:
-            action = RoutingAction.REROUTE
+        if action is not None:
+            done = action
+        elif rerouted_by is not None:
+            done = RoutingAction.REROUTE
         elif choice.routed_by == RoutedBy.OVERRIDE:
-            action = RoutingAction.OVERRIDE
+            done = RoutingAction.OVERRIDE
         else:
-            action = RoutingAction.ROUTE
+            done = RoutingAction.ROUTE
         session.add(
             RoutingDecision(
                 **history,
                 slot=choice.slot,
                 team_id=team_id,
-                action=action,
+                action=done,
                 rule=choice.rule,
                 ai_team_key_unknown=unknown if choice.slot == 1 else None,
             )

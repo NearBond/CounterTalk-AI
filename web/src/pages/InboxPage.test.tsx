@@ -82,6 +82,7 @@ const INSIGHT: Insight = {
   ai_team_reason: "A credit dispute.",
   quotes: [{ seq: 0, turn_id: 4, speaker_role: "shopkeeper", text: "Credit note abhi tak nahi aaya", match: "exact", start_ms: 67_520 }],
   routes: [route()],
+  suggested_team: null, chosen_by_rep: false, left_by_rep: false, routing_version: 1, locked_team_id: null,
 };
 
 const DETAIL: IssueDetail = {
@@ -245,6 +246,18 @@ describe("InboxPage", () => {
       "href",
       "/visits/v-1",
     );
+  });
+
+  it("says a finding's team was the rep's own choice, with the suggestion (batch F1)", async () => {
+    const chosen = { ...INSIGHT, chosen_by_rep: true, suggested_team: "Finance" };
+    open("/inbox", {
+      "GET /api/issues?team=finance": () => json(200, [ISSUE]),
+      "GET /api/issues/issue-1": () => json(200, { ...DETAIL, members: [{ ...DETAIL.members[0]!, insight: chosen }] }),
+    });
+
+    const [member] = within(await expand()).getAllByRole("listitem");
+
+    expect(within(member as HTMLElement).getByText("Suggested: Finance · chosen by the rep")).toBeInTheDocument();
   });
 
   it("plays a quote from its moment on the first ▶, once that visit's recording has loaded", async () => {
@@ -490,6 +503,16 @@ describe("TriagePage", () => {
     expect(await within(item).findByRole("alert")).toHaveTextContent("Someone gave it a team meanwhile.");
     expect(api.sent()).toEqual([{ route: "POST /api/insights/i-2/team", body: { team_id: "t-sales" } }]);
     expect(screen.getByRole("heading", { level: 1, name: "Triage" })).toBeInTheDocument();
+  });
+
+  it("marks a finding the rep left for the manager (batch F1)", async () => {
+    const left = { ...WAITING, insight: { ...WAITING.insight, left_by_rep: true, chosen_by_rep: true } };
+    open("/inbox/triage", { "GET /api/issues/triage": () => json(200, [left, WAITING]) });
+
+    const [first, second] = await screen.findAllByText("Road work outside the shop.");
+
+    expect(within(first!.closest("li") as HTMLElement).getByText("Rep didn't pick a team")).toBeInTheDocument();
+    expect(within(second!.closest("li") as HTMLElement).queryByText("Rep didn't pick a team")).not.toBeInTheDocument();
   });
 
   it("asks a team member's first list with the address's filters", async () => {

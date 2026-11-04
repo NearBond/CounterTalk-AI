@@ -289,6 +289,13 @@ def new_note_body(w: World) -> dict[str, Any]:
     return {"id": str(uuid.uuid4()), "text": "Call back."}
 
 
+def teams_body(w: World) -> dict[str, Any]:
+    """The review insight to the first team, naming its routing version as it is now."""
+    with session_scope(read_only=True) as session:
+        version = routing.version_of(session, w.review_insight)
+    return {"team_ids": [w.teams["first"]], "routing_version": version}
+
+
 def team_page(w: World) -> dict[str, Any]:
     return {"scope": "team", "period": "week", "team_id": w.teams["first"]}
 
@@ -427,6 +434,15 @@ CASES = [
         "DELETE",
         "/api/insights/{insight_id}",
         at("/api/insights/{w.review_insight}"),
+        ("rep",),
+        "insight_not_found",
+        forbidden=WHOLE,
+    ),
+    # Batch F1: the visit's rep picks a finding's teams in review, as other review edits.
+    case(
+        "PUT",
+        "/api/insights/{insight_id}/teams",
+        at("/api/insights/{w.review_insight}/teams", json=lambda w: teams_body(w)),
         ("rep",),
         "insight_not_found",
         forbidden=WHOLE,

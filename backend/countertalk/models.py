@@ -1020,6 +1020,12 @@ class RoutedBy(StrEnum):
     OVERRIDE = "override"
     # A team member accepted, moved or also sent it (batch 14): "suggested by AI" goes.
     PERSON = "person"
+    # The visit's rep chose it in review, other than the suggestion (batch F1).
+    REP = "rep"
+
+
+# An insight's teams at most: the slot CHECK's bound, and the rep's choice's (batch F1).
+INSIGHT_TEAMS_MAX = 2
 
 
 class InsightRoute(Base):
@@ -1035,7 +1041,7 @@ class InsightRoute(Base):
     __table_args__ = (
         CheckConstraint(_one_of("routed_by", RoutedBy), name="routed_by"),
         # The cap on an insight's teams is this one constraint: raising it is a small change.
-        CheckConstraint("slot BETWEEN 1 AND 2", name="slot"),
+        CheckConstraint(f"slot BETWEEN 1 AND {INSIGHT_TEAMS_MAX}", name="slot"),
         UniqueConstraint("insight_id", "slot"),
         UniqueConstraint("insight_id", "team_id"),
         ForeignKeyConstraint(
@@ -1075,6 +1081,9 @@ class RoutingAction(StrEnum):
     MOVE = "move"
     ALSO_SEND = "also_send"
     TRIAGE_ASSIGN = "triage_assign"
+    # The visit's rep's choice in review (batch F1): a team, or none (left for the manager,
+    # with the triage rule).
+    REP_CHOICE = "rep_choice"
 
 
 # The rule's name for an insight it left without a team.
@@ -1102,9 +1111,12 @@ class RoutingDecision(Base):
             name="triage",
         ),
         # Decided by the rule or by a person, one or the other; a rep's re-route (batch 14) by
-        # both: the rule decide() applied to the rep's change, and the rep.
+        # both: the rule decide() applied to the rep's change, and the rep. A rep's own choice
+        # (batch F1) is the rep's, with the triage rule when they left it for the manager.
         CheckConstraint(
             "CASE WHEN action = 'reroute' THEN rule IS NOT NULL AND decided_by IS NOT NULL"
+            " WHEN action = 'rep_choice' THEN decided_by IS NOT NULL"
+            f" AND (rule IS NULL OR rule = '{TRIAGE_RULE}')"
             " ELSE (rule IS NULL) <> (decided_by IS NULL) END",
             name="rule_or_person",
         ),

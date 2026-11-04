@@ -40,6 +40,7 @@ from countertalk.api.insights import (
     RouteTo,
     TaskOut,
     TeamFor,
+    TeamsChoice,
 )
 from countertalk.api.issues import (
     FindingOut,
@@ -106,6 +107,7 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "Route": RouteOut,
     "Insight": InsightOut,
     "InsightChange": InsightChange,
+    "TeamsChoice": TeamsChoice,
     "NewInsight": NewInsight,
     "NewNote": NewNote,
     "Note": NoteOut,

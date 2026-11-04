@@ -32,6 +32,7 @@ from countertalk.api.insights import (
     TaskOut,
     insight_out,
 )
+from countertalk.api.issues import TeamOut
 from countertalk.db import DbSession, session_scope
 from countertalk.errors import Invalid, LengthRequired
 from countertalk.limits import MAX_SEGMENT_BYTES
@@ -108,6 +109,8 @@ class ReviewOut(BaseModel):
     kinds: list[ChoiceOut]
     categories: list[ChoiceOut]
     severities: list[ChoiceOut]
+    # The org's teams, for the rep's team picker (batch F1).
+    teams: list[TeamOut]
 
 
 class TurnOut(BaseModel):
@@ -336,6 +339,7 @@ def get_review(visit_id: UUID, user: CurrentUser, session: DbSession) -> ReviewO
         kinds=choices(found.kinds),
         categories=choices(found.categories),
         severities=choices(found.severities),
+        teams=[TeamOut(id=team.id, key=team.key, name=team.name) for team in found.teams],
     )
 
 
@@ -351,8 +355,7 @@ def add_insight(
     found = review.add_insight(
         session, pack, user.org_id, user.id, str(visit_id), insight_id=str(body.id), **fields
     )
-    [view] = review.insight_views(session, [found])
-    return insight_out(view)
+    return insight_out(review.review_view(session, pack, found))
 
 
 @router.post("/{visit_id}/notes", status_code=status.HTTP_201_CREATED)

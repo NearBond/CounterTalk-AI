@@ -36,6 +36,7 @@ const FINDING: Finding = {
         resolution_note: null,
       },
     ],
+    suggested_team: null, chosen_by_rep: false, left_by_rep: false, routing_version: 1, locked_team_id: null,
   },
   shop_name: "Sunrise Kirana",
   area: "Old Market",

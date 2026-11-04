@@ -20,6 +20,7 @@ const INSIGHT: Insight = {
   ai_team_reason: null,
   quotes: [],
   routes: [],
+  suggested_team: null, chosen_by_rep: false, left_by_rep: false, routing_version: 1, locked_team_id: null,
 };
 
 afterEach(() => {

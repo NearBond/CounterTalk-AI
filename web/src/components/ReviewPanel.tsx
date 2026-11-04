@@ -77,7 +77,12 @@ export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed
     setLocal((previous) => ({ from, review: change(previous?.from === from ? previous.review : from) }));
   };
   const editable = review.visit.status === "review" && !readOnly;
-  const codebook = { kinds: review.kinds, categories: review.categories, severities: review.severities };
+  const codebook = {
+    kinds: review.kinds,
+    categories: review.categories,
+    severities: review.severities,
+    teams: review.teams,
+  };
   const replace = (saved: Insight) =>
     update((r) => ({ ...r, insights: r.insights.map((found) => (found.id === saved.id ? saved : found)) }));
   const drop = (insightId: string) => update((r) => ({ ...r, insights: r.insights.filter((found) => found.id !== insightId) }));
@@ -163,6 +168,7 @@ export function ReviewPanel({ visitId, turns, lang, onPlay, onDirty, onConfirmed
               lang={lang}
               onPlay={onPlay}
               onSaved={replace}
+              onStale={loaded.reload}
               onDeleted={drop}
               onDirty={markDirty}
             />

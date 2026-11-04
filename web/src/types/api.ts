@@ -275,7 +275,8 @@ export interface Route {
   team_id: string;
   team_key: string;
   team_name: string;
-  routed_by: "table" | "ai" | "override" | "person";
+  /** "rep": the visit's rep chose it in review, other than the suggestion (batch F1). */
+  routed_by: "table" | "ai" | "override" | "person" | "rep";
   /** What a team member's accept, Move or Also send names: 409 `route_changed` if it moved on. */
   version: number;
   /** Its team's issue once the visit is confirmed (batch 15); null for a route confirmed before
@@ -308,6 +309,22 @@ export interface Insight {
   ai_team_reason: string | null;
   quotes: Quote[];
   routes: Route[];
+  /** Batch F1: the rule's main team, its suggestion (null for triage); whether the rep chose
+   * otherwise, or left it for the manager; and what the rep's choice of teams names. */
+  suggested_team: string | null;
+  /** In review, the category override's team, which the rep can't take off. */
+  locked_team_id: string | null;
+  chosen_by_rep: boolean;
+  left_by_rep: boolean;
+  routing_version: number;
+}
+
+/** PUT /api/insights/{id}/teams (batch F1): TeamsChoice, the visit's rep's teams in review,
+ * the main team first; none leaves it for the manager. 400 `too_many_teams`, `team_twice`,
+ * `unknown_team`, `override_locked`; 409 `route_changed`. */
+export interface TeamsChoice {
+  team_ids: string[];
+  routing_version: number;
 }
 
 /**
@@ -402,6 +419,8 @@ export interface Review {
   kinds: Choice[];
   categories: Choice[];
   severities: Choice[];
+  /** The org's teams, for the rep's team picker (batch F1). */
+  teams: Team[];
 }
 
 /** The longest note the server takes: countertalk/limits.py, NOTE_MAX_CHARS. */

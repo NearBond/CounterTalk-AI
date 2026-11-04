@@ -58,6 +58,26 @@ class InsightOut(BaseModel):
     ai_team_reason: str | None
     quotes: list[QuoteOut]
     routes: list[RouteOut]
+    # Batch F1: the rule's main team, its suggestion (null for triage); whether the rep chose
+    # otherwise ("Suggested: <team> · chosen by the rep"), or left it for the manager ("Rep
+    # didn't pick a team"); and what the rep's choice of teams names.
+    suggested_team: str | None
+    # In review, the category override's team, which the rep can't take off.
+    locked_team_id: str | None
+    chosen_by_rep: bool
+    left_by_rep: bool
+    routing_version: int
+
+
+class TeamsChoice(BaseModel):
+    """PUT /api/insights/{id}/teams (batch F1): the visit's rep's teams for a finding in
+    review, the main team first; none leaves it for the manager. routing_version as read:
+    409 route_changed if it has moved on."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    team_ids: list[UUID]
+    routing_version: StrictInt
 
 
 class InsightChange(BaseModel):
@@ -147,6 +167,11 @@ def insight_out(view: review.InsightView) -> InsightOut:
         ai_team_reason=found.ai_team_reason,
         quotes=[QuoteOut.model_validate(quote, from_attributes=True) for quote in view.quotes],
         routes=[RouteOut.model_validate(route, from_attributes=True) for route in view.routes],
+        suggested_team=view.suggested_team,
+        locked_team_id=view.locked_team_id,
+        chosen_by_rep=view.chosen_by_rep,
+        left_by_rep=view.left_by_rep,
+        routing_version=view.routing_version,
     )
 
 
@@ -159,8 +184,22 @@ def edit_insight(
     changes = body.model_dump(exclude_none=True)
     pack = partial(extraction.pack_for, user.org_id, session=session)
     found = review.edit_insight(session, pack, user.org_id, user.id, str(insight_id), **changes)
-    [view] = review.insight_views(session, [found])
-    return insight_out(view)
+    return insight_out(review.review_view(session, pack(), found))
+
+
+@router.put("/{insight_id}/teams")
+def choose_teams(
+    insight_id: UUID, body: TeamsChoice, user: CurrentUser, session: DbSession
+) -> InsightOut:
+    """Only the visit's rep, only in review. 400 too_many_teams, team_twice, unknown_team,
+    override_locked; 409 route_changed, insight_unverified."""
+    access.insight(session, user, str(insight_id), change=True)
+    pack = partial(extraction.pack_for, user.org_id, session=session)
+    chosen = [str(team_id) for team_id in body.team_ids]
+    found = review.choose_teams(
+        session, pack, user.org_id, user.id, str(insight_id), chosen, body.routing_version
+    )
+    return insight_out(review.review_view(session, pack(), found))
 
 
 @router.delete("/{insight_id}", status_code=status.HTTP_204_NO_CONTENT)

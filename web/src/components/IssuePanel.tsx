@@ -27,6 +27,7 @@ import {
 import { ChoiceSelect } from "./ChoiceSelect";
 import { PagePlayer } from "./PagePlayer";
 import { QuoteLine } from "./QuoteLine";
+import { RepChoiceNote } from "./RepChoiceNote";
 import { RetryAlert } from "./RetryAlert";
 import { SaveError } from "./SaveError";
 
@@ -258,6 +259,7 @@ function MemberItem({
         {member.shop_name} ({member.area}) · {member.rep_name} · {formatDateTime(member.visited_at)}
       </p>
       <p>{insight.summary_en}</p>
+      <RepChoiceNote insight={insight} />
       {quote !== undefined && <QuoteLine quote={quote} onPlay={onPlay} />}
       <Link to={`/visits/${member.visit_id}`} className="text-sm text-blue-700 underline">
         Open the visit
