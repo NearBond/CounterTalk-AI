@@ -14,6 +14,7 @@ import type {
   ConsentLanguage,
   ConsentLink,
   ConsentPage,
+  DemoAccounts,
   Drill,
   ErrorBody,
   FrameworkErrorCode,
@@ -187,6 +188,12 @@ export function signIn(body: SignIn, signal?: AbortSignal): Promise<Me> {
 
 export function signOut(signal?: AbortSignal): Promise<void> {
   return apiRequest("/auth/signout", { method: "POST", signal });
+}
+
+/** Public (batch F9): the demo accounts to sign in as, and their shared password, when the host
+ * sets one; otherwise none. */
+export function getDemoAccounts(signal?: AbortSignal): Promise<DemoAccounts> {
+  return apiRequest("/auth/demo-accounts", { signal });
 }
 
 /** 401 signed_out without a session. */

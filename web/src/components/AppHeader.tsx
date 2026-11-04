@@ -53,7 +53,7 @@ function pageLink({ isActive }: { isActive: boolean }): string {
 
 function nameLink({ isActive }: { isActive: boolean }): string {
   return (
-    "flex min-h-10 min-w-0 items-center text-right text-sm leading-tight underline decoration-line-strong" +
+    "flex min-h-10 min-w-0 items-center text-sm leading-tight underline decoration-line-strong" +
     ` underline-offset-4 transition-colors hover:text-ink hover:decoration-ink-3 ${isActive ? "text-ink" : "text-ink-2"}`
   );
 }
@@ -62,6 +62,7 @@ function nameLink({ isActive }: { isActive: boolean }): string {
  * their profile, batch 17e), and Sign out. On a phone the links take a second row. */
 export function AppHeader({ me }: { me: Me }) {
   const { leave, busy, failed } = useSignOut();
+  const who = me.team === null ? me.name : `${me.name}, ${me.team.name}`;
 
   return (
     <header className="border-b border-line bg-paper">
@@ -83,11 +84,9 @@ export function AppHeader({ me }: { me: Me }) {
             </NavLink>
           ))}
         </nav>
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
-          <NavLink to="/profile" className={nameLink}>
-            <span className="line-clamp-2 wrap-break-word">
-              {me.team === null ? me.name : `${me.name}, ${me.team.name}`}
-            </span>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-3 md:min-w-52">
+          <NavLink to="/profile" className={nameLink} title={who}>
+            <span className="block max-w-60 truncate">{who}</span>
           </NavLink>
           <button
             type="button"

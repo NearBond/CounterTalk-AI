@@ -60,6 +60,7 @@ export const REP: Me = {
 };
 
 const ME = "GET /api/auth/me";
+const DEMO_ACCOUNTS = "GET /api/auth/demo-accounts";
 
 /** A fake API: answers by "METHOD /path", recording each request's body; one may wait. Who's
  * signed in is MANAGER unless the routes answer GET /api/auth/me themselves. */
@@ -127,7 +128,12 @@ export function shopBrief(more: Partial<ShopBrief> = {}): ShopBrief {
 }
 
 export function fakeApi(given: Record<string, Handler | Handler[]>) {
-  const routes: Record<string, Handler | Handler[]> = { [ME]: () => jsonResponse(200, MANAGER), ...given };
+  const routes: Record<string, Handler | Handler[]> = {
+    [ME]: () => jsonResponse(200, MANAGER),
+    // The sign-in page asks for the demo accounts (batch F9): none, unless a test lists some.
+    [DEMO_ACCOUNTS]: () => jsonResponse(200, { accounts: [], password: null }),
+    ...given,
+  };
   const sent: Array<{ route: string; body: unknown }> = [];
   const fake = vi.fn(
     (url: string, init?: RequestInit) =>
@@ -149,7 +155,9 @@ export function fakeApi(given: Record<string, Handler | Handler[]>) {
   return {
     sent: () => sent.filter((request) => !request.route.startsWith("GET")),
     // Who's signed in is asked once per page load: not one of the page's own reads.
-    gets: () => sent.filter((request) => request.route.startsWith("GET") && request.route !== ME).length,
+    gets: () =>
+      sent.filter((request) => request.route.startsWith("GET") && request.route !== ME && request.route !== DEMO_ACCOUNTS)
+        .length,
   };
 }
 

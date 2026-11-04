@@ -1,7 +1,8 @@
 import { type FormEvent, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { RetryAlert } from "../components/RetryAlert";
-import { messageOf, signIn } from "../lib/api";
+import { getDemoAccounts, messageOf, signIn } from "../lib/api";
+import { usePolling } from "../lib/hooks";
 import { HOME } from "../lib/session";
 
 /** Only our own pages, never sign-in itself: an address from elsewhere ("//evil.example", or
@@ -12,7 +13,9 @@ function ownPath(next: string | null): string | null {
 }
 
 /** `/signin` (batch 16): email and password, and one line saying what went wrong. The server's
- * words: "Wrong email or password" whatever was wrong, or how long to wait after too many. */
+ * words: "Wrong email or password" whatever was wrong, or how long to wait after too many. Below
+ * it (batch F9), the demo accounts and their password, when the host lists them: tapping one
+ * fills in its email. */
 export function SignInPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -20,6 +23,8 @@ export function SignInPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  const demo = usePolling((signal) => getDemoAccounts(signal), { key: "demo-accounts", shouldPoll: () => false });
+  const accounts = demo.data?.accounts ?? [];
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -69,6 +74,34 @@ export function SignInPage() {
         </button>
         {failed !== null && <RetryAlert>{failed}</RetryAlert>}
       </form>
+      {accounts.length > 0 && (
+        <section aria-labelledby="demo-accounts" className="flex flex-col gap-2 rounded-md border border-gray-300 p-3">
+          <h2 id="demo-accounts" className="text-lg font-semibold">
+            Demo accounts
+          </h2>
+          <p className="text-gray-700">
+            Every demo account's password is <span className="font-mono font-medium">{demo.data?.password}</span>
+          </p>
+          <p className="text-sm text-gray-600">Tap an account to fill in its email.</p>
+          <ul aria-label="Demo accounts" className="flex flex-col gap-1">
+            {accounts.map((account) => (
+              <li key={account.email}>
+                <button
+                  type="button"
+                  onClick={() => setEmail(account.email)}
+                  className="flex w-full flex-col items-start rounded-md px-2 py-1.5 text-left hover:bg-gray-100 focus-visible:outline-2"
+                >
+                  <span className="font-medium break-all">{account.email}</span>
+                  <span className="text-sm text-gray-700">
+                    {account.label}
+                    {account.note !== null && ` · ${account.note}`}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }

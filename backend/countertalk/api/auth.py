@@ -7,7 +7,7 @@ from fastapi import APIRouter, Cookie, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from countertalk import auth, limits, users
+from countertalk import auth, demo_accounts, limits, users
 from countertalk.api.deps import CurrentUser
 from countertalk.api.issues import TeamOut
 from countertalk.config import get_settings
@@ -36,6 +36,18 @@ class MeOut(BaseModel):
     ai_key_set: bool
 
 
+class DemoAccountOut(BaseModel):
+    email: str
+    label: str
+    note: str | None
+
+
+class DemoAccountsOut(BaseModel):
+    accounts: list[DemoAccountOut]
+    # Every listed account's password; None when none are listed.
+    password: str | None
+
+
 def _me_out(found: users.Me) -> MeOut:
     key_set = bool(get_settings().MODEL_API_KEY.get_secret_value())
     return MeOut.model_validate({**asdict(found), "ai_key_set": key_set})
@@ -62,6 +74,18 @@ async def sign_in(body: SignInIn, response: Response) -> MeOut:
         samesite="lax",
     )
     return me
+
+
+@router.get("/demo-accounts")
+def list_demo_accounts(session: DbSession) -> DemoAccountsOut:
+    """Public (batch F9): the demo accounts to sign in as, and their shared password, only when
+    DEMO_SIGNIN_PASSWORD is set, and only those that exist and can sign in; otherwise none."""
+    password = get_settings().DEMO_SIGNIN_PASSWORD.get_secret_value()
+    listed = demo_accounts.existing(session) if password else []
+    return DemoAccountsOut(
+        accounts=[DemoAccountOut.model_validate(asdict(account)) for account in listed],
+        password=password if listed else None,
+    )
 
 
 @router.post("/signout", status_code=status.HTTP_204_NO_CONTENT)

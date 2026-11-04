@@ -34,6 +34,19 @@ export interface SignIn {
   password: string;
 }
 
+/** One of the sign-in page's demo accounts (batch F9): DemoAccountOut. */
+export interface DemoAccount {
+  email: string;
+  label: string;
+  note: string | null;
+}
+
+/** GET /auth/demo-accounts: none, and no password, unless the host sets DEMO_SIGNIN_PASSWORD. */
+export interface DemoAccounts {
+  accounts: DemoAccount[];
+  password: string | null;
+}
+
 /** The framework's own error codes (countertalk/main.py). Domain errors bring their own. */
 export type FrameworkErrorCode =
   | "not_found"

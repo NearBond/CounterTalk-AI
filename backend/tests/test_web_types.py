@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from countertalk import limits, narrative, storage, summaries
 from countertalk.api.ask import AskIn, AskOut, ChipOut
-from countertalk.api.auth import MeOut, SignInIn
+from countertalk.api.auth import DemoAccountOut, DemoAccountsOut, MeOut, SignInIn
 from countertalk.api.briefs import (
     BriefFixedOut,
     BriefLastVisitOut,
@@ -93,6 +93,8 @@ TYPES = BACKEND_DIR.parent / "web" / "src" / "types" / "api.ts"
 MIRRORS: dict[str, type[BaseModel]] = {
     "Health": HealthOut,
     "Me": MeOut,
+    "DemoAccount": DemoAccountOut,
+    "DemoAccounts": DemoAccountsOut,
     "CatalogAlias": AliasOut,
     "CatalogItem": ItemOut,
     "CatalogNames": NewItem,

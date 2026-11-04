@@ -27,7 +27,7 @@ from countertalk import auth, limits
 from countertalk.config import BACKEND_DIR, Misconfigured, get_settings
 from countertalk.db import session_scope
 from countertalk.main import create_app
-from countertalk.models import SigninFailure, User, UserSession, utc_now
+from countertalk.models import Role, SigninFailure, User, UserSession, utc_now
 from tests.conftest import HTTPS, sign_in
 from tests.test_visits import Org_, make_org
 
@@ -399,6 +399,8 @@ def test_reading_who_is_signed_in_writes_nothing(client: TestClient, org: Org_) 
 
 PUBLIC = {
     ("POST", "/api/auth/signin"),
+    # The demo accounts and their password, when the host sets one (batch F9).
+    ("GET", "/api/auth/demo-accounts"),
     ("POST", "/api/auth/signout"),
     ("GET", "/api/health"),
     # A shop's consent page: the token is the key (batch 17).
@@ -542,3 +544,68 @@ def test_another_site_gets_no_cors_answer(client: TestClient) -> None:
     for response in (asked, read):
         assert "access-control-allow-origin" not in response.headers
         assert "access-control-allow-credentials" not in response.headers
+
+
+# --- the demo accounts on the sign-in page (batch F9) -----------------------------------------
+
+DEMO_PASSWORD = "demo pass for tests"
+
+
+def demo_user(org: Org_, email: str, *, with_password: bool = True) -> None:
+    with session_scope() as session:
+        session.add(User(org_id=org.org_id, email=email, name="Someone", role=Role.REP))
+    if with_password:
+        with session_scope() as session:
+            assert auth.set_password(session, email, PASSWORD)
+
+
+def demo_accounts(client: TestClient) -> dict:
+    response = client.get("/api/auth/demo-accounts")  # no session: the page is public
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_no_demo_accounts_are_listed_without_the_setting(client: TestClient, org: Org_) -> None:
+    demo_user(org, "rep@example.com")
+
+    assert demo_accounts(client) == {"accounts": [], "password": None}
+
+
+def test_the_demo_accounts_are_listed_with_their_password_reps_first(
+    client: TestClient, org: Org_, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DEMO_SIGNIN_PASSWORD", DEMO_PASSWORD)
+    get_settings.cache_clear()
+    for email in ("manager@example.com", "rep2@example.com", "rep@example.com"):
+        demo_user(org, email)
+
+    found = demo_accounts(client)
+
+    assert found["password"] == DEMO_PASSWORD
+    assert found["accounts"] == [
+        {
+            "email": "rep@example.com",
+            "label": "Field sales rep",
+            "note": "Hindi, Hinglish and English",
+        },
+        {
+            "email": "rep2@example.com",
+            "label": "Field sales rep",
+            "note": "English and Marathi",
+        },
+        {"email": "manager@example.com", "label": "Manager", "note": None},
+    ]
+
+
+def test_only_demo_accounts_that_exist_and_can_sign_in_are_listed(
+    client: TestClient, org: Org_, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DEMO_SIGNIN_PASSWORD", DEMO_PASSWORD)
+    get_settings.cache_clear()
+    demo_user(org, "admin@example.com", with_password=False)  # can't sign in
+
+    assert demo_accounts(client) == {"accounts": [], "password": None}
+
+    demo_user(org, "rep3@example.com")
+
+    assert [a["email"] for a in demo_accounts(client)["accounts"]] == ["rep3@example.com"]

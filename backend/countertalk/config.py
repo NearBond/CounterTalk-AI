@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # The audio of a visit confirmed this many days ago is deleted; transcripts and quotes stay
     # (batch 17). 0 deletes a confirmed visit's audio at the next retention run.
     AUDIO_RETENTION_DAYS: int = Field(default=30, ge=0, le=36_500)
+    # The demo accounts' shared password (batch F9), which the sign-in page shows beside their
+    # emails (countertalk.demo_accounts). Empty, the default and every local install's, lists no
+    # demo accounts at all.
+    DEMO_SIGNIN_PASSWORD: SecretStr = SecretStr("")
 
     @field_validator("DATABASE_URL")
     @classmethod
