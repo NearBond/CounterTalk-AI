@@ -32,7 +32,8 @@ afterEach(() => {
 
 describe("App", () => {
   it.each([
-    ["/", MANAGER, "Visits"],
+    ["/", MANAGER, "Hi, Demo Manager · Demo Org"],
+    ["/visits", MANAGER, "Visits"],
     ["/record", REP, "Record a visit"],
     ["/visits/v-1", MANAGER, "Visit"],
     ["/inbox", MANAGER, "Inbox"],
@@ -62,7 +63,7 @@ describe("App", () => {
 
   it.each([
     [REP, true, "Hi, Demo Rep · Demo Org"],
-    [MANAGER, false, "Visits"],
+    [MANAGER, false, "Hi, Demo Manager · Demo Org"],
   ])("offers %s.role a record button only if they record", async (me, offered, heading) => {
     renderAt("/", me);
 
@@ -70,11 +71,11 @@ describe("App", () => {
     expect(screen.queryByRole("link", { name: "Record a visit" }) !== null).toBe(offered);
   });
 
-  it("starts a team member at their inbox", async () => {
+  it("starts a team member at their own home (batch F4)", async () => {
     const router = renderAt("/", FINANCE_MEMBER);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Inbox" })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe("/inbox");
+    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Finance Member · Demo Org" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/");
   });
 
   it.each([
@@ -90,10 +91,10 @@ describe("App", () => {
   });
 
   it.each([
-    [REP, ["Visits", "Updates"]],
-    [FINANCE_MEMBER, ["Inbox", "Summaries"]],
-    [MANAGER, ["Visits", "Inbox", "Triage", "Summaries"]],
-    [ADMIN, ["Visits", "Inbox", "Triage", "Summaries", "Catalog"]],
+    [REP, ["Home", "Updates"]],
+    [FINANCE_MEMBER, ["Home", "Inbox", "Summaries"]],
+    [MANAGER, ["Home", "Visits", "Inbox", "Triage", "Summaries"]],
+    [ADMIN, ["Home", "Visits", "Inbox", "Triage", "Summaries", "Catalog"]],
   ])("shows %s.role's pages in the header", async (me, links) => {
     renderAt("/visits/v-1", me);
 

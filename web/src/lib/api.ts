@@ -34,6 +34,7 @@ import type {
   NewInsight,
   NewNote,
   NewVisit,
+  Overview,
   Note,
   Page,
   PaperConsent,
@@ -403,6 +404,11 @@ export function askQuestion(question: string, signal?: AbortSignal): Promise<Ask
 /** Every shop with something fixed since its last visit here, newest fix first (batch 17e). */
 export function getMyFixed(signal?: AbortSignal): Promise<Page<ShopFixed>> {
   return apiRequest("/me/fixed", { signal });
+}
+
+/** The home's counts for a manager, admin or team member (batch F4). */
+export function getOverview(signal?: AbortSignal): Promise<Overview> {
+  return apiRequest("/me/overview", { signal });
 }
 
 /** The rep's home's counts (batch F2): their own visits to review, and the shops to pass on. */

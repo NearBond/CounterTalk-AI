@@ -133,6 +133,23 @@ export interface PendingItem {
   raised_at: string;
 }
 
+/** GET /api/me/overview (batch F4): the home's counts for a manager or admin (the whole org) or
+ * a team member (their team). Issues are counted as the inbox shows them (with findings, never
+ * merged). The week is this IST week, from Monday. null where the role doesn't see it. */
+export interface Overview {
+  open: number;
+  in_progress: number;
+  /** Open or in progress, and past their due date. */
+  overdue: number;
+  resolved_this_week: number;
+  /** The whole org's only: confirmed findings with no team. */
+  triage: number | null;
+  /** The whole org's only: visits made this week, failed ones aside. */
+  visits_this_week: number | null;
+  /** An admin's only: unknown names waiting for review on the catalog screen. */
+  names_to_review: number | null;
+}
+
 /** GET /api/me/counts (batch 17b): the rep's own, this IST month. */
 export interface MyCounts {
   raised: number;

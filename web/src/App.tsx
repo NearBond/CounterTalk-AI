@@ -5,12 +5,14 @@ import { ConsentPage } from "./pages/ConsentPage";
 import { DrillPage } from "./pages/DrillPage";
 import { HealthPage } from "./pages/HealthPage";
 import { InboxPage } from "./pages/InboxPage";
+import { ManagerHomePage } from "./pages/ManagerHomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RecordPage } from "./pages/RecordPage";
 import { RepHomePage } from "./pages/RepHomePage";
 import { SignInPage } from "./pages/SignInPage";
 import { SummariesPage } from "./pages/SummariesPage";
+import { TeamHomePage } from "./pages/TeamHomePage";
 import { TriagePage } from "./pages/TriagePage";
 import { UpdatesPage } from "./pages/UpdatesPage";
 import { VisitPage } from "./pages/VisitPage";
@@ -28,7 +30,19 @@ export const routes: RouteObject[] = [
   {
     element: <SignedIn />,
     children: [
-      { path: "/", element: <Home visits={<VisitsPage />} repHome={<RepHomePage />} /> },
+      {
+        path: "/",
+        element: <Home repHome={<RepHomePage />} managerHome={<ManagerHomePage />} teamHome={<TeamHomePage />} />,
+      },
+      // A manager's or admin's visits list (their home is the org at a glance, batch F4).
+      {
+        path: "/visits",
+        element: (
+          <Only roles={WHOLE_ORG}>
+            <VisitsPage />
+          </Only>
+        ),
+      },
       {
         path: "/record",
         element: (

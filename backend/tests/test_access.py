@@ -310,6 +310,8 @@ CASES = [
     case("GET", "/api/me/pending", at("/api/me/pending"), REPS),
     # Batch 17e: every shop's fixes since its last visit, for the rep's Updates page.
     case("GET", "/api/me/fixed", at("/api/me/fixed"), (*REPS, *WHOLE)),
+    # The home's counts for whoever works issues: a team member's team's, or the whole org's.
+    case("GET", "/api/me/overview", at("/api/me/overview"), ("first", "second", *WHOLE)),
     # Batch 17d: a question for the whole org (a team member's: their team's). No key here: 503.
     case(
         "POST",

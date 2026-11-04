@@ -88,11 +88,11 @@ describe("VisitPage", () => {
     expect(screen.getByLabelText("Add a note")).toHaveValue("Half a thought");
   });
 
-  it("leaves by the Visits link once the rep agrees", async () => {
+  it("leaves by the Home link once the rep agrees", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const router = await openWithUnsavedNote();
 
-    await userEvent.click(screen.getByRole("link", { name: "Visits" }));
+    await userEvent.click(screen.getByRole("link", { name: "Home" }));
 
     // A rep's own home (batch F2).
     expect(await screen.findByRole("heading", { level: 1, name: "Hi, Demo Rep · Demo Org" })).toBeInTheDocument();

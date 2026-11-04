@@ -1,12 +1,14 @@
 """/api/me: the signed-in rep's own numbers (batch 17b), and what got fixed for every shop since
-its last visit, for the rep's Updates page (batch 17e)."""
+its last visit, for the rep's Updates page (batch 17e). The overview: the home's counts for whoever
+works issues (overview.py)."""
 
+from dataclasses import asdict
 from datetime import datetime
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from countertalk import access, fixed
+from countertalk import access, fixed, overview
 from countertalk.api.deps import CurrentUser
 from countertalk.api.shops import SHOP_STAFF, FixedOut
 from countertalk.db import DbSession
@@ -98,3 +100,27 @@ def my_counts(user: CurrentUser, session: DbSession) -> CountsOut:
     access.only(user, Role.REP)
     found = fixed.my_counts(session, user.org_id, user.id)
     return CountsOut(raised=found.raised, fixed=found.fixed)
+
+
+class OverviewOut(BaseModel):
+    """The home's counts for whoever works issues: a team member's team's issues, or a
+    manager's or admin's whole org (overview.py says what each counts)."""
+
+    open: int
+    in_progress: int
+    # Open or in progress, and past their due date.
+    overdue: int
+    # Since this IST week's Monday 00:00.
+    resolved_this_week: int
+    # The whole org's only (a manager's or admin's): None for a team member.
+    triage: int | None
+    visits_this_week: int | None
+    # An admin's only: the catalog screen's names waiting for review.
+    names_to_review: int | None
+
+
+@router.get("/overview")
+def my_overview(user: CurrentUser, session: DbSession) -> OverviewOut:
+    """For a team member, manager or admin; a rep's is 404."""
+    access.team_work(user)
+    return OverviewOut.model_validate(asdict(overview.overview(session, user)))

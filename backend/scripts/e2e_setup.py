@@ -33,6 +33,7 @@ from countertalk.models import (
     Distributor,
     Insight,
     Issue,
+    Role,
     Shop,
     User,
     Visit,
@@ -87,7 +88,8 @@ def k6() -> dict[str, str]:
     """K6, the planted patterns (batch 15c's click check), in an org of its own, moved so its
     W6 is last week, as the summaries page shows it; E's issue merged into P1's, as a person
     would from the suggestion; and a tone as each of P1's visits' recording, so ▶ plays.
-    What the check needs: the finance member's address, to sign in as, and D2's name."""
+    What the check needs: the finance member's address, to sign in as, and D2's name; and a
+    manager and an admin of K6's, for their homes' checks (batch F4). Made-up names."""
     last_week = ist_date(last_complete("week", utc_now()).start)
     world = _k6.load(w1_start=last_week - timedelta(weeks=5))
     p1, e = _k6.expected_merge(world)
@@ -111,9 +113,15 @@ def k6() -> dict[str, str]:
         visits = session.scalars(
             select(Insight.visit_id).where(Insight.id.in_(world.insights["P1"]))
         ).all()
+        leads = {}
+        for role in (Role.MANAGER, Role.ADMIN):
+            email = f"k6-{role.value}-{world.org_id[:8]}@example.com"
+            name = f"K6 {role.value.capitalize()} (example)"
+            session.add(User(org_id=world.org_id, email=email, name=name, role=role))
+            leads[role.value] = email
     for visit_id in visits:
         make_playback(visit_id)
-    return {"email": _k6.finance_email(world.org_id), "d2": d2, "p1": p1}
+    return {"email": _k6.finance_email(world.org_id), "d2": d2, "p1": p1, **leads}
 
 
 def main() -> int:
@@ -172,7 +180,7 @@ def main() -> int:
     seed_fixed(pack)  # the record screen's "fixed since your last visit" (batch 17b)
     found = k6()
     with session_scope() as session:
-        for email in (DEMO_REP["email"], found["email"]):
+        for email in (DEMO_REP["email"], found["email"], found["manager"], found["admin"]):
             assert auth.set_password(session, email, password), email  # seeded just now
     seeded = {"transcribed": transcribed.id, "recording": recording.id, "rep": DEMO_REP["email"]}
     print(json.dumps({**seeded, "k6": found}))

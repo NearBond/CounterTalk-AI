@@ -174,7 +174,9 @@ async function main() {
     const started = Date.now();
     try {
       if (died !== null) throw new Error(died);
-      await signIn(context, check.as === "k6" ? seeded.k6.email : seeded.rep);
+      // K6's finance member, manager or admin (batch F4), else the demo rep.
+      const who = { k6: seeded.k6.email, "k6-manager": seeded.k6.manager, "k6-admin": seeded.k6.admin };
+      await signIn(context, who[check.as] ?? seeded.rep);
       await withTimeout(check.run({ browser, context, page: await context.newPage(), web: WEB, seeded }), CHECK_MS, check.name);
       print(`ok    ${check.name} (${((Date.now() - started) / 1000).toFixed(1)} s)`);
     } catch (error) {

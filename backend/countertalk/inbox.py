@@ -274,12 +274,18 @@ def detail(session: Session, org_id: str, issue_id: str) -> Detail:
     return Detail(_card(row), shown)
 
 
+def in_triage(org_id: str) -> tuple[Any, ...]:
+    """The triage list's insights: the org's confirmed (visible) ones with no route, so no team.
+    The list's and the overview's count's one rule (R1)."""
+    no_route = ~exists().where(InsightRoute.insight_id == Insight.id)
+    return (Insight.org_id == org_id, Insight.visible.is_(True), no_route)
+
+
 def untriaged(session: Session, org_id: str) -> list[Finding]:
     """The org's confirmed insights with no team, most recently seen first."""
-    no_route = ~exists().where(InsightRoute.insight_id == Insight.id)
     found = session.execute(
         _who(select(Insight))
-        .where(Insight.org_id == org_id, Insight.visible.is_(True), no_route)
+        .where(*in_triage(org_id))
         .order_by(Visit.created_at.desc(), Insight.seq)
     ).all()
     return _as_findings(session, found)

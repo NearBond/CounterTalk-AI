@@ -56,7 +56,7 @@ from countertalk.api.issues import (
     SuggestionOut,
     TeamOut,
 )
-from countertalk.api.me import CountsOut, HomeOut, PendingOut, ShopFixedOut
+from countertalk.api.me import CountsOut, HomeOut, OverviewOut, PendingOut, ShopFixedOut
 from countertalk.api.shops import FixedOut, ShopOut
 from countertalk.api.summaries import (
     DrillOut,
@@ -99,6 +99,7 @@ MIRRORS: dict[str, type[BaseModel]] = {
     "MyCounts": CountsOut,
     "MyHome": HomeOut,
     "PendingItem": PendingOut,
+    "Overview": OverviewOut,
     "Visit": VisitOut,
     "NewVisit": VisitIn,
     "CompleteVisit": CompleteIn,

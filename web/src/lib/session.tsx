@@ -28,7 +28,9 @@ export const VISITS: Role[] = [...RECORDS, ...WHOLE_ORG];
 
 /** The header's pages, each with who uses it: App.tsx's gates read the same lists. */
 export const PAGE_LINKS: Array<{ to: string; label: string; roles: Role[] }> = [
-  { to: "/", label: "Visits", roles: VISITS },
+  // Batch F4: everyone's own home; a manager's or admin's visits list moved to /visits.
+  { to: "/", label: "Home", roles: [...VISITS, "team_member"] },
+  { to: "/visits", label: "Visits", roles: WHOLE_ORG },
   // Batch 17e: what got fixed for each shop, and the rep's own counts.
   { to: "/updates", label: "Updates", roles: RECORDS },
   { to: "/inbox", label: "Inbox", roles: TEAM_WORK },
@@ -60,9 +62,9 @@ export function useMe(): Me {
   return me;
 }
 
-/** Where a role starts: the visits list for those who have it, else the inbox. */
-export function homeFor(me: Me): string {
-  return VISITS.includes(me.role) ? "/" : "/inbox";
+/** Where a role starts: its own home (batch F4), for every role. */
+export function homeFor(_me: Me): string {
+  return "/";
 }
 
 /** /signin, with where to come back to. */
@@ -135,10 +137,16 @@ export function Only({ roles, children }: { roles: Role[]; children: ReactNode }
 }
 
 /** `/`: the visits list for those who have one; anyone else goes to their own home. */
-/** `/`: a rep's own home (batch F2), the visits list for a manager or admin, else their start. */
-export function Home({ visits, repHome }: { visits: ReactNode; repHome: ReactNode }) {
+/** `/`: each role's own home (batches F2 and F4): a rep's, a manager's or admin's, or a team
+ * member's. */
+export function Home({ repHome, managerHome, teamHome }: { repHome: ReactNode; managerHome: ReactNode; teamHome: ReactNode }) {
   const me = useMe();
   if (RECORDS.includes(me.role)) return repHome;
-  return VISITS.includes(me.role) ? visits : <Navigate to={homeFor(me)} replace />;
+  return WHOLE_ORG.includes(me.role) ? managerHome : teamHome;
+}
+
+/** Whether this user keeps the catalog (an admin): their home adds its card (batch F4). */
+export function keepsCatalog(me: Me): boolean {
+  return ADMINS.includes(me.role);
 }
 

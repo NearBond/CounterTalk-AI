@@ -69,6 +69,37 @@ async function fitsAPhone(page, what) {
   expect(overflow <= 0 && headings === 1, `${what}: ${overflow} px over, ${headings} h1s`);
 }
 
+/** A full-page screenshot at 390 px, then at a desktop's 1280 px, when E2E_SHOTS names a folder
+ * (batches F3 and F4: the homes, for the user to see). */
+async function shoot(page, name) {
+  if (!process.env.E2E_SHOTS) return;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: `${process.env.E2E_SHOTS}/${name}-390.png`, fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.screenshot({ path: `${process.env.E2E_SHOTS}/${name}-desktop.png`, fullPage: true });
+}
+
+/** A role's home at 390 px (batch F4): one h1 greeting, its stat cards and its sections, no
+ * sideways scroll; then its screenshots. */
+async function aHome(page, web, { cards, sections, shot }) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${web}/`);
+  await page.getByRole("heading", { level: 1, name: /^Hi, / }).waitFor();
+  const numbers = page.getByRole("list", { name: "Your numbers" }).getByRole("link");
+  await numbers.first().waitFor();
+  expect((await numbers.count()) === cards, `${shot}: ${await numbers.count()} cards, not ${cards}`);
+  for (const name of sections) await page.getByRole("region", { name }).waitFor();
+  // Loaded: no Loading…, and every card shows its number, not the dash it shows while it loads.
+  await page.waitForFunction(() => {
+    const main = document.querySelector("main");
+    const cards = [...document.querySelectorAll('ul[aria-label="Your numbers"] a')];
+    const shown = cards.every((card) => !card.textContent.trim().startsWith("–"));
+    return main !== null && !main.textContent.includes("Loading…") && cards.length > 0 && shown;
+  });
+  await fitsAPhone(page, `the ${shot}`);
+  await shoot(page, shot);
+}
+
 /** /record at 390 px, with this shop picked. */
 async function onAPhoneFor(page, web, label) {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -341,12 +372,31 @@ export const CHECKS = [
       expect(said && text.includes("See all updates"), `the fixes said: ${text}`);
       await page.getByRole("region", { name: "Pending resolutions" }).waitFor();
       await fitsAPhone(page, "the rep's home");
-      // F3's screenshots for the user, when asked for: the phone, then a desktop's width.
-      if (process.env.E2E_SHOTS) {
-        await page.screenshot({ path: `${process.env.E2E_SHOTS}/rep-home-390.png`, fullPage: true });
-        await page.setViewportSize({ width: 1280, height: 900 });
-        await page.screenshot({ path: `${process.env.E2E_SHOTS}/rep-home-desktop.png`, fullPage: true });
-      }
+      await shoot(page, "rep-home");
+    },
+  },
+  {
+    name: "at 390 px, a manager's home: 4 numbers, triage, the top open issues and the latest summary",
+    as: "k6-manager",
+    async run({ page, web }) {
+      const sections = ["Waiting in triage", "Top open issues", "Latest summary"];
+      await aHome(page, web, { cards: 4, sections, shot: "manager-home" });
+    },
+  },
+  {
+    name: "at 390 px, an admin's home: the manager's, and the catalog's names to review",
+    as: "k6-admin",
+    async run({ page, web }) {
+      const sections = ["Waiting in triage", "Top open issues", "Latest summary"];
+      await aHome(page, web, { cards: 5, sections, shot: "admin-home" });
+    },
+  },
+  {
+    name: "at 390 px, a team member's home: their team's numbers, what needs action, and its summary",
+    as: "k6",
+    async run({ page, web }) {
+      const sections = ["Needs action", "Recently resolved", "Your team's latest summary"];
+      await aHome(page, web, { cards: 4, sections, shot: "team-home" });
     },
   },
   {
