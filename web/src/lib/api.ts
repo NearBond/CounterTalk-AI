@@ -19,6 +19,7 @@ import type {
   InboxOptions,
   Me,
   MyCounts,
+  MyHome,
   NameReview,
   NewAlias,
   NewCatalogItem,
@@ -401,6 +402,11 @@ export function askQuestion(question: string, signal?: AbortSignal): Promise<Ask
 /** Every shop with something fixed since its last visit here, newest fix first (batch 17e). */
 export function getMyFixed(signal?: AbortSignal): Promise<Page<ShopFixed>> {
   return apiRequest("/me/fixed", { signal });
+}
+
+/** The rep's home's counts (batch F2): their own visits to review, and the shops to pass on. */
+export function getMyHome(signal?: AbortSignal): Promise<MyHome> {
+  return apiRequest("/me/home", { signal });
 }
 
 /** The signed-in rep's own counts this month: never anyone else's. */

@@ -26,7 +26,7 @@ from tests.conftest import a_user, sign_in
 from tests.test_extraction import insight
 from tests.test_review import PACK
 from tests.test_roles import tiny_org
-from tests.test_summaries import resolve, visit_at
+from tests.test_summaries import resolve, reviewed, visit_at
 from tests.test_visits import Org_, new_visit
 
 DAY = timedelta(days=1)
@@ -225,6 +225,24 @@ def test_a_shop_s_own_later_visit_hides_its_earlier_fix(client: TestClient, org:
     raised(second, 1, category="demand", severity="low")  # its last visit, after its fix
 
     assert [shop["shop_id"] for shop in everywhere(client)] == [org.shop_id]
+
+
+# --- the rep's home (batch F2) ---------------------------------------------------------------
+
+
+def test_a_rep_s_home_counts_their_own_visits_to_review_and_the_shops_to_pass_on(
+    client: TestClient, org: Org_
+) -> None:
+    reviewed(org, insight())  # theirs, waiting for review
+    other_rep = Org_(org.org_id, a_user(org.org_id, Role.REP, "Other Rep"), org.shop_id)
+    reviewed(other_rep, insight())  # another rep's: never counted
+    visit = raised(org, 5, category="payments", severity="low")  # confirmed: not to review
+    resolve(org, issues_of(visit)["money"], NOW - 2 * DAY)  # its shop has a fix to pass on
+
+    response = client.get("/api/me/home")
+
+    assert response.status_code == 200
+    assert response.json() == {"to_review": 1, "to_pass_on": 1}
 
 
 # --- the rep's own counts this month -----------------------------------------------------------

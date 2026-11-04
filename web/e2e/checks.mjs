@@ -326,6 +326,23 @@ export const CHECKS = [
     },
   },
   {
+    name: "at 390 px, the rep's home greets them, its cards two by two, with the newest fixes to pass on",
+    async run({ page, web }) {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`${web}/`);
+      await page.getByRole("heading", { level: 1, name: "Hi, Demo Rep · Demo Org" }).waitFor();
+      const cards = page.getByRole("list", { name: "Shortcuts" }).getByRole("listitem");
+      const boxes = await Promise.all([0, 1, 2, 3].map((n) => cards.nth(n).boundingBox()));
+      const [a, b, c, d] = boxes;
+      expect(a.y === b.y && c.y === d.y && c.y > a.y && a.x === c.x, `the cards weren't 2×2: ${JSON.stringify(boxes)}`);
+      const fixes = page.getByRole("region", { name: "Fixed since the last visit" });
+      await fixes.waitFor();
+      const text = await fixes.textContent();
+      expect(text.includes("Sunrise Kirana · Distribution") && text.includes("See all updates"), `the fixes said: ${text}`);
+      await fitsAPhone(page, "the rep's home");
+    },
+  },
+  {
     name: "at 390 px, the rep's name in the header opens their profile: their position, and Sign out",
     async run({ page, web }) {
       await page.setViewportSize({ width: 390, height: 844 });

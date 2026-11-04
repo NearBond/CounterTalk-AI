@@ -94,7 +94,8 @@ describe("VisitPage", () => {
 
     await userEvent.click(screen.getByRole("link", { name: "Visits" }));
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Visits" })).toBeInTheDocument();
+    // A rep's own home (batch F2).
+    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Demo Rep · Demo Org" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/");
   });
 

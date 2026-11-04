@@ -61,12 +61,12 @@ describe("App", () => {
   });
 
   it.each([
-    [REP, true],
-    [MANAGER, false],
-  ])("offers %s.role a record button only if they record", async (me, offered) => {
+    [REP, true, "Hi, Demo Rep · Demo Org"],
+    [MANAGER, false, "Visits"],
+  ])("offers %s.role a record button only if they record", async (me, offered, heading) => {
     renderAt("/", me);
 
-    await screen.findByRole("heading", { level: 1, name: "Visits" });
+    await screen.findByRole("heading", { level: 1, name: heading });
     expect(screen.queryByRole("link", { name: "Record a visit" }) !== null).toBe(offered);
   });
 

@@ -8,6 +8,7 @@ import { InboxPage } from "./pages/InboxPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RecordPage } from "./pages/RecordPage";
+import { RepHomePage } from "./pages/RepHomePage";
 import { SignInPage } from "./pages/SignInPage";
 import { SummariesPage } from "./pages/SummariesPage";
 import { TriagePage } from "./pages/TriagePage";
@@ -27,7 +28,7 @@ export const routes: RouteObject[] = [
   {
     element: <SignedIn />,
     children: [
-      { path: "/", element: <Home visits={<VisitsPage />} /> },
+      { path: "/", element: <Home visits={<VisitsPage />} repHome={<RepHomePage />} /> },
       {
         path: "/record",
         element: (

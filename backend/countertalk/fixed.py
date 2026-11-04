@@ -126,6 +126,22 @@ def _fixed(session: Session, org_id: str, shop_id: str | None) -> dict[str, list
 
 
 @dataclass(frozen=True)
+class Home:
+    """The rep's home's counts (batch F2): their own visits waiting for review, and the shops
+    with something fixed since their last visit, as Updates lists them."""
+
+    to_review: int
+    to_pass_on: int
+
+
+def home(session: Session, org_id: str, rep_id: str) -> Home:
+    waiting = select(func.count()).where(
+        Visit.org_id == org_id, Visit.rep_id == rep_id, Visit.status == VisitStatus.REVIEW
+    )
+    return Home(session.scalar(waiting) or 0, len(_fixed(session, org_id, None)))
+
+
+@dataclass(frozen=True)
 class Counts:
     raised: int
     fixed: int

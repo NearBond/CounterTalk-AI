@@ -45,6 +45,23 @@ def fixed_everywhere(user: CurrentUser, session: DbSession) -> ShopsFixedPage:
     )
 
 
+class HomeOut(BaseModel):
+    """The rep's home's counts (batch F2)."""
+
+    # The rep's own visits waiting for review.
+    to_review: int
+    # Shops with something fixed since their last visit: Updates' sections.
+    to_pass_on: int
+
+
+@router.get("/home")
+def my_home(user: CurrentUser, session: DbSession) -> HomeOut:
+    """A rep's own: their visits only, never another rep's, never a ranking."""
+    access.only(user, Role.REP)
+    found = fixed.home(session, user.org_id, user.id)
+    return HomeOut(to_review=found.to_review, to_pass_on=found.to_pass_on)
+
+
 @router.get("/counts")
 def my_counts(user: CurrentUser, session: DbSession) -> CountsOut:
     """A rep's own counts: never another rep's, never a ranking."""

@@ -135,8 +135,10 @@ export function Only({ roles, children }: { roles: Role[]; children: ReactNode }
 }
 
 /** `/`: the visits list for those who have one; anyone else goes to their own home. */
-export function Home({ visits }: { visits: ReactNode }) {
+/** `/`: a rep's own home (batch F2), the visits list for a manager or admin, else their start. */
+export function Home({ visits, repHome }: { visits: ReactNode; repHome: ReactNode }) {
   const me = useMe();
+  if (RECORDS.includes(me.role)) return repHome;
   return VISITS.includes(me.role) ? visits : <Navigate to={homeFor(me)} replace />;
 }
 

@@ -115,6 +115,13 @@ export interface ShopFixed {
   items: FixedItem[];
 }
 
+/** GET /api/me/home (batch F2): HomeOut, the rep's home's counts: their own visits waiting for
+ * review, and the shops with something fixed since their last visit (Updates' sections). */
+export interface MyHome {
+  to_review: number;
+  to_pass_on: number;
+}
+
 /** GET /api/me/counts (batch 17b): the rep's own, this IST month. */
 export interface MyCounts {
   raised: number;
