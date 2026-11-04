@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { AskBox } from "../components/AskBox";
 import { ChoiceSelect } from "../components/ChoiceSelect";
 import { IssuePanel } from "../components/IssuePanel";
 import { RetryAlert } from "../components/RetryAlert";
-import { getInboxOptions, type IssueFilters, listIssues } from "../lib/api";
+import { getInboxOptions, getIssue, type IssueFilters, listIssues } from "../lib/api";
 import { countOf, formatDateTime } from "../lib/format";
 import { usePolling } from "../lib/hooks";
 import { STATUS_LABELS } from "../lib/issues";
@@ -65,35 +65,78 @@ export function InboxPage() {
     // The address's filters count only once their choices are known (`offered`).
     skip: team === null || data === undefined,
   });
-  // The issue a link opened (batch F7: issueLink): expanded, scrolled to once and highlighted,
-  // until anything else is picked.
-  const target = params.get("issue");
-  const [open, setOpen] = useState<string | null>(target);
-  const [marked, setMarked] = useState<string | null>(target);
-  const reached = useRef(false);
+  // The issue a link opened (batch F7: issueLink), named by the address: expanded, scrolled to
+  // once and highlighted, until anything else is picked (which takes it out of the address).
+  const marked = params.get("issue");
+  const [open, setOpen] = useState<string | null>(marked);
+  // A new link while the page is open (Back, Forward, another link) opens its issue too.
+  const [linked, setLinked] = useState(marked);
+  if (marked !== linked) {
+    setLinked(marked);
+    if (marked !== null) setOpen(marked);
+  }
+  // The link's issue once it was scrolled to: once only (`seen` is once it was in the list).
+  const reached = useRef<string | null>(null);
   // An issue that leaves the list says where it went: resolved here, merged here (batch 15c), or
   // (the open card gone after a refresh) resolved by someone else or moved away. The card it's
   // about is hidden at once, before the list catches up.
   const [notice, setNotice] = useState<{ text: string; hide: string } | null>(null);
-  const shown = issues.data?.filter((issue) => issue.id !== notice?.hide);
-  const left = open !== null && shown !== undefined && !shown.some((issue) => issue.id === open);
+  const hidden = notice?.hide;
+  const shown = useMemo(() => issues.data?.filter((issue) => issue.id !== hidden), [issues.data, hidden]);
+  // A link names the issue's status and team as they were when it was made (a summary's, as the
+  // period ended). One that isn't in the list it opened is looked up, and the list moves to where
+  // the issue is now; if it still isn't there (merged, or another team's), the page says so.
+  const [seen, setSeen] = useState<string | null>(null);
+  if (marked !== null && seen !== marked && shown?.some((issue) => issue.id === marked)) setSeen(marked);
+  const arriving = marked !== null && seen !== marked;
+  const absent = arriving && shown !== undefined && !shown.some((issue) => issue.id === marked);
+  const lookup = usePolling((signal) => getIssue(marked ?? "", signal), {
+    key: `issue:${marked}`,
+    shouldPoll: () => false,
+    skip: !absent,
+  });
+  const where = lookup.data?.issue;
+  const moveTo = absent && where !== undefined ? placeOf(where) : null;
+  useEffect(() => {
+    if (moveTo !== null) setParams(new URLSearchParams(moveTo), { replace: true });
+  }, [moveTo, setParams]);
+  const lost = absent && (lookup.error !== null || (where !== undefined && moveTo === null));
+  const left =
+    open !== null && shown !== undefined && !shown.some((issue) => issue.id === open) && !(arriving && open === marked);
   const said =
     notice?.text ??
-    (left ? "That issue has left this list: its status changed, or its findings went to another team." : "");
+    (left
+      ? "That issue has left this list: its status changed, or its findings went to another team."
+      : lost
+        ? "That issue isn't in this list: it was merged into another, or it's another team's."
+        : "");
+  /** The address that shows `issue` where it is now, or null when this one already would. */
+  function placeOf(issue: Issue): string | null {
+    if (issue.status === "merged") return null;
+    const next = new URLSearchParams(params);
+    const fits =
+      issue.status === "resolved"
+        ? filters.status === "resolved"
+        : filters.status === undefined || filters.status === issue.status;
+    if (!fits && issue.status === "resolved") next.set("status", "resolved");
+    if (!fits && issue.status !== "resolved") next.delete("status");
+    if (picks && issue.team_key !== team) next.set("team", issue.team_key);
+    const moved = next.toString();
+    return moved === params.toString() ? null : moved;
+  }
   const status = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     if (notice !== null) status.current?.focus(); // where the card was, read out
   }, [notice]);
   useEffect(() => {
-    if (marked === null || reached.current || !shown?.some((issue) => issue.id === marked)) return;
-    reached.current = true;
+    if (marked === null || reached.current === marked || !shown?.some((issue) => issue.id === marked)) return;
+    reached.current = marked;
     const card = document.getElementById(`issue-${marked}`);
     card?.scrollIntoView?.({ block: "start" });
     card?.querySelector("button")?.focus({ preventScroll: true });
   }, [marked, shown]);
   // Anything else picked: the link's issue is done with, and leaves the address.
   const unmark = (next: URLSearchParams) => {
-    setMarked(null);
     next.delete("issue");
   };
   const onResolved = (issue: Issue) => {

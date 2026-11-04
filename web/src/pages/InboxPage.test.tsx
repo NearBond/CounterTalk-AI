@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -441,12 +441,79 @@ describe("InboxPage", () => {
     expect(router.state.location.search).toBe("?team=finance");
   });
 
-  it("a linked issue that isn't in the list says it has left it", async () => {
-    open("/inbox?team=finance&issue=gone", { "GET /api/issues?team=finance": () => json(200, [ISSUE]) });
+  it("a linked issue that isn't in the list and can't be found says so, not that it left", async () => {
+    open("/inbox?team=finance&issue=gone", {
+      "GET /api/issues?team=finance": () => json(200, [ISSUE]),
+      "GET /api/issues/gone": () => json(404, { error: { code: "not_found", message: "There's no such issue" } }),
+    });
 
     expect(
-      await screen.findByText("That issue has left this list: its status changed, or its findings went to another team."),
+      await screen.findByText("That issue isn't in this list: it was merged into another, or it's another team's."),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/has left this list/)).not.toBeInTheDocument();
+  });
+
+  it("a link made before its issue was resolved moves to Status: Resolved and opens it there", async () => {
+    // The F7 review: a summary's cause links with the status as the week ended.
+    Element.prototype.scrollIntoView = vi.fn();
+    const resolved: Issue = { ...ISSUE, status: "resolved", resolved_at: "2026-11-16T06:00:00Z", resolution_note: "Paid." };
+    const { router } = open("/inbox?team=finance&issue=issue-1", {
+      "GET /api/issues?team=finance": () => json(200, []),
+      "GET /api/issues/issue-1": () => json(200, { ...DETAIL, issue: resolved }),
+      "GET /api/issues?team=finance&status=resolved": () => json(200, [resolved]),
+    });
+
+    const card = await screen.findByRole("button", { name: /Credit and payments · Station Road/ });
+    expect(card).toHaveAttribute("aria-expanded", "true");
+    expect(card.closest("li")).toHaveClass("ring-2");
+    expect(new URLSearchParams(router.state.location.search).get("status")).toBe("resolved");
+    expect(screen.queryByText(/has left this list|isn't in this list/)).not.toBeInTheDocument();
+  });
+
+  it("a link to another team's issue moves a manager to that team's inbox", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const theirs: Issue = { ...ISSUE, team_key: "sales_ops" };
+    const { router } = open("/inbox?team=finance&issue=issue-1", {
+      "GET /api/issues?team=finance": () => json(200, []),
+      "GET /api/issues/issue-1": () => json(200, { ...DETAIL, issue: theirs }),
+      "GET /api/issues?team=sales_ops": () => json(200, [theirs]),
+    });
+
+    expect(await screen.findByRole("button", { name: /Credit and payments · Station Road/ })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(new URLSearchParams(router.state.location.search).get("team")).toBe("sales_ops");
+  });
+
+  it("a merged issue's link says it isn't in the list", async () => {
+    open("/inbox?team=finance&issue=issue-1", {
+      "GET /api/issues?team=finance": () => json(200, []),
+      "GET /api/issues/issue-1": () => json(200, { ...DETAIL, issue: { ...ISSUE, status: "merged" } }),
+    });
+
+    expect(
+      await screen.findByText("That issue isn't in this list: it was merged into another, or it's another team's."),
+    ).toBeInTheDocument();
+  });
+
+  it("a second link while the inbox is open opens that issue", async () => {
+    // The F7 review: Back, Forward or another link names a new issue in the same page.
+    Element.prototype.scrollIntoView = vi.fn();
+    const other: Issue = { ...ISSUE, id: "issue-2", title_en: "Supply and delivery · Old Market" };
+    const { router } = open("/inbox?team=finance&issue=issue-1", {
+      "GET /api/issues?team=finance": () => json(200, [ISSUE, other]),
+      "GET /api/issues/issue-1": () => json(200, DETAIL),
+      "GET /api/issues/issue-2": () => json(200, { ...DETAIL, issue: other }),
+    });
+    expect(await screen.findByRole("button", { name: /Credit and payments/ })).toHaveAttribute("aria-expanded", "true");
+
+    await act(() => router.navigate("/inbox?team=finance&issue=issue-2"));
+
+    const second = await screen.findByRole("button", { name: /Supply and delivery/ });
+    expect(second).toHaveAttribute("aria-expanded", "true");
+    expect(second.closest("li")).toHaveClass("ring-2");
+    expect(screen.getByRole("button", { name: /Credit and payments/ }).closest("li")).not.toHaveClass("ring-2");
   });
 
   it("filters to open or in-progress issues alone, as the team home's cards link (batch F7)", async () => {

@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, exists, func, select
+from sqlalchemy import and_, exists, func, or_, select, true
 from sqlalchemy.orm import Session, aliased
 
 from countertalk import rows
@@ -111,24 +111,60 @@ def for_rep(session: Session, org_id: str, rep_id: str) -> list[ShopFixed]:
 
 def _mine_fixed(session: Session, org_id: str, rep_id: str) -> list[tuple[str, str, Fixed]]:
     """The rep's own fixed problems this month, as my_counts counts them: (shop, issue, item)
-    for each of their issues, the rep's latest insight in it. Marked as fixed before the shop's
-    last visit: for_rep keeps the since-the-last-visit item when there's one."""
+    for each of their issues, the rep's latest insight in it. Each is marked by its own date:
+    since the shop's last visit when resolved after it, or when the shop has no visit before
+    today (_fixed_issues leaves those shops out, and cuts each list at FIXED_MAX)."""
+    since = _last_visits(org_id)
     found = session.execute(
-        select(Visit.shop_id, Issue.id, Team.name, Issue.category)
-        .add_columns(Issue.resolution_note, Issue.resolved_at, Insight.summary_en)
+        select(*_FIXED_COLUMNS)
+        .add_columns(or_(since.c.since.is_(None), Issue.resolved_at > since.c.since))
         .select_from(Insight)
         .join(Visit, Visit.id == Insight.visit_id)
         .join(InsightRoute, InsightRoute.insight_id == Insight.id)
         .join(Issue, Issue.id == InsightRoute.issue_id)
         .join(Team, (Team.org_id == Issue.org_id) & (Team.id == Issue.team_id))
+        .outerjoin(since, since.c.shop_id == Visit.shop_id)
         .where(*_mine_this_month(org_id, rep_id), ~_open_route())
-        .order_by(Visit.shop_id, Issue.id, Visit.created_at.desc(), Insight.seq.desc())
+        .order_by(*_LATEST_FIRST)
     ).all()
+    return [(shop, issue_id, item) for (shop, issue_id), item in _first_of_each(found).items()]
+
+
+# A fix's columns, then whether it's since the shop's last visit: one row per insight routed to
+# a resolved issue (_fixed_issues and _mine_fixed, R1).
+_FIXED_COLUMNS = (
+    Visit.shop_id,
+    Issue.id,
+    Team.name,
+    Issue.category,
+    Issue.resolution_note,
+    Issue.resolved_at,
+    Insight.summary_en,
+)
+# Per shop and issue, the shop's latest insight comes first: it's the one kept.
+_LATEST_FIRST = (Visit.shop_id, Issue.id, Visit.created_at.desc(), Insight.seq.desc())
+
+
+def _first_of_each(found: Any) -> dict[tuple[str, str], Fixed]:
+    """Each (shop, issue)'s first row as a Fixed, in the rows' order: the latest insight."""
     kept: dict[tuple[str, str], Fixed] = {}
-    for shop, issue_id, team, category, note, resolved_at, summary in found:
+    for shop, issue_id, team, category, note, resolved_at, summary, since_last in found:
         if (shop, issue_id) not in kept and note is not None and resolved_at is not None:
-            kept[shop, issue_id] = Fixed(team, category, summary, note, resolved_at, False)
-    return [(shop, issue_id, item) for (shop, issue_id), item in kept.items()]
+            kept[shop, issue_id] = Fixed(team, category, summary, note, resolved_at, since_last)
+    return kept
+
+
+def _last_visits(org_id: str, shop_id: str | None = None) -> Any:
+    """Each shop's last visit before today, the "since", as a subquery (shop_id, since)."""
+    today = at_midnight(ist_date(utc_now()))
+    last = select(Visit.shop_id, func.max(Visit.created_at).label("since")).where(
+        Visit.org_id == org_id,
+        Visit.status.not_in([VisitStatus.FAILED, VisitStatus.RECORDING]),
+        Visit.created_at < today,
+    )
+    if shop_id is not None:
+        last = last.where(Visit.shop_id == shop_id)
+    return last.group_by(Visit.shop_id).subquery()
 
 
 def _fixed(session: Session, org_id: str, shop_id: str | None) -> dict[str, list[Fixed]]:
@@ -142,19 +178,10 @@ def _fixed_issues(
     session: Session, org_id: str, shop_id: str | None
 ) -> dict[str, dict[str, Fixed]]:
     """_fixed's lists, each fix by its issue's ID (dicts keep their order: newest first)."""
-    today = at_midnight(ist_date(utc_now()))
-    # Each shop's last visit before today: the "since".
-    last = select(Visit.shop_id, func.max(Visit.created_at).label("since")).where(
-        Visit.org_id == org_id,
-        Visit.status.not_in([VisitStatus.FAILED, VisitStatus.RECORDING]),
-        Visit.created_at < today,
-    )
-    if shop_id is not None:
-        last = last.where(Visit.shop_id == shop_id)
-    since = last.group_by(Visit.shop_id).subquery()
+    since = _last_visits(org_id, shop_id)
     found = session.execute(
-        select(Visit.shop_id, Issue.id, Team.name, Issue.category)
-        .add_columns(Issue.resolution_note, Issue.resolved_at, Insight.summary_en)
+        select(*_FIXED_COLUMNS)
+        .add_columns(true())
         .select_from(Issue)
         .join(Team, (Team.org_id == Issue.org_id) & (Team.id == Issue.team_id))
         .join(InsightRoute, InsightRoute.issue_id == Issue.id)
@@ -167,16 +194,11 @@ def _fixed_issues(
             Issue.resolved_at > since.c.since,
             Insight.visible,
         )
-        # Per shop and issue, the shop's latest insight comes first: it's the one kept.
-        .order_by(Visit.shop_id, Issue.id, Visit.created_at.desc(), Insight.seq.desc())
+        .order_by(*_LATEST_FIRST)
     ).all()
-    kept: dict[tuple[str, str], Fixed] = {}
-    for shop, issue_id, team, category, note, resolved_at, summary in found:
-        if (shop, issue_id) not in kept and note is not None and resolved_at is not None:
-            kept[shop, issue_id] = Fixed(team, category, summary, note, resolved_at)
     by_shop: dict[str, dict[str, Fixed]] = defaultdict(dict)
     for (shop, issue_id), item in sorted(
-        kept.items(), key=lambda each: each[1].resolved_at, reverse=True
+        _first_of_each(found).items(), key=lambda each: each[1].resolved_at, reverse=True
     ):
         if len(by_shop[shop]) < FIXED_MAX:
             by_shop[shop][issue_id] = item  # newest first
@@ -186,7 +208,9 @@ def _fixed_issues(
 @dataclass(frozen=True)
 class Home:
     """The rep's home's counts (batch F2): their own visits waiting for review, and the shops
-    with something fixed since their last visit, as Updates lists them."""
+    with something fixed since their last visit: news to pass on, Updates' "Fixed since the last
+    visit here". Its plain "Fixed" (batch F7, the rep's own from before the last visit) isn't
+    news, so it isn't counted here."""
 
     to_review: int
     to_pass_on: int

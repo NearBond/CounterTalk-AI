@@ -259,6 +259,21 @@ def test_a_fix_the_rep_raised_since_the_last_visit_is_listed_once(
     assert [item["since_last_visit"] for item in shop["items"]] == [True]
 
 
+def test_the_rep_s_fix_at_a_shop_visited_only_today_is_since_the_last_visit(
+    client: TestClient, org: Org_
+) -> None:
+    # The F7 review: the shop has no visit before today, so the since-the-last-visit list leaves
+    # it out, but a fix resolved after today's visit is still news, not a plain "Fixed".
+    now = utc_now()
+    visit = problem_at(org, now, category="payments", severity="low", summary_en="Paid late.")
+    resolve(org, issues_of(visit)["money"], utc_now())
+
+    [shop] = everywhere(client)
+
+    assert [(i["problem"], i["since_last_visit"]) for i in shop["items"]] == [("Paid late.", True)]
+    assert listed(client, org.shop_id) == []  # one shop's list still counts from before today
+
+
 def test_another_rep_s_fix_from_before_the_last_visit_isnt_listed(
     client: TestClient, org: Org_
 ) -> None:

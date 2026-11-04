@@ -34,7 +34,15 @@ export function DrillPage() {
         <Link to={`/summaries?${new URLSearchParams({ team: teamKey, period }).toString()}`} className="text-blue-700 underline">
           Summaries
         </Link>
-        <Link to={issueId === null ? "/inbox" : issueLink(issueId, { team: teamKey })} className="text-blue-700 underline">
+        <Link
+          to={
+            issueId === null
+              ? "/inbox"
+              : // As the period ended: the inbox finds the issue where it is now if it moved.
+                issueLink(issueId, { team: teamKey || undefined, resolved: data?.status === "resolved" })
+          }
+          className="text-blue-700 underline"
+        >
           Inbox
         </Link>
       </div>
