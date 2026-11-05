@@ -27,7 +27,7 @@ Field sales reps at FMCG companies visit neighbourhood shops all day, and what s
   - **pre-visit briefs:** where a shop stands before the next visit.
 - **The AI suggests, code decides:** every answer comes back in a strict schema, and code checks the quotes, product links, citations and filters before anything is shown.
 
-Built and tried for FMCG. The same playbook fits other goods sold through neighbourhood shops (groceries, general merchandise and apparel), because its issue categories and routing are generic to selling through shops: a new business needs only its own **org pack**, the data files with its catalog, teams and routing, and no code changes. Pharma and agri products would need some tuning of the playbook (their issue categories and rules) in future. Creating a company's org, shops and users is still script work today 
+Built and tried for FMCG. The same playbook fits other goods sold through neighbourhood shops (groceries, general merchandise and apparel), because its issue categories and routing are generic to selling through shops: a new business needs only its own **org pack**, the data files with its catalog, teams and routing, and no code changes. Pharma and agri products would need some tuning of the playbook (their issue categories and rules) in future. Creating a company's org, shops and users is still script work today.
 
 
 Every account's password is `metahackathon`.
@@ -57,7 +57,7 @@ Every account's password is `metahackathon`.
   - your teams, what each handles, and the routing from each kind of finding to a team (`org_pack.yaml`), plus the languages your visits are in.
 
   Check it with `scripts/check_pack.py`, and load it into an org with `scripts/import_org_pack.py`. [`pepsico-india-demo`](backend/org_packs/pepsico-india-demo/v1/) is a complete example.
-- **Your org, shops and users,** created by scripts today. `scripts/seed_dev.py` creates the demo org and its shops (to use it for another company, edit its constants), `scripts/add_user.py` adds a user, and `scripts/set_password.py` sets a password. There are no screens for these yet (see [Known limits](#known-limits)).
+- **Your org, shops and users,** created by scripts today. `scripts/seed_dev.py` creates the demo org and its shops (to use it for another company, edit its constants), `scripts/add_user.py` adds a user, and `scripts/set_password.py` sets a password. There are no screens for these yet.
 - **A Meta API key** (`MODEL_API_KEY`), for Muse Voice Transcribe and Muse Spark.
 - **No recordings up front.** They build up as reps record or upload visits, and the inboxes, summaries, briefs and Ask fill in as visits are confirmed.
 
@@ -87,6 +87,19 @@ One Meta key (`MODEL_API_KEY`) covers both. It never leaves the server.
 | **Muse Spark** | `muse-spark-1.3` ([`llm/client.py`](backend/countertalk/llm/client.py)) | Speaker roles; extraction; repairing a quote that didn't match; summary narratives; issue merge suggestions; Ask; pre-visit briefs |
 
 Every Muse Spark call, failed ones too, is recorded with its purpose and token counts, so its cost is known, but never with its prompt or answer. Speech-to-text's billed seconds are counted on each visit.
+
+## How we evaluated the AI
+
+Each AI step was checked against scripted role-plays before we relied on it, and the checks are in the repo.
+
+- **Role-plays with answer keys:** scripted shop visits voiced with generated voices, each with a key of the findings a good extraction should return (category, severity, team and quote).
+- **Speech-to-text:** [`compare_transcript.py`](backend/scripts/compare_transcript.py) compares a transcript with its script: whether each line lands on the right speaker, and which script each word comes back in. We used it to check the language bias and the brand-name keywords. It also showed that English words in Hindi speech come back in Devanagari, so the catalog has Devanagari aliases.
+- **Extraction:** the Hinglish and Marathi role-plays are eval cases in [`backend/evals/`](backend/evals/), with their transcripts and speaker roles saved. [`run_eval.py`](backend/scripts/run_eval.py) re-runs the real extract job on them (the model, then the quote checks, catalog links and routing in code) and scores it against the key. Each result is saved under its prompt's hash, so every prompt change was compared with the one before.
+- **A held-back set:** some cases were never used to change a prompt, only scored, to check that the prompt hadn't just learned the tuning cases. It held up: in every held-back case, each expected finding was found, nothing unexpected was added, and every quote matched the transcript.
+- **Ask:** questions in English, Hindi and Marathi, each with the filters it should give, including an off-topic one that should be refused (`run_eval.py --ask`).
+- **Summaries and merge suggestions:** made-up weeks of visits with planted patterns ([`tests/fixtures/patterns/`](backend/tests/fixtures/patterns/)). Tests check the counts, labels and ranks with no model; a paid run (`run_eval.py --patterns`) checks the merge suggestions and the narrative. A merge it missed led to a change in the merge prompt.
+
+Without `--yes`, `run_eval.py` only prints what it would send and what it would cost.
 
 ## Architecture
 
