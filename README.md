@@ -43,6 +43,32 @@ Every account's password is `metahackathon`.
 | `sales-ops-member@example.com` | Team member (Sales operations) | The Sales operations inbox |
 | `distribution-member@example.com` | Team member (Distribution) | The Distribution team's inbox |
 
+## What it costs
+
+Prices are Meta's list prices of 1 Nov 2026: Muse Voice Transcribe at $0.18 an audio hour, and Muse Spark at $1.25 per million input tokens ($0.15 when cached) and $4.25 per million output tokens. The averages below come from the app's own records: every Muse Spark call is stored with its token counts, and every visit with the audio seconds it was billed.
+
+| AI step | When it runs | Average cost |
+|---|---|---|
+| Transcription (Muse Voice Transcribe) | Every visit | About $0.008 for a 2–3 minute visit |
+| Speaker roles (Muse Spark) | Every visit | About $0.003 |
+| Extraction (Muse Spark) | Every visit | About $0.013 |
+| Quote repair (Muse Spark) | Only when a quote doesn't match the transcript | About $0.004 |
+| Issue merge suggestions (Muse Spark) | With a summary | About $0.003 |
+| Summary (Muse Spark) | Each team and the org, weekly or monthly | About $0.016 |
+| Ask (Muse Spark) | Each question | About $0.004 |
+| Pre-visit brief (Muse Spark) | When someone asks for one | About $0.007 |
+
+**A visit, end to end, costs about $0.02–0.03 (about ₹2),** roughly 1 US cent per minute of conversation. A rep who records 30 visits a day, 25 days a month, costs about $20 (about ₹1,700) a month. Summaries, Ask and briefs add cents, not dollars.
+
+**Why it's affordable:**
+- **Meta's prices are low.** An hour of audio costs $0.18 to transcribe, and Muse Spark's cached input costs about a tenth of its normal input price.
+- **One extraction call per visit.** The checks after it (quotes, catalog links, routing) are code, not more model calls.
+- **The model writes words, code does the numbers.** Summary figures come from SQL, Ask returns filters rather than answers, and briefs are written only when asked for.
+- **Repairs only on a miss.** Quote repair runs only when a quote doesn't match the transcript.
+- **Pay per second of speech.** Transcription is billed by the audio second, and long visits are cut at pauses, so nothing is paid twice.
+- **Cached prompts.** The repeated part of each prompt is billed at the cached rate.
+- **Cost is visible.** Every call's tokens are recorded against its visit, summary or brief.
+
 ## This is demo data
 
 - **PepsiCo India is example data.** Its brand and product names are public product information, as sold in India. PepsiCo is not a customer or partner of CounterTalk, and none of this data comes from it. There are no logos.
