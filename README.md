@@ -2,6 +2,8 @@
 
 **Hear what shopkeepers tell your reps.**
 
+**Live app:** https://countertalk.up.railway.app (due to a Railway issue, the app may sometimes not work)
+
 Field sales reps at FMCG companies visit neighbourhood shops all day, and what shopkeepers tell them gets lost: late credit notes, short deliveries, competitor offers, requests for new products. CounterTalk records the visit and turns it into routed work:
 
 1. **It transcribes the conversation,** in Hindi, English, Hinglish or Marathi, and tells the speakers apart.
@@ -28,7 +30,7 @@ Built and tried for FMCG. The same playbook fits other goods sold through neighb
 
 ## Try the demo
 
-- **Live app:** _link to be added_.
+- **Live app:** https://countertalk.up.railway.app (due to a Railway issue, the app may sometimes not work).
 - **On your own machine:** follow [INSTALL.md](INSTALL.md) and load the demo data.
 
 Every account's password is `metahackathon`.
