@@ -75,6 +75,14 @@ jobs:
       # The image starts ./scripts/start.sh, so git must have kept its executable bit.
       - name: start.sh is executable in the image
         run: docker run --rm --entrypoint test countertalk:ci -x scripts/start.sh
+      # The files the app reads at run time are in the image: the playbook (its YAML and
+      # prompts), the org pack and the consent notice. A .dockerignore rule once left the
+      # prompts out, and every extraction would have failed.
+      - name: The image has the files the app reads
+        run: >-
+          docker run --rm --entrypoint python countertalk:ci -c
+          "from countertalk import consent; from countertalk.playbooks import load_org_pack;
+          load_org_pack('pepsico-india-demo', 1); consent.notice()"
 
   gitleaks:
     runs-on: ubuntu-24.04

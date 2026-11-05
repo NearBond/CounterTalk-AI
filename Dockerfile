@@ -26,6 +26,8 @@ WORKDIR /app/backend
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY backend/ ./
+# A `railway up` from Windows uploads every file as 0644, so start.sh would lose its exec bit.
+RUN chmod 0755 scripts/start.sh
 RUN uv sync --locked --no-dev
 
 COPY --from=web /app/web/dist /app/web/dist

@@ -46,3 +46,5 @@ backend/evals/
 **/*.test.ts
 **/*.test.tsx
 **/*.md
+# Except the playbooks' prompts, which the app reads at run time (load_playbook).
+!backend/playbooks/**/*.md
