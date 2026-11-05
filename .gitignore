@@ -9,6 +9,9 @@
 README.md
 CHANGELOG.md
 .github/*.md
+# Except the README and the install guide at the root (batch 20), the only Markdown docs.
+!/README.md
+!/INSTALL.md
 
 # Env files and secrets. The one exception: .env.example, with empty values.
 .env
