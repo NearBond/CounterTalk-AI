@@ -40,6 +40,8 @@ data/
 *.sqlite
 *.sqlite3
 *.dump
+# Except the demo org's recordings (batch 20): only their playback files, so ▶ works in a clone.
+!/demo/visits/*/playback.m4a
 
 # Python
 __pycache__/

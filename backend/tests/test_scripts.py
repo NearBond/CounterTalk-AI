@@ -28,6 +28,7 @@ BAD_INPUTS = {
     "make_test_audio.py": (["rp99", "--samples", "no-such-folder"], {}),
     "prepare_visit.py": ([UNKNOWN], {}),
     "seed_dev.py": ([], {"DATABASE_URL": NO_SUCH_DATABASE}),
+    "load_demo_data.py": ([], {"DATABASE_URL": NO_SUCH_DATABASE}),
     "consent_shops.py": ([], {"DATABASE_URL": NO_SUCH_DATABASE}),
     "transcribe_visit.py": ([UNKNOWN], {}),
     "assign_roles.py": ([UNKNOWN], {}),

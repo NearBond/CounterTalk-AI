@@ -1,0 +1,3 @@
+# What `railway up` leaves out on top of .gitignore. The demo org's data (batch 20) is for a
+# clone's database, not the image, and would put the upload over Railway's limit.
+demo/
