@@ -26,6 +26,7 @@ from countertalk.models import (
     JobKind,
     Segment,
     Shop,
+    User,
     Visit,
     VisitClient,
     VisitKind,
@@ -404,6 +405,12 @@ def processing_visit_ids(session: Session, visit_ids: list[str]) -> set[str]:
         Job.visit_id.in_(visit_ids), Job.state.in_(ACTIVE_JOB_STATES)
     )
     return {str(visit_id) for visit_id in session.scalars(query.distinct())}
+
+
+def rep_names(session: Session, page: list[Visit]) -> dict[str, str]:
+    """The name of each of these visits' reps, by rep ID: one query for a page."""
+    query = select(User.id, User.name).where(User.id.in_({visit.rep_id for visit in page}))
+    return {rep_id: name for rep_id, name in session.execute(query)}
 
 
 def audio_deleted() -> NotFound:

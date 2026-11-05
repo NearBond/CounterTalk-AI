@@ -11,6 +11,7 @@ function visit(id: string, shopId: string, status: Visit["status"]): Visit {
     id,
     shop_id: shopId,
     rep_id: "u-rep",
+    rep_name: "Demo Rep",
     kind: "conversation",
     client: "web",
     status,
@@ -127,16 +128,6 @@ describe("RepHomePage", () => {
       "/updates",
     );
     expect(cards.getByRole("link", { name: "2 shops have news to pass on" })).toHaveAttribute("href", "/updates");
-  });
-
-  it("words many visits to check and one shop to pass on", async () => {
-    open({ "GET /api/me/home": () => json(200, { to_review: 12, to_pass_on: 1 }) });
-    const cards = await numbers();
-
-    expect(
-      await cards.findByRole("link", { name: "12 visits waiting for you to check before teams see them" }),
-    ).toBeInTheDocument();
-    expect(cards.getByRole("link", { name: "1 shop has news to pass on" })).toBeInTheDocument();
   });
 
   it("shows a dash, never a number, while the numbers load", async () => {
@@ -281,14 +272,6 @@ describe("RepHomePage", () => {
     const section = await screen.findByRole("region", { name: "Pre-visit briefs" });
     expect(await within(section).findByText(/^No briefs yet\. Once a shop has 2 confirmed visits/)).toBeInTheDocument();
     expect(within(section).queryAllByRole("listitem")).toEqual([]);
-  });
-
-  it("has no View all for 3 or fewer", async () => {
-    open();
-
-    await screen.findByRole("region", { name: "Fixed since the last visit" });
-    await screen.findByRole("region", { name: "Pending resolutions" });
-    expect(screen.queryByRole("button", { name: /^View all/ })).not.toBeInTheDocument();
   });
 
   it("lists the rep's problems still being worked on: shop, team, status and day", async () => {

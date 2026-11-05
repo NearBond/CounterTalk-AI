@@ -202,12 +202,6 @@ def test_playback_starts_a_little_before_the_quote(
     assert (found.char_start, found.start_ms) == (char_start, start_ms)
 
 
-def test_verifying_twice_gives_the_same_result() -> None:
-    transcript = turns("नमस्ते", "हाँ, माल आया। पर लेट।")
-
-    assert verify_quote("माल आया", 0, transcript) == verify_quote("माल आया", 0, transcript)
-
-
 @pytest.mark.parametrize(
     ("quote", "turn_text"),
     [

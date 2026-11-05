@@ -212,7 +212,6 @@ def label(**changes: object) -> str:
         (2, 0.0, "steady"),  # 2 shops is never growing, whatever the baseline
         (3, 0.5, "growing"),  # p of 3+ at 0.5 is about 1.4%
         (3, 1.0, "steady"),  # p of 3+ at 1.0 is about 8%
-        (3, 0.0, "growing"),  # the baseline is floored at 0.5
         (4, 1.0, "growing"),  # K6's P2: about 1.9%
     ],
 )

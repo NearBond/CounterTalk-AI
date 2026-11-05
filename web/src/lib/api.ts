@@ -42,6 +42,7 @@ import type {
   Page,
   PaperConsent,
   PeriodKind,
+  RepCounts,
   Resolved,
   ResolveName,
   Review,
@@ -420,6 +421,11 @@ export function getMyFixed(signal?: AbortSignal): Promise<Page<ShopFixed>> {
 /** The home's counts for a manager, admin or team member (batch F4). */
 export function getOverview(signal?: AbortSignal): Promise<Overview> {
   return apiRequest("/me/overview", { signal });
+}
+
+/** Each field sales rep's counts, for Triage's cards (a manager or admin). */
+export function getRepCounts(signal?: AbortSignal): Promise<RepCounts[]> {
+  return apiRequest("/me/reps", { signal });
 }
 
 /** The rep's home's counts (batch F2): their own visits to review, and the shops to pass on. */

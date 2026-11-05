@@ -28,7 +28,7 @@ from tests.conftest import a_user, sign_in
 from tests.test_extraction import insight, transcribed
 from tests.test_inbox_api import OTHER, change_visit, confirmed, shop, team_id
 from tests.test_inbox_routing import only_insight
-from tests.test_review_api import error_of, signed_in_manager
+from tests.test_review_api import signed_in_manager
 from tests.test_summaries import resolve
 from tests.test_visits import Org_, new_visit
 
@@ -184,7 +184,30 @@ def test_a_merged_or_emptied_issue_isn_t_counted(client: TestClient, demo: Org_)
     assert overview(client)["open"] == 2
 
 
-def test_a_rep_gets_404(client: TestClient, demo: Org_) -> None:
-    sign_in(client, demo.rep_id)
+def test_each_rep_s_card_counts_their_visits_and_their_issues_still_pending(
+    client: TestClient, demo: Org_
+) -> None:
+    corner = confirmed(client, shop(demo, "Corner Daily Needs"))  # finance, d3
+    sunrise = confirmed(client, shop(demo, "Sunrise Kirana"))  # finance, d1: merged into d3
+    lotus = confirmed(client, shop(demo, "Lotus General Store"))  # finance, d2: resolved
+    moonlight = confirmed(client, shop(demo, "Moonlight Provisions"), SUPPLY)  # distribution, d3
+    kept, merged = issue_of(corner), issue_of(sunrise)
+    with session_scope() as session:
+        pack = partial(extraction.pack_for, demo.org_id, session=session)
+        versions = {i: session.get_one(Issue, i).version for i in (kept, merged)}
+        into, gone = (kept, versions[kept]), (merged, versions[merged])
+        issues.merge(session, pack, demo.org_id, demo.rep_id, into, gone)
+    resolve(demo, issue_of(lotus), utc_now())
+    start(demo, issue_of(moonlight))
+    in_review = transcribed(shop(demo, "Sunrise Kirana"))
+    new_visit(shop(demo, "Lotus General Store"))  # still recording: neither
+    with session_scope() as session:
+        session.execute(update(Visit).where(Visit.id == in_review).values(status="review"))
 
-    assert error_of(client.get("/api/me/overview")) == (404, "not_found")
+    response = client.get("/api/me/reps")
+
+    assert response.status_code == 200, response.text
+    cards = [(r["rep_name"], r["confirmed"], r["in_review"], r["pending"]) for r in response.json()]
+    # Finance's d3 once, with d1's insight merged into it, and distribution's d3; never d2.
+    assert cards == [("Demo Rep", 4, 1, 2), ("Demo Rep 2", 0, 0, 0), ("Demo Rep 3", 0, 0, 0)]
+    assert response.json()[0]["rep_id"] == demo.rep_id

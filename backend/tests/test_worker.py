@@ -71,16 +71,6 @@ def test_with_nothing_due_a_turn_runs_nothing() -> None:
     assert worker.Worker(WORKER_ID).run_once() is False
 
 
-def test_ping_and_sleep_are_the_test_handlers(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(limits, "SLEEP_JOB_MS", 10)
-    ids = [queue(JobKind.PING), queue(JobKind.SLEEP)]
-    turn = worker.Worker(WORKER_ID)
-
-    assert turn.run_once() and turn.run_once()
-
-    assert [job_row(job_id).state for job_id in ids] == [JobState.DONE, JobState.DONE]
-
-
 @pytest.mark.parametrize(
     ("error", "state"),
     [

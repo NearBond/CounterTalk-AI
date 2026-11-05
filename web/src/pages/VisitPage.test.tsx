@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +10,7 @@ const VISIT: Visit = {
   id: "v1",
   shop_id: "s1",
   rep_id: "r1",
+  rep_name: "Demo Rep",
   kind: "conversation",
   client: "upload",
   status: "review",
@@ -139,5 +140,18 @@ describe("VisitPage", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "Findings" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Add a note")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Confirm/ })).not.toBeInTheDocument();
+  });
+
+  it("says whose visit it is to a manager, on the visit and in the list, but not to its own rep", async () => {
+    open();
+    expect(await screen.findByText("Ready to review")).toBeInTheDocument();
+    expect(screen.queryByText(/Rep:/)).not.toBeInTheDocument();
+    cleanup();
+
+    const manager = { ...REP, id: "someone-else", role: "manager" };
+    const router = open({ ...ANSWERS, "/api/auth/me": manager, "/api/visits": { items: [VISIT], next_cursor: null } });
+    expect(await screen.findByText(/ · Rep: Demo Rep$/)).toBeInTheDocument();
+    await act(() => router.navigate("/visits"));
+    expect(await screen.findByRole("link", { name: /^A shop · Rep: Demo Rep/ })).toHaveAttribute("href", "/visits/v1");
   });
 });

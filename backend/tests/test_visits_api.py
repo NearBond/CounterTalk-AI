@@ -22,8 +22,9 @@ from countertalk import auth, consent, storage, visits
 from countertalk.db import session_scope
 from countertalk.limits import LOCK_TIMEOUT_MS, MAX_SEGMENT_BYTES, MAX_SEGMENTS_PER_VISIT
 from countertalk.models import Org, Role, Shop, User, Visit
+from scripts.seed_dev import DEMO_REP
 from tests.conftest import HTTPS, a_user, give_transcript, sign_in
-from tests.test_review_api import signed_in_demo
+from tests.test_review_api import signed_in_demo, signed_in_manager
 from tests.test_visits import staged_files
 
 RACE_TIMEOUT_S = 2 * LOCK_TIMEOUT_MS / 1000
@@ -130,6 +131,16 @@ def test_visits_are_listed_in_pages(client: TestClient, monkeypatch: pytest.Monk
 
     assert [v["id"] for v in first["items"] + second["items"]] == list(reversed(made))
     assert second["next_cursor"] is None
+
+
+def test_a_manager_sees_whose_visit_it_is_in_the_list_and_on_the_visit(client: TestClient) -> None:
+    visit_id = new_visit(client)
+    signed_in_manager(client)
+
+    listed = [v["rep_name"] for v in client.get("/api/visits").json()["items"]]
+    shown = client.get(f"/api/visits/{visit_id}").json()["rep_name"]
+
+    assert (listed, shown) == ([DEMO_REP["name"]], DEMO_REP["name"])
 
 
 def test_a_new_segment_is_201_and_the_same_one_again_is_200(client: TestClient) -> None:

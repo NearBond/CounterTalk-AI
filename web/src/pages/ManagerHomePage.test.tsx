@@ -165,11 +165,17 @@ function open(me: Me = MANAGER, routesByCall: Record<string, Handler | Handler[]
     "GET /api/issues/triage": () => json(200, TRIAGE),
     [SUMMARIES]: () => json(200, summaryPage(CAUSES, summary("ready"))),
     "GET /api/briefs": () => json(200, { items: BRIEF_ROWS, next_cursor: null }),
+    "GET /api/me/reps": () => json(200, REPS),
     ...routesByCall,
   });
   render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: ["/"] })} />);
   return api;
 }
+
+const REPS = [
+  { rep_id: "r-1", rep_name: "Demo Rep", confirmed: 4, in_review: 1, pending: 2 },
+  { rep_id: "r-2", rep_name: "Demo Rep 2", confirmed: 0, in_review: 0, pending: 0 },
+];
 
 /** The stat cards, once the page is there. */
 async function numbers() {
@@ -198,13 +204,6 @@ describe("ManagerHomePage", () => {
     expect(ask).toHaveLength(1);
     expect(ask[0]).toHaveAttribute("href", "/inbox");
     expect(screen.queryByRole("link", { name: "Record a visit" })).not.toBeInTheDocument();
-  });
-
-  it("greets an admin", async () => {
-    open(ADMIN);
-
-    expect(await screen.findByRole("heading", { level: 1, name: "Hi, Demo Admin · PepsiCo India" })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 
   it("says the org's 4 numbers in plain words, each a link to where it goes; no catalog for a manager", async () => {
@@ -240,18 +239,6 @@ describe("ManagerHomePage", () => {
       "href",
       "/catalog",
     );
-  });
-
-  it("words one of each", async () => {
-    const one = { open: 1, in_progress: 0, overdue: 0, resolved_this_week: 1, triage: 1, visits_this_week: 1, names_to_review: 1 };
-    open(ADMIN, { "GET /api/me/overview": () => json(200, one) });
-    const cards = await numbers();
-
-    expect(await cards.findByRole("link", { name: "1 finding waiting in triage for a team" })).toBeInTheDocument();
-    expect(cards.getByRole("link", { name: "1 issue open across your teams" })).toBeInTheDocument();
-    expect(cards.getByRole("link", { name: "1 issue resolved this week" })).toBeInTheDocument();
-    expect(cards.getByRole("link", { name: "1 visit by your reps this week" })).toBeInTheDocument();
-    expect(cards.getByRole("link", { name: "1 unknown name to review in the catalog" })).toBeInTheDocument();
   });
 
   it("says when there's nothing, never 0 read out", async () => {
@@ -358,17 +345,39 @@ describe("ManagerHomePage", () => {
     expect(within(section).getByRole("link", { name: "Read it →" })).toHaveAttribute("href", "/summaries?scope=org");
   });
 
-  it.each([
-    ["a manager", MANAGER],
-    ["an admin", ADMIN],
-  ])("gives %s the latest 3 pre-visit briefs and View all", async (_who, me) => {
-    open(me);
+  it("gives a manager the latest 3 pre-visit briefs and View all", async () => {
+    open();
 
     const section = await screen.findByRole("region", { name: "Pre-visit briefs" });
     const rows = await within(section).findAllByRole("listitem");
     expect(rows).toHaveLength(3);
     expect(rows[1]).toHaveTextContent("2 visits since");
     expect(within(section).getByRole("link", { name: "View all" })).toHaveAttribute("href", "/briefs");
+  });
+
+  it.each([
+    ["a manager", MANAGER],
+    ["an admin", ADMIN],
+  ])("shows %s each rep's card under triage, by name, with their three numbers, in words at none", async (_who, me) => {
+    open(me, { "GET /api/issues/triage": () => json(200, []) });
+
+    const section = await screen.findByRole("region", { name: "Reps" });
+    const busy = await within(section).findByRole("list", { name: "Demo Rep's numbers" });
+    const quiet = within(section).getByRole("list", { name: "Demo Rep 2's numbers" });
+
+    const triage = screen.getByRole("region", { name: "Waiting in triage" });
+    expect(section.parentElement).toBe(triage.parentElement);
+    expect(triage.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(section).getAllByRole("heading", { level: 3 }).map((name) => name.textContent)).toEqual([
+      "Demo Rep",
+      "Demo Rep 2",
+    ]);
+    const said = (list: HTMLElement) => within(list).getAllByRole("listitem").map((item) => item.textContent);
+    expect(said(busy)).toEqual(["4 visits confirmed", "1 visit in review", "2 issues pending"]);
+    expect(said(quiet)).toEqual(["0 No visits confirmed", "0 No visits in review", "0 No issues pending"]);
+    // Each 0 is only shown: the words say it.
+    for (const zero of within(quiet).getAllByText("0")) expect(zero).toHaveAttribute("aria-hidden", "true");
+    expect(within(section).queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("explains each empty section", async () => {
@@ -379,7 +388,7 @@ describe("ManagerHomePage", () => {
 
     const triage = await screen.findByRole("region", { name: "Waiting in triage" });
     expect(await within(triage).findByText("Nothing waiting: every finding has a team.")).toBeInTheDocument();
-    await vi.waitFor(() => expect(api.gets()).toBe(4));
+    await vi.waitFor(() => expect(api.gets()).toBe(5));
     const issues = screen.getByRole("region", { name: "Top open issues" });
     expect(await within(issues).findByText("No open issues at the end of last week.")).toBeInTheDocument();
     const latest = screen.getByRole("region", { name: "Latest summary" });

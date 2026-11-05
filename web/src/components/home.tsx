@@ -21,9 +21,13 @@ export const RECORD =
 export const SECONDARY =
   "inline-flex min-h-11 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-ink px-5" +
   ` font-semibold text-ink transition-colors hover:bg-paper-2 motion-reduce:transition-none ${FOCUS}`;
+// A stat card's box, and its figure beside its words (above them on a wide screen).
+export const CARD = "rounded-lg border border-line bg-card p-4";
+export const FIGURE_ROW = "flex min-h-11 items-center gap-4 sm:flex-col sm:items-start sm:gap-2";
+// A stat card that is a link: it lifts on hover.
 export const STAT =
-  "flex h-full min-h-11 items-center gap-4 rounded-lg border border-line bg-card p-4 transition hover:border-ink" +
-  ` hover:shadow-[3px_3px_0_var(--color-ink)] motion-reduce:transition-none sm:flex-col sm:items-start sm:gap-2 ${FOCUS}`;
+  `${CARD} ${FIGURE_ROW} h-full transition hover:border-ink hover:shadow-[3px_3px_0_var(--color-ink)]` +
+  ` motion-reduce:transition-none ${FOCUS}`;
 export const QUIET_LINK = `inline-flex min-h-11 items-center underline underline-offset-4 ${FOCUS}`;
 export const H2 = "text-xl font-semibold text-ink sm:text-2xl";
 export const EMPTY = "rounded-lg border border-dashed border-line-strong p-4 text-ink-2";
@@ -78,7 +82,8 @@ export function stat(
   return { figure: String(count), words: words.slice(String(count).length + 1), tail: wording.tail, said: true };
 }
 
-export function Figure({ figure, words, tail, said }: FigureProps) {
+/** `arrow`: false on a card that isn't a link. */
+export function Figure({ figure, words, tail, said, arrow = true }: FigureProps & { arrow?: boolean }) {
   return (
     <>
       <span
@@ -96,9 +101,11 @@ export function Figure({ figure, words, tail, said }: FigureProps) {
           </>
         )}
       </span>
-      <span aria-hidden="true" className="text-ink-3 sm:hidden">
-        →
-      </span>
+      {arrow && (
+        <span aria-hidden="true" className="text-ink-3 sm:hidden">
+          →
+        </span>
+      )}
     </>
   );
 }

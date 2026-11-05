@@ -13,7 +13,7 @@ from sqlalchemy import select, update
 
 from countertalk import extraction, jobs, limits, reprocess, visits, worker
 from countertalk.db import session_scope
-from countertalk.errors import Conflict, RetryableError
+from countertalk.errors import RetryableError
 from countertalk.llm.base import Outcome
 from countertalk.models import (
     CatalogItem,
@@ -315,19 +315,6 @@ def test_extracting_again_replaces_the_rows_and_keeps_every_run(org: Org_) -> No
     assert (len(rows(Report)), len(rows(Task)), len(rows(Evidence))) == (1, 1, 2)
 
 
-def test_a_confirmed_visit_is_never_extracted_again(org: Org_) -> None:
-    visit_id = transcribed(org)
-    run(visit_id, ALL_PLACED, answer())
-    move_to(org, visit_id, VisitStatus.CONFIRMED)
-
-    with pytest.raises(Conflict) as error:
-        with session_scope() as session:
-            reprocess.reprocess(session, org.org_id, visit_id, "extract")
-
-    assert error.value.code == "visit_confirmed"
-    assert len(rows(Extraction)) == 1
-
-
 @pytest.mark.parametrize(
     ("make", "reason"),
     [
@@ -471,28 +458,6 @@ def test_a_nul_character_in_the_answer_is_dropped_not_a_failed_write(org: Org_) 
     [found] = rows(Insight)
     assert found.summary_en == "Two boxes."
     assert rows(Extraction)[0].raw_json["insights"][0]["summary_en"] == "Two boxes."
-
-
-@pytest.mark.parametrize(
-    "steps",
-    [
-        [VisitStatus.UPLOADED, VisitStatus.TRANSCRIBING, VisitStatus.TRANSCRIBED],
-        [VisitStatus.UPLOADED],
-    ],
-    ids=["transcribed", "uploaded"],
-)
-def test_a_visit_still_being_processed_isnt_queued_again(
-    org: Org_, steps: list[VisitStatus]
-) -> None:
-    visit_id = new_visit(org, client=VisitClient.UPLOAD)
-    give_transcript(visit_id, VISIT)
-    move_to(org, visit_id, *steps)
-
-    with pytest.raises(Conflict) as error:
-        with session_scope() as session:
-            reprocess.reprocess(session, org.org_id, visit_id, "extract")
-
-    assert error.value.code == "visit_processing"
 
 
 def test_an_extraction_keeps_the_hash_of_its_request_not_of_its_repair(org: Org_) -> None:

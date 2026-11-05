@@ -312,6 +312,8 @@ CASES = [
     case("GET", "/api/me/fixed", at("/api/me/fixed"), (*REPS, *WHOLE)),
     # The home's counts for whoever works issues: a team member's team's, or the whole org's.
     case("GET", "/api/me/overview", at("/api/me/overview"), ("first", "second", *WHOLE)),
+    # Each rep's counts on Triage, for whoever has Triage.
+    case("GET", "/api/me/reps", at("/api/me/reps"), WHOLE),
     # Batch 17d: a question for the whole org (a team member's: their team's). No key here: 503.
     case(
         "POST",

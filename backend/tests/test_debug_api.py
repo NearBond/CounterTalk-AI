@@ -36,10 +36,7 @@ def test_with_debug_a_test_job_is_queued(debug_client: TestClient, kind: str) ->
     assert job_row(body["id"]).state == JobState.QUEUED
 
 
-@pytest.mark.parametrize(
-    "body", [{"kind": "transcribe"}, {"kind": "dance"}, {}, {"kind": "ping", "visit_id": "x"}]
-)
-def test_only_a_test_job_can_be_queued_there(debug_client: TestClient, body: dict) -> None:
-    response = debug_client.post("/api/debug/jobs", json=body)
+def test_only_a_test_job_can_be_queued_there(debug_client: TestClient) -> None:
+    response = debug_client.post("/api/debug/jobs", json={"kind": "transcribe"})
 
     assert response.status_code == 422

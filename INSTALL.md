@@ -6,8 +6,8 @@ This guide covers running CounterTalk on your own machine, loading the demo data
 
 - **Docker,** for Postgres 17 (`compose.yaml`).
 - **Python 3.12** and **[uv](https://docs.astral.sh/uv/).**
-- **Node.js 22.12 or later** and **npm.**
-- **ffmpeg and ffprobe** on your PATH: the worker converts and splits recordings with them. For example `winget install Gyan.FFmpeg` on Windows, or `brew install ffmpeg` on macOS.
+- **Node.js 22.12 or later** and **npm.** Linux distributions often package an older one; [nvm](https://github.com/nvm-sh/nvm) installs a newer one.
+- **ffmpeg and ffprobe** on your PATH: the worker converts and splits recordings with them. For example `winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS, or `sudo apt install ffmpeg` on Debian and Ubuntu.
 - **A Meta API key,** to process recordings. Optional: without one, everything else works ([below](#without-a-meta-api-key)).
 
 ## 1. Start Postgres
@@ -85,7 +85,7 @@ uv run uvicorn countertalk.main:app --host 127.0.0.1 --port 8000
 uv run python -m countertalk.worker
 ```
 
-Open http://127.0.0.1:8000. Signed out, it shows the landing page; **Try the demo** goes to sign-in. Use Chrome, Edge or Firefox for the local app.
+Open http://127.0.0.1:8000. Signed out, it shows the landing page; **Try the demo** goes to the sign-in page, http://127.0.0.1:8000/signin. Use Chrome, Edge or Firefox for the local app.
 
 - **The API** serves the web app from `web/dist`, and the API itself under `/api`.
 - **The worker** runs the background jobs: transcription, extraction, summaries and the daily retention. Without it, nothing new is processed.
@@ -128,6 +128,8 @@ npm test
 
 `uv run pytest` never calls Meta. The live checks, which call Meta and cost money, run only with `uv run pytest -m live`, and skip without a key.
 
+On macOS, the `start.sh` tests need bash 4.3 or later (`brew install bash`): the system bash is 3.2.
+
 ## Deploying
 
 The root [`Dockerfile`](Dockerfile) builds one image: the web app (Node 22), then the backend (Python 3.12), with ffmpeg. Its `.dockerignore` lets only `backend/` and `web/` source into it. On start, [`backend/scripts/start.sh`](backend/scripts/start.sh) checks the database, runs the migrations, then starts the API on `$PORT` and the worker.
@@ -139,4 +141,11 @@ On your host:
 
 **On Railway:** add a Postgres database and a service built from the `Dockerfile`, give the service a volume at `/data` and the variables above, and deploy with `railway up` from a clean checkout. Railway sets `PORT`, and the image sets `WEB_DIST_DIR`.
 
-The image doesn't contain `demo/`. To show the demo data on a host: deploy once, so the migrations run on the empty database; then run `load_demo_data.py` from your machine with `DATABASE_URL` pointing at the host's database (Railway reaches it through `railway connect`), and copy each `demo/visits/<visit_id>/playback.m4a` into the volume's `/data/visits/<visit_id>/`.
+The image doesn't contain `demo/`. To show the demo data on a host: deploy once, so the migrations run on the empty database; then copy `demo/` onto the volume and run the loader inside the container, which looks for it at `/app/demo`. On Railway, from the repo's root:
+
+```sh
+railway volume files --volume <volume> upload demo /demo --concurrency 2
+railway ssh -s <service>
+```
+
+Then, in that shell: `ln -sfn /data/demo/demo /app/demo && python scripts/load_demo_data.py`. It copies the recordings into `/data/visits`. Afterwards, delete the uploaded copy with `rm -rf /data/demo`.

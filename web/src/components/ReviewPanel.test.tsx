@@ -61,6 +61,7 @@ function reviewOf(status: "review" | "confirmed", insights: Insight[] = [PAYMENT
       id: "v1",
       shop_id: "s1",
       rep_id: "r1",
+      rep_name: "Demo Rep",
       kind: "conversation",
       client: "upload",
       status,

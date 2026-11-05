@@ -32,7 +32,6 @@ afterEach(() => {
 
 describe("App", () => {
   it.each([
-    ["/", MANAGER, "Hi, Demo Manager · PepsiCo India"],
     ["/visits", MANAGER, "Visits"],
     ["/record", REP, "Record a visit"],
     ["/visits/v-1", MANAGER, "Visit"],

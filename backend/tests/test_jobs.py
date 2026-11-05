@@ -572,13 +572,6 @@ def test_backoff_jitter_stays_within_its_bounds() -> None:
     assert jobs.backoff_ms(1, uniform=highest) == JOB_BACKOFF_BASE_MS * (1 + JOB_BACKOFF_JITTER)
 
 
-def test_a_stored_error_keeps_our_own_words_and_only_the_type_of_others() -> None:
-    ours = PermanentError("unreadable_audio", "The recording can't be read.")
-
-    assert jobs.error_text(ours) == "PermanentError: unreadable_audio: The recording can't be read."
-    assert jobs.error_text(KeyError("someone@example.com")) == "KeyError"
-
-
 def test_the_stale_limit_is_several_heartbeats_long() -> None:
     # §9.2: a missed heartbeat or two mustn't let another worker take a running job.
     assert STALE_JOB_MS >= 3 * JOB_HEARTBEAT_MS

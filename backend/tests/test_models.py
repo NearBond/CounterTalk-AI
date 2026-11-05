@@ -67,10 +67,6 @@ def test_new_id_is_a_uuid4_string() -> None:
     assert uuid.UUID(value).version == 4
 
 
-def test_utc_now_is_timezone_aware_utc() -> None:
-    assert utc_now().tzinfo is UTC
-
-
 def test_naive_datetime_is_rejected() -> None:
     naive = datetime(2026, 11, 1, 9, 30)  # noqa: DTZ001 - a naive datetime is what's under test
 

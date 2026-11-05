@@ -1,6 +1,6 @@
 """/api/me: the signed-in rep's own numbers (batch 17b), and what got fixed for every shop since
 its last visit, for the rep's Updates page (batch 17e). The overview: the home's counts for whoever
-works issues (overview.py)."""
+works issues, and the reps' counts on Triage (overview.py)."""
 
 from dataclasses import asdict
 from datetime import datetime
@@ -128,3 +128,22 @@ def my_overview(user: CurrentUser, session: DbSession) -> OverviewOut:
     """For a team member, manager or admin; a rep's is 404."""
     access.team_work(user)
     return OverviewOut.model_validate(asdict(overview.overview(session, user)))
+
+
+class RepCountsOut(BaseModel):
+    """A field sales rep's card on Triage (overview.py says what each counts)."""
+
+    rep_id: str
+    rep_name: str
+    confirmed: int
+    in_review: int
+    # Issues from their visits, open or in progress now.
+    pending: int
+
+
+@router.get("/reps")
+def my_reps(user: CurrentUser, session: DbSession) -> list[RepCountsOut]:
+    """The org's reps, by name, for a manager or admin, as Triage is; anyone else's is 404."""
+    access.only(user, *access.WHOLE_ORG)
+    found = overview.rep_counts(session, user.org_id)
+    return [RepCountsOut.model_validate(asdict(rep)) for rep in found]

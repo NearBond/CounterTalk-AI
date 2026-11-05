@@ -170,6 +170,16 @@ export interface Overview {
   names_to_review: number | null;
 }
 
+/** GET /api/me/reps: each field sales rep's card on Triage, by name, a manager's or admin's. */
+export interface RepCounts {
+  rep_id: string;
+  rep_name: string;
+  confirmed: number;
+  in_review: number;
+  /** Issues from their visits, open or in progress now: never resolved or merged. */
+  pending: number;
+}
+
 /** GET /api/me/counts (batch 17b): the rep's own, this IST month. */
 export interface MyCounts {
   raised: number;
@@ -242,6 +252,7 @@ export interface Visit {
   id: string;
   shop_id: string;
   rep_id: string;
+  rep_name: string;
   kind: VisitKind;
   client: VisitClient;
   status: VisitStatus;

@@ -1,8 +1,13 @@
 # CounterTalk
 
-**Hear what shopkeepers tell your reps.**
+**Your Field Sales reps hear the market at every shop. AI turns it into action for the right team.**
 
-**Live app:** https://countertalk.up.railway.app (due to a Railway issue, the app may sometimes not work)
+## Try the demo
+
+- **Live app:** https://countertalk.up.railway.app 
+- **To View Demo Sign in:** https://countertalk.up.railway.app/signin
+> (Sign in instructions are provided on the page or below in read me)
+- **On your own machine:** follow [INSTALL.md](INSTALL.md) and load the demo data.
 
 Field sales reps at FMCG companies visit neighbourhood shops all day, and what shopkeepers tell them gets lost: late credit notes, short deliveries, competitor offers, requests for new products. CounterTalk records the visit and turns it into routed work:
 
@@ -22,16 +27,8 @@ Field sales reps at FMCG companies visit neighbourhood shops all day, and what s
   - **pre-visit briefs:** where a shop stands before the next visit.
 - **The AI suggests, code decides:** every answer comes back in a strict schema, and code checks the quotes, product links, citations and filters before anything is shown.
 
-Built and tried for FMCG. The same playbook fits other goods sold through neighbourhood shops (groceries, general merchandise and apparel), because its issue categories and routing are generic to selling through shops: a new business needs only its own **org pack**, the data files with its catalog, teams and routing, and no code changes. Pharma and agri products would need some tuning of the playbook (their issue categories and rules) in future. Creating a company's org, shops and users is still script work today ([Known limits](#known-limits)).
+Built and tried for FMCG. The same playbook fits other goods sold through neighbourhood shops (groceries, general merchandise and apparel), because its issue categories and routing are generic to selling through shops: a new business needs only its own **org pack**, the data files with its catalog, teams and routing, and no code changes. Pharma and agri products would need some tuning of the playbook (their issue categories and rules) in future. Creating a company's org, shops and users is still script work today 
 
-> All code in this repository was written during the Meta AI Developer Hackathon (27 Oct – 4 Nov 2026). Research and planning were done before it.
->
-> The deadline was 4 Nov, 9 PM ET, which is 7:30 AM on 5 Nov in India, so the last commits carry 5 Nov dates in IST.
-
-## Try the demo
-
-- **Live app:** https://countertalk.up.railway.app (due to a Railway issue, the app may sometimes not work).
-- **On your own machine:** follow [INSTALL.md](INSTALL.md) and load the demo data.
 
 Every account's password is `metahackathon`.
 
@@ -122,48 +119,3 @@ flowchart LR
 - **Access:** sign-in with argon2-hashed passwords and an HTTP-only session cookie. Every API route on org data checks one access module's role rules first, every lookup is scoped to the user's org (another org's data is a 404), and audio is served only through an endpoint that checks access.
 - **The AI suggests, code decides:** the models' answers come back in strict schemas, and code checks them (quotes, links, citations, filters) before anything is shown or stored as fact.
 - **Repository:** [`backend/`](backend/) (the API, worker, migrations, org packs, playbook, eval cases, tests), [`web/`](web/) (the app and the landing page), [`demo/`](demo/) (the demo data) and the [`Dockerfile`](Dockerfile).
-
-## Quality: transcripts and evals
-
-These numbers come from role-plays: scripted shop visits voiced with generated voices, each with an answer key. **There are no English extraction cases,** so there are no extraction numbers for English conversations.
-
-**Speech-to-text** (Muse Voice Transcribe, Hinglish role-plays, before any tuning):
-
-| Recording | Speech on the right speaker | Hindi word recall | Number words | Brands found |
-|---|---|---|---|---|
-| rp01, with a language bias | 99.8% of 163 s | 88.1% | 26/26 | 12/13 |
-| rp01, without | 99.6% of 164 s | 87.1% | 25/26 | 13/13 |
-| rp06, with background noise | 98.8% of 164 s | 86.4% | 23/23 | 10/10 |
-| rp09, recorded in Chrome, 2 chunks | 99.1% of 665 s | 86.2% | 96/96 | 41/45 |
-
-English words in Hinglish speech come back in Devanagari almost every time (कोल्ड ड्रिंक, क्रेडिट नोट), so the catalog's aliases include Devanagari spellings.
-
-**Extraction** (the full extract job: Muse Spark, then quote checks, linking and routing in code), on 22 cases: 16 Hinglish and 6 Marathi, run on 3 Nov 2026, before the catalog grew on 5 Nov. Seven cases were held back: they were scored once and never used to change a prompt.
-
-| | Tuning set: 15 cases, 3 runs | Held-back set: 7 cases, 1 run |
-|---|---|---|
-| Findings found (recall) | 38/38 in every run | 20/20 |
-| Findings that were expected (precision) | 38/39 in every run | 20/20 |
-| Findings in the 2 visits with nothing to find | 0 | (no such case) |
-| Category agrees with the key | 37–38 of 39 | 19 of 21 |
-| Severity agrees | 33–35 of 39 | 20 of 21 |
-| Routed to the expected team | 37–38 of 39 | 19 of 21 |
-| Quotes matched to the transcript | all (71–77 exact, 1–2 fuzzy a run) | all (32 exact, 2 fuzzy) |
-
-The agreement rows count the matched findings, including one optional finding in each set's key. The three Marathi tuning cases agreed with their keys on everything, in every run. The misses are mostly judgement calls on severity; the one unexpected finding in each tuning run was a finding split in two, or an extra one.
-
-**Ask:** 9 questions (4 in English, one of them off-topic and expected to be refused; 3 in Hindi; 2 in Marathi), each with its expected filters: **9 of 9 right.**
-
-**Patterns over time:** a six-week world of 30 shops with planted patterns. Tests check that the issue counts, labels and ranks come out as the kit says. In the first paid run, the one planted duplicate issue wasn't suggested for merging. After a change to the merge prompt made for that miss, the second run suggested it (1 of 1, with no wrong suggestions) and kept 27 of 28 narrative sentences: the one dropped quoted a number that wasn't in the summary. One planted case is evidence, not proof.
-
-The extraction and Ask cases are in [`backend/evals/`](backend/evals/), and the pattern kit is in [`backend/tests/fixtures/patterns/`](backend/tests/fixtures/patterns/). `backend/scripts/run_eval.py` runs all three (`--ask`, `--patterns`).
-
-## Known limits
-
-- **No English extraction eval** (above). English visits work and are in the demo, but there are no measured numbers for them.
-- **No screens for creating orgs, shops or users.** It's done with scripts today: `seed_dev.py` for an org and its shops, and `add_user.py` and `set_password.py` for users. `add_user.py` accepts only example.com addresses, as a guard while all users are made up.
-- **No native phone app,** and no live coaching during the visit. Recording is in the browser, or by uploading a file.
-- **Speech-to-text quirks:** English words in Hindi speech usually come back in Devanagari, and it sometimes doubles a word ("all all"). Quotes keep what was transcribed.
-- **Consent:** a consent link or a paper form, with refusals enforced. The consent text hasn't had a legal review.
-- **Retention:** audio is deleted a set number of days after its visit is confirmed (`AUDIO_RETENTION_DAYS`, 30 by default). Transcripts and quotes stay.
-- **Not yet built for paying customers:** row-level security in Postgres, a full audit log of who viewed what (changes are already recorded), encrypted object storage, and hosting in an Indian region.

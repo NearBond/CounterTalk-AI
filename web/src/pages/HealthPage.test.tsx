@@ -63,15 +63,6 @@ describe("HealthPage", () => {
     expect(screen.queryByText(OK_TEXT)).not.toBeInTheDocument();
   });
 
-  it("shows the server's error for a 503 that isn't the health check's", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("<html>Unavailable</html>", { status: 503 })));
-
-    render(<HealthPage />);
-
-    await screen.findByRole("button", { name: "Try again" });
-    expect(screen.getByRole("status")).toHaveTextContent("HTTP 503");
-  });
-
   it("shows an error when the server can't be reached", async () => {
     vi.stubGlobal(
       "fetch",

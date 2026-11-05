@@ -92,6 +92,7 @@ export function VisitPage() {
           <StatusBadge status={visit.data.status} />
           <p className="text-sm text-gray-600">
             {formatDateTime(visit.data.created_at)} · {formatDuration(visit.data.duration_ms)}
+            {visit.data.rep_id !== me.id && ` · Rep: ${visit.data.rep_name}`}
           </p>
           {visit.data.status === "failed" && visit.data.failure_reason !== null && (
             <p className="rounded-md bg-red-50 p-3 text-red-800">{visit.data.failure_reason}</p>

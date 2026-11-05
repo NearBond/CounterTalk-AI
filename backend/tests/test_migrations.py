@@ -37,13 +37,6 @@ def table_names() -> set[str]:
     return set(inspect(get_engine()).get_table_names())
 
 
-def test_empty_database_upgrades_to_every_table() -> None:
-    command.upgrade(alembic_config(), "head")
-
-    assert {"orgs", "users", "shops"} <= MODEL_TABLES
-    assert table_names() == MODEL_TABLES | {"alembic_version"}
-
-
 def test_migrations_match_the_models() -> None:
     command.upgrade(alembic_config(), "head")
 

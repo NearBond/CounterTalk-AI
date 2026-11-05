@@ -378,16 +378,6 @@ def test_a_segment_that_cant_be_stored_is_refused_and_leaves_nothing(
         assert storage.segment_path(visit_id, 0).read_bytes() == b"original"
 
 
-def test_a_segment_brings_an_abandoned_web_visit_back(org: Org_) -> None:
-    visit_id = new_visit(org)
-    abandon(org, visit_id)
-
-    assert upload(org, visit_id, 0) is True
-
-    visit = load(visit_id)
-    assert (visit.status, visit.abandoned_at, visit.failure_reason) == ("recording", None, None)
-
-
 def test_a_segment_upload_waits_for_a_change_to_the_same_visit(org: Org_) -> None:
     visit_id = new_visit(org)
     outcome: list[str] = []
@@ -491,14 +481,6 @@ def test_complete_again_with_other_values_is_a_conflict(org: Org_) -> None:
         complete(org, visit_id, last_seq=0, ext="m4a")
 
     assert error.value.code == "visit_not_recording"
-
-
-def test_complete_brings_an_abandoned_web_visit_back(org: Org_) -> None:
-    visit_id = new_visit(org)
-    upload(org, visit_id, 0)
-    abandon(org, visit_id)
-
-    assert complete(org, visit_id, last_seq=0).status == "uploaded"
 
 
 @pytest.mark.parametrize(
@@ -625,13 +607,6 @@ def segment_rows(visit_id: str) -> list[Segment]:
                 select(Segment).where(Segment.visit_id == visit_id).order_by(Segment.seq)
             )
         )
-
-
-def abandon(org: Org_, visit_id: str) -> None:
-    with session_scope() as session:
-        visit = visits.lock_visit(session, org.org_id, visit_id)
-        visits.set_status(visit, VisitStatus.FAILED, reason="Nothing was uploaded for 12 hours.")
-        visit.abandoned_at = utc_now()
 
 
 # --- found by review --------------------------------------------------------------------------

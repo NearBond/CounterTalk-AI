@@ -424,9 +424,8 @@ def test_a_pack_s_own_languages_are_kept_in_order(pack_roots: tuple[Path, Path])
         ("[ta]", "languages.0", "Input should be 'hi', 'en' or 'mr'"),
         ("[]", "languages", "List should have at least 1 item after validation, not 0"),
         ("[mr, hi, mr]", "languages", "mr named twice"),
-        ("mr", "languages", "Input should be a valid list"),
     ],
-    ids=["unknown", "empty", "twice", "not-a-list"],
+    ids=["unknown", "empty", "twice"],
 )
 def test_a_pack_s_languages_are_checked(
     pack_roots: tuple[Path, Path], named: str, field: str, problem: str

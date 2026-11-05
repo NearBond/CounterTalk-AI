@@ -59,6 +59,7 @@ class VisitOut(BaseModel):
     id: str
     shop_id: str
     rep_id: str
+    rep_name: str
     kind: str
     client: str
     status: str
@@ -189,17 +190,19 @@ def _may_change(user: users.CurrentUser, visit_id: str) -> None:
 StagedSegment = Annotated[visits.StagedSegment, Depends(_staged_segment)]
 
 
-_VISIT_COLUMNS = [name for name in VisitOut.model_fields if name != "processing"]
+_VISIT_COLUMNS = [name for name in VisitOut.model_fields if name not in ("processing", "rep_name")]
 
 
-def _visit_out(visit: Visit, processing: set[str]) -> VisitOut:
-    """`processing` is the set of visit IDs with an active job (visits.processing_visit_ids)."""
+def _visit_out(visit: Visit, processing: set[str], names: dict[str, str]) -> VisitOut:
+    """`processing` is the set of visit IDs with an active job (visits.processing_visit_ids),
+    and `names` the reps' names by ID (visits.rep_names)."""
     columns = {name: getattr(visit, name) for name in _VISIT_COLUMNS}
-    return VisitOut(**columns, processing=visit.id in processing)
+    return VisitOut(**columns, processing=visit.id in processing, rep_name=names[visit.rep_id])
 
 
 def _one_visit_out(session: Session, visit: Visit) -> VisitOut:
-    return _visit_out(visit, visits.processing_visit_ids(session, [visit.id]))
+    processing = visits.processing_visit_ids(session, [visit.id])
+    return _visit_out(visit, processing, visits.rep_names(session, [visit]))
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -208,7 +211,7 @@ def create_visit(body: VisitIn, user: CurrentUser, session: DbSession) -> VisitO
     visit = visits.create_visit(
         session, user.org_id, user.id, str(body.shop_id), body.kind.value, body.client.value
     )
-    return _visit_out(visit, set())  # a new visit has no job yet
+    return _visit_out(visit, set(), visits.rep_names(session, [visit]))  # no job yet
 
 
 @router.get("")
@@ -222,8 +225,9 @@ def list_visits(
     rep = access.visits_of(user)
     page, next_cursor = visits.list_visits(session, user.org_id, cursor, rep, status)
     processing = visits.processing_visit_ids(session, [visit.id for visit in page])
+    names = visits.rep_names(session, page)
     return VisitPage(
-        items=[_visit_out(visit, processing) for visit in page], next_cursor=next_cursor
+        items=[_visit_out(visit, processing, names) for visit in page], next_cursor=next_cursor
     )
 
 

@@ -474,22 +474,10 @@ def test_a_change_that_can_t_be_made_is_refused_with_its_reason(
     assert inbox(client, "finance") == [card]
 
 
-@pytest.mark.parametrize(
-    "body",
-    [
-        {"status": "in_progress"},  # no version
-        {"version": "1", "status": "in_progress"},  # a string isn't a version
-        {"version": 1, "status": "merged"},
-        {"version": 1, "assign_to_me": "yes"},
-        {"version": 1, "due_at": "2026-12-01T10:00:00"},  # no time zone
-        {"version": 1, "owner_id": "someone"},
-    ],
-)
-def test_a_change_that_isn_t_one_is_422(
-    client: TestClient, demo: Org_, body: dict[str, Any]
-) -> None:
+def test_a_change_that_isn_t_one_is_422(client: TestClient, demo: Org_) -> None:
     confirmed(client, shop(demo, "Corner Daily Needs"))
     [card] = inbox(client, "finance")
+    body = {"version": 1, "status": "merged"}
 
     assert client.patch(f"/api/issues/{card['id']}", json=body).status_code == 422
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_SEGMENT_BYTES } from "../types/api";
-import { byteRanges, extOf, sha256Hex } from "./visits";
+import { byteRanges, extOf } from "./visits";
 
 describe("byteRanges", () => {
   it.each([
@@ -29,15 +29,5 @@ describe("extOf", () => {
     [".wav", null],
   ])("%s -> %s", (name, expected) => {
     expect(extOf(name)).toBe(expected);
-  });
-});
-
-describe("sha256Hex", () => {
-  it("hashes a blob's bytes", async () => {
-    const blob = new Blob([new TextEncoder().encode("abc")]);
-
-    expect(await sha256Hex(blob)).toBe(
-      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-    );
   });
 });

@@ -1,6 +1,7 @@
 import { Fragment, useState } from "react";
 import { Link } from "react-router";
 import { BriefsSection } from "../components/BriefsSection";
+import { RepsSection } from "../components/RepsSection";
 import { RetryAlert } from "../components/RetryAlert";
 import {
   EMPTY,
@@ -36,9 +37,9 @@ const ACTIVE: IssueStatus[] = ["open", "in_progress"];
 
 
 /** `/` for a manager or admin (batch F4): the whole org at a glance. Ask a question first, the
- * org's numbers each in plain words, then what waits in triage, last week's top open issues as
- * its summary ranks them, and that summary. An admin adds the catalog's names to review. Never a
- * rep's ranking or comparison: visits are counted for the org as a whole. */
+ * org's numbers each in plain words, then what waits in triage and each rep's card, last week's
+ * top open issues as its summary ranks them, and that summary. An admin adds the catalog's names
+ * to review. Never a rep's ranking or comparison: the reps' cards go by name. */
 export function ManagerHomePage() {
   const me = useMe();
   const overview = usePolling((signal) => getOverview(signal), { key: "overview", shouldPoll: () => false });
@@ -177,29 +178,34 @@ export function ManagerHomePage() {
         </p>
       )}
 
-      {/* On a wide screen: triage on the left; last week's top issues, and its summary, beside it. */}
+      {/* On a wide screen: triage and the reps on the left; last week's top issues, and its summary,
+          beside them. */}
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-        <section aria-labelledby="triage-heading" className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <h2 id="triage-heading" className={H2}>
-              Waiting in triage
-            </h2>
-            {waiting.length > 0 && (
-              <p className="text-sm text-ink-2">Findings with no team yet. Give each one a team so it reaches an inbox.</p>
+        <div className="flex flex-col gap-8">
+          <section aria-labelledby="triage-heading" className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <h2 id="triage-heading" className={H2}>
+                Waiting in triage
+              </h2>
+              {waiting.length > 0 && (
+                <p className="text-sm text-ink-2">Findings with no team yet. Give each one a team so it reaches an inbox.</p>
+              )}
+            </div>
+            {triage.data !== undefined && waiting.length === 0 && (
+              <p className={EMPTY}>Nothing waiting: every finding has a team.</p>
             )}
-          </div>
-          {triage.data !== undefined && waiting.length === 0 && (
-            <p className={EMPTY}>Nothing waiting: every finding has a team.</p>
-          )}
-          {waiting.length > 0 && (
-            <ul id="triage-list" className={LIST}>
-              {(allTriage ? waiting : waiting.slice(0, SHOWN_FIRST)).map((finding) => (
-                <TriageRow key={finding.insight.id} finding={finding} />
-              ))}
-            </ul>
-          )}
-          <ViewAll count={waiting.length} open={allTriage} controls="triage-list" onToggle={setAllTriage} />
-        </section>
+            {waiting.length > 0 && (
+              <ul id="triage-list" className={LIST}>
+                {(allTriage ? waiting : waiting.slice(0, SHOWN_FIRST)).map((finding) => (
+                  <TriageRow key={finding.insight.id} finding={finding} />
+                ))}
+              </ul>
+            )}
+            <ViewAll count={waiting.length} open={allTriage} controls="triage-list" onToggle={setAllTriage} />
+          </section>
+
+          <RepsSection />
+        </div>
 
         <div className="flex flex-col gap-8">
           <section aria-labelledby="issues-heading" className="flex flex-col gap-3">
