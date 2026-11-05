@@ -209,6 +209,20 @@ describe("RepHomePage", () => {
     expect(within(fixes).getByRole("link", { name: "See all updates →" })).toHaveAttribute("href", "/updates");
   });
 
+  it("lists only what's fixed since each shop's last visit, not the rep's older fixes (batch F7)", async () => {
+    const older = { ...fix("Finance", "Paid last month.", "2026-10-20T06:00:00Z"), since_last_visit: false };
+    const onlyOlder: ShopFixed = { shop_id: "s3", name: "Corner Daily Needs", area: "Station Road", items: [older] };
+    const mixed: ShopFixed = { ...(FIXED[0] as ShopFixed), items: [...(FIXED[0] as ShopFixed).items, older] };
+    open({ "GET /api/me/fixed": () => json(200, { items: [mixed, onlyOlder], next_cursor: null }) });
+
+    const fixes = await screen.findByRole("region", { name: "Fixed since the last visit" });
+    expect(within(fixes).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      "Sunrise Kirana, Old Market",
+    ]);
+    expect(fixesOf(fixes, "Sunrise Kirana, Old Market")).toHaveLength(2);
+    expect(within(fixes).queryByText(/Paid last month/)).not.toBeInTheDocument();
+  });
+
   it("shows 3 visits to review, then View all (N) opens the rest in place", async () => {
     const waiting = [1, 2, 3, 4, 5].map((n) => visit(`v-${n}`, "s1", "review"));
     open(visitsOf(waiting));

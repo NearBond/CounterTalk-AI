@@ -69,7 +69,11 @@ export function RepHomePage() {
   // on the visits list's first page.
   const waiting = reviewing.data?.items ?? [];
   const rest = all.filter((visit) => visit.status !== "review");
-  const fixedShops = fixed.data?.items ?? [];
+  // Only what's fixed since each shop's last visit: Updates also lists the rep's own fixes from
+  // before it (batch F7), which aren't news to pass on. A server from before F7 doesn't say.
+  const fixedShops = (fixed.data?.items ?? [])
+    .map((shop) => ({ ...shop, items: shop.items.filter((item) => item.since_last_visit !== false) }))
+    .filter((shop) => shop.items.length > 0);
   const pendingRows = pending.data?.items ?? [];
   // The numbers' and lists' own loads: one alert says which failed, and Try again asks them again.
   const failed = [reviewing, home, counts, fixed, pending].filter((load) => load.error !== null);
